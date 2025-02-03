@@ -1,0 +1,21 @@
+[package]
+name = "kaparser"
+version = "0.0.0"
+edition = "2021"
+authors = ["K--Aethiax"]
+
+description = "K--Aethiax's common parser."
+
+documentation = "https://docs.rs/kaparser"
+repository = "https://github.com/eternal-io/kaparser"
+license = "MIT OR Apache-2.0"
+readme = false
+
+[features]
+default = ["std"]
+std = []
+
+[dependencies]
+paste = "1.0.15"
+simdutf8 = "0.1.5"
+unicode-ident = "1.0.16"
