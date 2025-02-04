@@ -4,7 +4,7 @@ const FW_XYZ: &[char] = &['Ｘ', 'Ｙ', 'Ｚ'];
 
 #[test]
 fn takes() -> TheResult<()> {
-    let mut rdr = Utf8Reader::from_str("Ｘ01234567Ｙ89abcdefＺ");
+    let mut rdr = Utf8Parser::from_str("Ｘ01234567Ｙ89abcdefＺ");
 
     assert_eq!(rdr.take_once(FW_XYZ)?, Some(FW_XYZ[0]));
     assert_eq!(rdr.take_times(digit, 2)?, Ok(("01", Some('2'))));
@@ -30,19 +30,19 @@ token_set! {
 
 #[test]
 fn matches() -> TheResult<()> {
-    assert_eq!(Utf8Reader::from_str("Baz").matches(WordTokens)?, Some(WordToken::BAZ));
+    assert_eq!(Utf8Parser::from_str("Baz").matches(WordTokens)?, Some(WordToken::BAZ));
     assert_eq!(
-        Utf8Reader::from_str("你好").matches(WordTokens)?,
+        Utf8Parser::from_str("你好").matches(WordTokens)?,
         Some(WordToken::HELLO)
     );
-    assert_eq!(Utf8Reader::from_str("Boom").matches(WordTokens)?, None);
+    assert_eq!(Utf8Parser::from_str("Boom").matches(WordTokens)?, None);
 
     Ok(())
 }
 
 #[test]
 fn until() -> TheResult<()> {
-    let mut rdr = Utf8Reader::from_str("~Boom~Baz~Bar~Foo~你好~");
+    let mut rdr = Utf8Parser::from_str("~Boom~Baz~Bar~Foo~你好~");
 
     assert_eq!(rdr.skim_until(WordTokens)?, Ok(("~Boom~", WordToken::BAZ)));
     assert_eq!(rdr.skim_until(WordTokens)?, Ok(("~", WordToken::BAR)));

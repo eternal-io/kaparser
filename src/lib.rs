@@ -22,7 +22,7 @@ pub trait Read {
     fn read(&mut self, buf: &mut [u8]) -> TheResult<usize>;
 }
 
-pub struct Utf8Reader<'source, R: Read> {
+pub struct Utf8Parser<'source, R: Read> {
     src: Source<'source, R>,
     off_consumed: usize,
     tot_consumed: usize,
@@ -34,6 +34,9 @@ pub struct Utf8Reader<'source, R: Read> {
 pub struct Utf8Error {
     pub(crate) position: usize,
 }
+
+/// Uninhabited generic placeholder.
+pub enum Slice {}
 
 enum Source<'source, R: Read> {
     Borrowed {
@@ -48,9 +51,6 @@ enum Source<'source, R: Read> {
         off_valid: usize,
     },
 }
-
-/// Uninhabited generic placeholder.
-enum Slice {}
 
 //==================================================================================================
 
@@ -84,7 +84,7 @@ impl fmt::Display for Utf8Error {
     }
 }
 
-impl<'source> Utf8Reader<'source, Slice> {
+impl<'source> Utf8Parser<'source, Slice> {
     #[allow(clippy::should_implement_trait)]
     pub fn from_str(slice: &'source str) -> Self {
         Self {
@@ -105,11 +105,11 @@ impl<'source> Utf8Reader<'source, Slice> {
     }
 }
 
-impl<R: Read> Utf8Reader<'static, R> {
-    pub fn from_reader(rdr: R) -> Self {
+impl<R: Read> Utf8Parser<'static, R> {
+    pub fn from_reader(reader: R) -> Self {
         Self {
             src: Source::Reader {
-                rdr,
+                rdr: reader,
                 buf: unsafe { Box::new_uninit_slice(Self::INIT_CAP).assume_init() },
                 buf_cap: Self::INIT_CAP,
                 tot_read: 0,
@@ -124,7 +124,7 @@ impl<R: Read> Utf8Reader<'static, R> {
     }
 }
 
-impl<'src, R: Read> Utf8Reader<'src, R> {
+impl<'src, R: Read> Utf8Parser<'src, R> {
     const INIT_CAP: usize = 32 * 1024;
     const THRES_REARRANGE: usize = 8 * 1024;
 
