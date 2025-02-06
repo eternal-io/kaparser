@@ -5,13 +5,23 @@ extern crate alloc;
 extern crate std;
 
 use alloc::boxed::Box;
-use core::{error::Error, fmt, mem, ops::Range, ptr, str::from_utf8_unchecked};
+use core::{
+    error::Error,
+    fmt, mem,
+    num::{NonZeroU16, NonZeroU8, NonZeroUsize},
+    ops::Range,
+    ptr,
+    str::from_utf8_unchecked,
+};
 use simdutf8::compat::from_utf8;
 
-#[macro_use]
-mod predicates;
+/// Re-exported [paste](https://docs.rs/paste) macro,
+/// because [`token_set!`] needs concat identifiers.
+pub use paste::paste;
 
-pub use predicates::*;
+mod common;
+
+pub use common::*;
 
 #[cfg(test)]
 mod tests;
@@ -22,12 +32,27 @@ pub trait Read {
     fn read(&mut self, buf: &mut [u8]) -> TheResult<usize>;
 }
 
+pub trait Situate {
+    fn situate(&mut self, to: (NonZeroU16, NonZeroU16), from: Option<(NonZeroU16, NonZeroU16)>);
+}
+
 pub struct Utf8Parser<'source, R: Read> {
     src: Source<'source, R>,
-    off_consumed: usize,
-    tot_consumed: usize,
-    peeked: Option<u8>,
     eof: bool,
+
+    /* It's decided not to provide nested-select functionality,
+     * because kaparser just works at the lowest level. */
+    off_selected: Option<NonZeroUsize>,
+    off_consumed: usize,
+    did_consumed: usize,
+
+    ctr_line: u16,
+    ctr_line_select: u16,
+    /* column count in characters, not bytes */
+    ctr_column: u16,
+    ctr_column_select: u16,
+
+    peeked: Option<NonZeroU8>,
 }
 
 #[derive(Debug)]
@@ -46,7 +71,6 @@ enum Source<'source, R: Read> {
         rdr: R,
         buf: Box<[u8]>,
         buf_cap: usize,
-        tot_read: usize,
         off_read: usize,
         off_valid: usize,
     },
@@ -89,18 +113,24 @@ impl<'source> Utf8Parser<'source, Slice> {
     pub fn from_str(slice: &'source str) -> Self {
         Self {
             src: Source::Borrowed { slice },
-            off_consumed: 0,
-            tot_consumed: 0,
-            peeked: None,
             eof: true,
+
+            off_selected: None,
+            off_consumed: 0,
+            did_consumed: 0,
+
+            ctr_line: 0,
+            ctr_line_select: 0,
+            ctr_column: 0,
+            ctr_column_select: 0,
+
+            peeked: None,
         }
     }
 
     pub fn from_bytes(bytes: &'source [u8]) -> Result<Self, Utf8Error> {
-        from_utf8(bytes).map(Self::from_str).or_else(|e| {
-            Err(Utf8Error {
-                position: e.valid_up_to(),
-            })
+        from_utf8(bytes).map(Self::from_str).map_err(|e| Utf8Error {
+            position: e.valid_up_to(),
         })
     }
 }
@@ -112,46 +142,30 @@ impl<R: Read> Utf8Parser<'static, R> {
                 rdr: reader,
                 buf: unsafe { Box::new_uninit_slice(Self::INIT_CAP).assume_init() },
                 buf_cap: Self::INIT_CAP,
-                tot_read: 0,
                 off_read: 0,
                 off_valid: 0,
             },
-            off_consumed: 0,
-            tot_consumed: 0,
-            peeked: None,
             eof: false,
+
+            off_selected: None,
+            off_consumed: 0,
+            did_consumed: 0,
+
+            ctr_line: 0,
+            ctr_line_select: 0,
+            ctr_column: 0,
+            ctr_column_select: 0,
+
+            peeked: None,
         }
     }
 }
 
-impl<'src, R: Read> Utf8Parser<'src, R> {
+impl<R: Read> Utf8Parser<'_, R> {
     const INIT_CAP: usize = 32 * 1024;
     const THRES_REARRANGE: usize = 8 * 1024;
 
-    /// Returns the slice of unconsumed, valid UTF-8 bytes.
-    #[inline]
-    pub fn content(&self) -> &str {
-        unsafe {
-            match &self.src {
-                Source::Borrowed { slice } => slice.get_unchecked(self.off_consumed..),
-                Source::Reader { buf, off_valid, .. } => {
-                    from_utf8_unchecked(buf.get_unchecked(self.off_consumed..*off_valid))
-                }
-            }
-        }
-    }
-
-    #[inline]
-    fn content_behind(&self, span: Range<usize>) -> &str {
-        unsafe {
-            match &self.src {
-                Source::Borrowed { slice } => slice.get_unchecked(span),
-                Source::Reader { buf, .. } => from_utf8_unchecked(buf.get_unchecked(span)),
-            }
-        }
-    }
-
-    /// Marks the leading `n` bytes of the content as consumed, they will disappear in the future content.
+    /// TODO! Marks the leading `n` bytes of the content as consumed, they will disappear in the future content.
     ///
     /// # Panics
     ///
@@ -161,23 +175,98 @@ impl<'src, R: Read> Utf8Parser<'src, R> {
             panic!("{} is not at a UTF-8 character boundary", n)
         }
 
-        self.off_consumed += n;
+        self.__bump(n);
     }
 
-    /// Returns the count of totally consumed bytes.
+    #[inline]
+    fn __bump(&mut self, n: usize) {
+        if self
+            .off_selected
+            .as_mut()
+            .map(|off| *off = off.saturating_add(n))
+            .is_none()
+        {
+            self.off_consumed += n;
+        }
+    }
+
+    #[inline]
+    fn __content(&self, span: Range<usize>) -> &str {
+        unsafe {
+            match &self.src {
+                Source::Borrowed { slice } => slice.get_unchecked(span),
+                Source::Reader { buf, .. } => from_utf8_unchecked(buf.get_unchecked(span)),
+            }
+        }
+    }
+
+    /// Returns the unconsumed content.
+    #[inline]
+    pub fn content(&self) -> &str {
+        let start = self.off_selected.map(usize::from).unwrap_or(self.off_consumed);
+        unsafe {
+            match &self.src {
+                Source::Borrowed { slice } => slice.get_unchecked(start..),
+                Source::Reader { buf, off_valid, .. } => from_utf8_unchecked(buf.get_unchecked(start..*off_valid)),
+            }
+        }
+    }
+
+    /// Returns all the buffered content, includes those consumed,
+    /// with the start offset of this slice among the overall input.
+    pub fn buffered_content(&self) -> (usize, &str) {
+        (
+            self.did_consumed,
+            match &self.src {
+                Source::Borrowed { slice } => slice,
+                Source::Reader { buf, off_valid, .. } => unsafe {
+                    from_utf8_unchecked(buf.get_unchecked(..*off_valid))
+                },
+            },
+        )
+    }
+
+    /// TODO! Returns the count of totally consumed bytes (excludes selection).
     pub fn consumed(&self) -> usize {
-        self.tot_consumed + self.off_consumed
+        self.did_consumed + self.off_consumed
     }
 
-    /// Returns `true` if all bytes are consumed and encountered the EOF.
+    /// TODO! Returns `true` if all bytes are consumed (includes selection) and encountered the EOF.
     pub fn exhausted(&self) -> bool {
+        let start = self.off_selected.map(usize::from).unwrap_or(self.off_consumed);
         match &self.src {
-            Source::Borrowed { slice } => self.off_consumed == slice.len(),
-            Source::Reader { off_valid, .. } => self.eof && self.off_consumed == *off_valid,
+            Source::Borrowed { slice } => start == slice.len(),
+            Source::Reader { off_valid, .. } => self.eof && start == *off_valid,
         }
     }
 
     //------------------------------------------------------------------------------
+
+    pub fn raise_error<T, E>(&self, mut e: E) -> Result<T, E>
+    where
+        E: Situate,
+    {
+        let to = (
+            NonZeroU16::try_from(self.ctr_line.saturating_add(1)).unwrap(),
+            NonZeroU16::try_from(self.ctr_column.saturating_add(1)).unwrap(),
+        );
+        let from = self.off_selected.is_some().then(|| {
+            (
+                NonZeroU16::try_from(self.ctr_line_select.saturating_add(1)).unwrap(),
+                NonZeroU16::try_from(self.ctr_column_select.saturating_add(1)).unwrap(),
+            )
+        });
+
+        e.situate(to, from);
+
+        Err(e)
+    }
+
+    //------------------------------------------------------------------------------
+
+    pub fn pull_smart(&mut self) -> TheResult<()> {
+        todo!()
+    }
 
     /// Pull bytes if available content is less than 8 KiB.
     ///
@@ -229,7 +318,7 @@ impl<'src, R: Read> Utf8Parser<'src, R> {
                 );
             }
 
-            self.tot_consumed += self.off_consumed;
+            self.did_consumed += self.off_consumed;
 
             *off_valid -= self.off_consumed;
             *off_read -= self.off_consumed;
@@ -295,7 +384,6 @@ impl<'src, R: Read> Utf8Parser<'src, R> {
             rdr,
             buf,
             buf_cap,
-            tot_read,
             off_read,
             off_valid,
         } = &mut self.src
@@ -308,23 +396,24 @@ impl<'src, R: Read> Utf8Parser<'src, R> {
         self.eof = len == 0;
 
         if !self.eof {
-            *tot_read += len;
             *off_read += len;
             match self.validate()? {
                 true => Ok(()),
                 false => rerun(self),
             }
         } else {
-            (*off_valid == *off_read)
-                .then_some(())
-                .ok_or(Box::new(Utf8Error { position: *off_valid }))
+            match *off_valid == *off_read {
+                true => Ok(()),
+                false => Err(Box::new(Utf8Error {
+                    position: self.did_consumed + *off_valid + 1,
+                })),
+            }
         }
     }
 
     fn validate(&mut self) -> TheResult<bool> {
         let Source::Reader {
             buf,
-            tot_read,
             off_read,
             off_valid,
             ..
@@ -335,13 +424,43 @@ impl<'src, R: Read> Utf8Parser<'src, R> {
 
         if let Err(e) = unsafe { from_utf8(buf.get_unchecked(*off_valid..*off_read)) } {
             match e.error_len() {
-                Some(_) => Err(Box::new(Utf8Error { position: *tot_read })),
                 None => Ok(false),
+                Some(_) => Err(Box::new(Utf8Error {
+                    position: self.did_consumed + *off_valid + e.valid_up_to() + 1,
+                })),
             }
         } else {
             *off_valid = *off_read;
             Ok(true)
         }
+    }
+
+    //------------------------------------------------------------------------------
+
+    pub fn select_begin(&mut self) {
+        // self.off_selected.insert(self.off_consumed);
+        todo!()
+    }
+
+    pub fn select_commit(&mut self) -> Option<&str> {
+        let start = self.off_consumed;
+        self.off_selected.take().map(usize::from).map(|off| {
+            self.off_consumed = off;
+            self.__content(start..off)
+        })
+    }
+
+    pub fn select_rollback(&mut self) -> Option<&str> {
+        self.off_selected
+            .take()
+            .map(usize::from)
+            .map(|off| self.__content(self.off_consumed..off))
+    }
+
+    pub fn selection(&self) -> Option<&str> {
+        self.off_selected
+            .map(usize::from)
+            .map(|off| self.__content(self.off_consumed..off))
     }
 
     //------------------------------------------------------------------------------
@@ -392,7 +511,7 @@ impl<'src, R: Read> Utf8Parser<'src, R> {
     #[inline(always)]
     fn peeking(&mut self) -> TheResult<Option<char>> {
         if let Some(len) = self.peeked.take() {
-            self.off_consumed += len as usize;
+            self.off_consumed += u8::from(len) as usize;
         }
 
         if self.content().is_empty() {
@@ -400,7 +519,7 @@ impl<'src, R: Read> Utf8Parser<'src, R> {
         }
 
         Ok(self.content().chars().next().inspect(|ch| {
-            self.peeked = Some(ch.len_utf8() as u8);
+            self.peeked = Some((ch.len_utf8() as u8).try_into().unwrap());
         }))
     }
 
@@ -416,11 +535,11 @@ impl<'src, R: Read> Utf8Parser<'src, R> {
 
         for _ in 0..n_char {
             if self.nexting()?.is_none() {
-                return Ok(Err(self.content_behind(start..self.off_consumed)));
+                return Ok(Err(self.__content(start..self.off_consumed)));
             }
         }
 
-        Ok(Ok(self.content_behind(start..self.off_consumed)))
+        Ok(Ok(self.__content(start..self.off_consumed)))
     }
 
     /// Consume one character if `predicate`.
@@ -478,10 +597,10 @@ impl<'src, R: Read> Utf8Parser<'src, R> {
         let span = start..self.off_consumed;
 
         Ok(match range.contains(times) {
-            true => Ok((self.content_behind(span), ch)),
+            true => Ok((self.__content(span), ch)),
             false => {
                 self.off_consumed = start;
-                Err((self.content_behind(span), ch))
+                Err((self.__content(span), ch))
             }
         })
     }
@@ -508,7 +627,7 @@ impl<'src, R: Read> Utf8Parser<'src, R> {
             }
         };
 
-        Ok((self.content_behind(start..self.off_consumed), ch))
+        Ok((self.__content(start..self.off_consumed), ch))
     }
 
     /// Consume K characters if matched `pattern`.
@@ -520,23 +639,15 @@ impl<'src, R: Read> Utf8Parser<'src, R> {
     where
         P: Pattern,
     {
-        self.pull()?;
+        self.pull_at_least(pattern.max_len())?;
 
-        Ok(match self.content().as_bytes().first() {
+        Ok(match pattern.matches(self.content()) {
             None => None,
-            Some(&b) => match pattern.indicate(b) {
-                None => None,
-                Some(len) => {
-                    self.pull_at_least(len)?;
-                    match pattern.matches(self.content()) {
-                        None => None,
-                        Some((len, idx)) => {
-                            self.off_consumed += len;
-                            Some(idx)
-                        }
-                    }
-                }
-            },
+            Some((len, discr)) => {
+                self.off_consumed += len;
+
+                Some(discr)
+            }
         })
     }
 
@@ -564,7 +675,7 @@ impl<'src, R: Read> Utf8Parser<'src, R> {
             }
         };
 
-        let spanned = self.content_behind(start..self.off_consumed);
+        let spanned = self.__content(start..self.off_consumed);
 
         Ok(match ch {
             Some(ch) => Ok((spanned, ch)),
@@ -584,47 +695,31 @@ impl<'src, R: Read> Utf8Parser<'src, R> {
         P: Pattern,
     {
         let start = self.off_consumed;
-        let (span, discr) = 'outer: loop {
-            let len = loop {
-                match self
-                    .content()
-                    .as_bytes()
-                    .iter()
-                    .enumerate()
-                    .find_map(|(idx, &b)| pattern.indicate(b).map(|len| (idx, len)))
-                {
-                    None => {
-                        self.off_consumed += self.content().len();
-                        match !self.eof {
-                            false => break 'outer (start..self.off_consumed, None),
-                            true => self.pull_more()?,
-                        }
-                    }
-                    Some((idx, len)) => {
-                        self.off_consumed += idx;
-                        break len;
-                    }
-                }
-            };
 
-            self.pull_at_least(len)?;
+        loop {
+            self.pull_at_least(pattern.max_len())?;
 
-            if let Some((len, discr)) = pattern.matches(self.content()) {
+            if self.exhausted() {
                 let span = start..self.off_consumed;
-                self.off_consumed += len;
-                break (span, Some(discr));
-            }
 
-            self.off_consumed += 1;
-        };
-
-        Ok(match discr {
-            Some(discr) => Ok((self.content_behind(span), discr)),
-            None => {
                 self.off_consumed = start;
-                Err(self.content_behind(span))
+
+                return Ok(Err(self.__content(span)));
             }
-        })
+
+            match pattern.matches(self.content()) {
+                Some((len, discr)) => {
+                    let span = start..self.off_consumed;
+
+                    self.off_consumed += len;
+
+                    return Ok(Ok((self.__content(span), discr)));
+                }
+                None => {
+                    self.next()?;
+                }
+            }
+        }
     }
 
     /// Deprecate X characters until encountered `predicate`.
@@ -654,37 +749,23 @@ impl<'src, R: Read> Utf8Parser<'src, R> {
     where
         P: Pattern,
     {
-        Ok('outer: loop {
-            let len = loop {
-                match self
-                    .content()
-                    .as_bytes()
-                    .iter()
-                    .enumerate()
-                    .find_map(|(idx, &b)| pattern.indicate(b).map(|len| (idx, len)))
-                {
-                    None => {
-                        self.off_consumed += self.content().len();
-                        match !self.eof {
-                            false => break 'outer None,
-                            true => self.pull_more()?,
-                        }
-                    }
-                    Some((idx, len)) => {
-                        self.off_consumed += idx;
-                        break len;
-                    }
-                }
-            };
+        loop {
+            self.pull_at_least(pattern.max_len())?;
 
-            self.pull_at_least(len)?;
-
-            if let Some((len, discr)) = pattern.matches(self.content()) {
-                self.off_consumed += len;
-                break Some(discr);
+            if self.exhausted() {
+                return Ok(None);
             }
 
-            self.off_consumed += 1;
-        })
+            match pattern.matches(self.content()) {
+                Some((len, discr)) => {
+                    self.off_consumed += len;
+
+                    return Ok(Some(discr));
+                }
+                None => {
+                    self.next()?;
+                }
+            }
+        }
     }
 }
