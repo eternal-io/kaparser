@@ -8,12 +8,11 @@ use alloc::boxed::Box;
 use core::{
     error::Error,
     fmt, mem,
-    num::{NonZeroU16, NonZeroU8, NonZeroUsize},
+    num::NonZeroU16,
     ops::Range,
-    ptr,
+    ptr::{addr_of_mut, copy_nonoverlapping},
     str::from_utf8_unchecked,
 };
-use simdutf8::compat::from_utf8;
 
 /// Re-exported [paste](https://docs.rs/paste) macro,
 /// because [`token_set!`] needs concat identifiers.
@@ -36,28 +35,31 @@ pub trait Situate {
     fn situate(&mut self, to: (NonZeroU16, NonZeroU16), from: Option<(NonZeroU16, NonZeroU16)>);
 }
 
+#[derive(Debug)]
+pub struct Utf8Error;
+
 pub struct Utf8Parser<'source, R: Read> {
     src: Source<'source, R>,
     eof: bool,
 
+    locking: bool,
     /* It's decided not to provide nested-select functionality,
      * because kaparser just works at the lowest level. */
-    off_selected: Option<NonZeroUsize>,
+    selecting: bool,
+    /** The original `off_consumed` since [`Self::select_begin`],
+     ** so always `off_selected <= off_consumed`. */
+    off_selected: usize,
     off_consumed: usize,
     did_consumed: usize,
 
-    ctr_line: u16,
-    ctr_line_select: u16,
-    /* column count in characters, not bytes */
-    ctr_column: u16,
-    ctr_column_select: u16,
+    ctr_line_selected: u16,
+    ctr_line_consumed: u16,
+    /* Column count in characters, not bytes. Only `\n` increases the line count.
+     * All other characters increase the column count by one, includes `\t`, `\r`, `\0` etc. */
+    ctr_column_selected: u16,
+    ctr_column_consumed: u16,
 
-    peeked: Option<NonZeroU8>,
-}
-
-#[derive(Debug)]
-pub struct Utf8Error {
-    pub(crate) position: usize,
+    lookahead: Peeked,
 }
 
 /// Uninhabited generic placeholder.
@@ -76,10 +78,21 @@ enum Source<'source, R: Read> {
     },
 }
 
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+enum Peeked {
+    None,
+    Len1 = 1,
+    Len2 = 2,
+    Len3 = 3,
+    Len4 = 4,
+    Newline,
+}
+
 //==================================================================================================
 
 impl Read for Slice {
-    fn read(&mut self, _buf: &mut [u8]) -> TheResult<usize> {
+    fn read(&mut self, buf: &mut [u8]) -> TheResult<usize> {
+        let _ = buf;
         unreachable!()
     }
 }
@@ -94,17 +107,26 @@ impl<R: std::io::Read> Read for R {
     }
 }
 
-impl Utf8Error {
-    pub fn position(&self) -> usize {
-        self.position
-    }
-}
-
 impl Error for Utf8Error {}
 
 impl fmt::Display for Utf8Error {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        f.write_fmt(format_args!("invalid UTF-8 bytes at {}", self.position))
+        f.write_str("invalid UTF-8 bytes")
+    }
+}
+
+impl From<char> for Peeked {
+    fn from(ch: char) -> Self {
+        match ch == '\n' {
+            true => Self::Newline,
+            false => match ch.len_utf8() {
+                1 => Self::Len1,
+                2 => Self::Len2,
+                3 => Self::Len3,
+                4 => Self::Len4,
+                _ => unreachable!(),
+            },
+        }
     }
 }
 
@@ -115,23 +137,25 @@ impl<'source> Utf8Parser<'source, Slice> {
             src: Source::Borrowed { slice },
             eof: true,
 
-            off_selected: None,
+            locking: false,
+            selecting: false,
+            off_selected: 0,
             off_consumed: 0,
             did_consumed: 0,
 
-            ctr_line: 0,
-            ctr_line_select: 0,
-            ctr_column: 0,
-            ctr_column_select: 0,
+            ctr_line_selected: 0,
+            ctr_line_consumed: 0,
+            ctr_column_selected: 0,
+            ctr_column_consumed: 0,
 
-            peeked: None,
+            lookahead: Peeked::None,
         }
     }
 
     pub fn from_bytes(bytes: &'source [u8]) -> Result<Self, Utf8Error> {
-        from_utf8(bytes).map(Self::from_str).map_err(|e| Utf8Error {
-            position: e.valid_up_to(),
-        })
+        simdutf8::basic::from_utf8(bytes)
+            .map(Self::from_str)
+            .map_err(|_| Utf8Error)
     }
 }
 
@@ -147,51 +171,66 @@ impl<R: Read> Utf8Parser<'static, R> {
             },
             eof: false,
 
-            off_selected: None,
+            locking: false,
+            selecting: false,
+            off_selected: 0,
             off_consumed: 0,
             did_consumed: 0,
 
-            ctr_line: 0,
-            ctr_line_select: 0,
-            ctr_column: 0,
-            ctr_column_select: 0,
+            ctr_line_selected: 0,
+            ctr_line_consumed: 0,
+            ctr_column_selected: 0,
+            ctr_column_consumed: 0,
 
-            peeked: None,
+            lookahead: Peeked::None,
         }
     }
 }
 
 impl<R: Read> Utf8Parser<'_, R> {
     const INIT_CAP: usize = 32 * 1024;
-    const THRES_REARRANGE: usize = 8 * 1024;
+    const THRESHOLD: usize = 8 * 1024;
 
-    /// TODO! Marks the leading `n` bytes of the content as consumed, they will disappear in the future content.
+    /// Bumps the offset of the [`content`](Self::content) to parse.
     ///
     /// # Panics
     ///
-    /// Panics if the `n`th byte is not at a UTF-8 character boundary.
+    /// Panics if the `n`th byte is not the first byte of UTF-8 code point sequence,
+    /// and `n` is not equal to the content length.
     pub fn bump(&mut self, n: usize) {
         if !self.content().is_char_boundary(n) {
             panic!("{} is not at a UTF-8 character boundary", n)
         }
 
-        self.__bump(n);
+        let line = addr_of_mut!(self.ctr_line_consumed);
+        let column = addr_of_mut!(self.ctr_column_consumed);
+        self.content_behind(0..n).chars().for_each(|ch| unsafe {
+            if ch == '\n' {
+                *line = (*line).saturating_add(1);
+                *column = 0;
+            } else {
+                *column += (*column).saturating_add(1);
+            }
+        });
+
+        self.off_consumed += n;
     }
 
+    /// Returns the unconsumed, buffered input.
     #[inline]
-    fn __bump(&mut self, n: usize) {
-        if self
-            .off_selected
-            .as_mut()
-            .map(|off| *off = off.saturating_add(n))
-            .is_none()
-        {
-            self.off_consumed += n;
+    pub fn content(&self) -> &str {
+        unsafe {
+            match &self.src {
+                Source::Borrowed { slice } => slice.get_unchecked(self.off_consumed..),
+                Source::Reader { buf, off_valid, .. } => {
+                    from_utf8_unchecked(buf.get_unchecked(self.off_consumed..*off_valid))
+                }
+            }
         }
     }
 
     #[inline]
-    fn __content(&self, span: Range<usize>) -> &str {
+    fn content_behind(&self, span: Range<usize>) -> &str {
         unsafe {
             match &self.src {
                 Source::Borrowed { slice } => slice.get_unchecked(span),
@@ -200,392 +239,337 @@ impl<R: Read> Utf8Parser<'_, R> {
         }
     }
 
-    /// Returns the unconsumed content.
-    #[inline]
-    pub fn content(&self) -> &str {
-        let start = self.off_selected.map(usize::from).unwrap_or(self.off_consumed);
-        unsafe {
-            match &self.src {
-                Source::Borrowed { slice } => slice.get_unchecked(start..),
-                Source::Reader { buf, off_valid, .. } => from_utf8_unchecked(buf.get_unchecked(start..*off_valid)),
-            }
-        }
-    }
-
-    /// Returns all the buffered content, includes those consumed,
-    /// with the start offset of this slice among the overall input.
-    pub fn buffered_content(&self) -> (usize, &str) {
-        (
-            self.did_consumed,
-            match &self.src {
-                Source::Borrowed { slice } => slice,
-                Source::Reader { buf, off_valid, .. } => unsafe {
-                    from_utf8_unchecked(buf.get_unchecked(..*off_valid))
-                },
-            },
-        )
-    }
-
-    /// TODO! Returns the count of totally consumed bytes (excludes selection).
+    /// Returns the count of totally consumed bytes.
     pub fn consumed(&self) -> usize {
         self.did_consumed + self.off_consumed
     }
 
-    /// TODO! Returns `true` if all bytes are consumed (includes selection) and encountered the EOF.
+    /// Returns `true` if encountered the EOF and all the buffered input is consumed.
     pub fn exhausted(&self) -> bool {
-        let start = self.off_selected.map(usize::from).unwrap_or(self.off_consumed);
         match &self.src {
-            Source::Borrowed { slice } => start == slice.len(),
-            Source::Reader { off_valid, .. } => self.eof && start == *off_valid,
+            Source::Borrowed { slice } => self.off_consumed == slice.len(),
+            Source::Reader { off_valid, .. } => self.eof && self.off_consumed == *off_valid,
         }
     }
 
-    //------------------------------------------------------------------------------
-
-    pub fn raise_error<T, E>(&self, mut e: E) -> Result<T, E>
+    pub fn situate<S>(&self, situation: &mut S)
     where
-        E: Situate,
+        S: Situate,
     {
         let to = (
-            NonZeroU16::try_from(self.ctr_line.saturating_add(1)).unwrap(),
-            NonZeroU16::try_from(self.ctr_column.saturating_add(1)).unwrap(),
+            NonZeroU16::try_from(self.ctr_line_consumed.saturating_add(1)).unwrap(),
+            NonZeroU16::try_from(self.ctr_column_consumed.saturating_add(1)).unwrap(),
         );
-        let from = self.off_selected.is_some().then(|| {
+        let from = self.selecting.then(|| {
             (
-                NonZeroU16::try_from(self.ctr_line_select.saturating_add(1)).unwrap(),
-                NonZeroU16::try_from(self.ctr_column_select.saturating_add(1)).unwrap(),
+                NonZeroU16::try_from(self.ctr_line_selected.saturating_add(1)).unwrap(),
+                NonZeroU16::try_from(self.ctr_column_selected.saturating_add(1)).unwrap(),
             )
         });
 
-        e.situate(to, from);
-
-        Err(e)
+        situation.situate(to, from);
     }
 
     //------------------------------------------------------------------------------
 
-    pub fn pull_smart(&mut self) -> TheResult<()> {
-        todo!()
-    }
-
-    /// Pull bytes if available content is less than 8 KiB.
+    /// TODO! Pull bytes, 拥有不同的行为当：
+    /// - 无选区时，只有少于当 content 少于 8 KiB 时才会继续拉取内容。
+    /// - 有选区时，总是拉取更多内容，并且每次调用至多会使缓冲区扩大一倍。
     ///
-    /*  WARN: The offset of content may NOT be pinned. */
+    /// 通常不需要手动调用这个方法，其它方法都会自动拉取内容。
     pub fn pull(&mut self) -> TheResult<()> {
-        let Source::Reader {
-            buf,
-            buf_cap,
-            off_read,
-            off_valid,
-            ..
-        } = &mut self.src
-        else {
-            return Ok(());
-        };
+        loop {
+            let Source::Reader {
+                rdr,
+                buf,
+                buf_cap,
+                off_read,
+                off_valid,
+            } = &mut self.src
+            else {
+                return Ok(());
+            };
 
-        /**************************************************************************************************
-         *            THRES_REARRANGE       INIT_CAP                                                      *
-         *                          ↓       ↓                                                             *
-         *  +-------+-------+-------+-------+                                                             *
-         *  |       |       |       |<<<<<<<| buffer                                                      *
-         *  +-------+-------+-------+-------+                                                             *
-         *                          '                                                                     *
-         *                         ^~~~~~~~~$ Next first `if` captured (`content().len() > THRES`),       *
-         *                          '         the span can be shifted/expanded arbitrary.                 *
-         *                          '                                                                     *
-         *                     ^~~~~'~~$      Next second `if` captured (`content().len() <= THRES`),     *
-         *                    ^~~~~~'~$       it's guaranteed no overlap to rearrange the buffer,         *
-         *                   ^~~~~~~'$        and `buf_cap` can reset safely.                             *
-         *                          '                                                                     *
-         *                  ^~~~~~~~$         <- "worst" case.                                            *
-         *                         X'                                                                     *
-         *                          '                                                                     *
-         *  ^~~~~~~~$               '         After rearrangement.                                        *
-         *                                                                                                *
-         *  where the span is `off_consumed..off_read`.                                                   *
-         **************************************************************************************************/
+            if self.locking || self.selecting {
+                /* Pull without deprecate previous bytes */
 
-        if *off_read - self.off_consumed > Self::THRES_REARRANGE {
-            return Ok(());
-        }
+                const fn m7d8(n: usize) -> usize {
+                    (n >> 1) + (n >> 2) + (n >> 3)
+                }
 
-        if *off_read >= Self::INIT_CAP - Self::THRES_REARRANGE {
-            unsafe {
-                ptr::copy_nonoverlapping(
-                    buf.as_ptr().add(self.off_consumed),
-                    buf.as_ptr() as *mut _,
-                    *off_read - self.off_consumed,
-                );
+                if *off_read > m7d8(*buf_cap) {
+                    *buf_cap <<= 1;
+                    if *buf_cap > buf.len() {
+                        unsafe {
+                            let mut buf_new = Box::new_uninit_slice(*buf_cap).assume_init();
+                            copy_nonoverlapping(buf.as_ptr(), buf_new.as_mut_ptr(), *off_read);
+                            drop(mem::replace(buf, buf_new));
+                        }
+                    }
+                }
+            } else {
+                /* Pull with allow deprecate previous bytes */
+
+                /**************************************************************************************************
+                 *            THRES_REARRANGE       INIT_CAP                                                      *
+                 *                          ↓       ↓                                                             *
+                 *  +-------+-------+-------+-------+                                                             *
+                 *  |       |       |       |<<<<<<<| buffer                                                      *
+                 *  +-------+-------+-------+-------+                                                             *
+                 *                          '                                                                     *
+                 *                         ^~~~~~~~~$ Next first `if` captured (`content().len() > THRES`),       *
+                 *                          '         the span can be shifted/expanded arbitrary.                 *
+                 *                          '                                                                     *
+                 *                     ^~~~~'~~$      Next second `if` captured (`content().len() <= THRES`),     *
+                 *                    ^~~~~~'~$       it's guaranteed no overlap to rearrange the buffer,         *
+                 *                   ^~~~~~~'$        and `buf_cap` can reset safely.                             *
+                 *                          '                                                                     *
+                 *                  ^~~~~~~~$         <- "worst" case.                                            *
+                 *                         X'                                                                     *
+                 *                          '                                                                     *
+                 *  ^~~~~~~~$               '         After rearrangement.                                        *
+                 *                                                                                                *
+                 *  where the span is `off_consumed..off_read`.                                                   *
+                 **************************************************************************************************/
+
+                if *off_read - self.off_consumed >= Self::THRESHOLD {
+                    return Ok(());
+                }
+
+                if *off_read >= Self::INIT_CAP - Self::THRESHOLD {
+                    unsafe {
+                        copy_nonoverlapping(
+                            buf.as_ptr().add(self.off_consumed),
+                            buf.as_ptr() as *mut _,
+                            *off_read - self.off_consumed,
+                        );
+                    }
+
+                    self.did_consumed += self.off_consumed;
+
+                    *off_valid -= self.off_consumed;
+                    *off_read -= self.off_consumed;
+
+                    self.off_consumed = 0;
+
+                    *buf_cap = Self::INIT_CAP;
+                }
             }
 
-            self.did_consumed += self.off_consumed;
+            let len = rdr.read(unsafe { buf.get_unchecked_mut(*off_read..*buf_cap) })?;
 
-            *off_valid -= self.off_consumed;
-            *off_read -= self.off_consumed;
+            self.eof = len == 0;
+            *off_read += len;
 
-            self.off_consumed = 0;
-
-            *buf_cap = Self::INIT_CAP;
+            return match self.eof {
+                true => match *off_valid == *off_read {
+                    true => Ok(()),
+                    false => Err(Box::new(Utf8Error)),
+                },
+                false => match simdutf8::compat::from_utf8(unsafe { buf.get_unchecked(*off_valid..*off_read) }) {
+                    Ok(_) => {
+                        *off_valid = *off_read;
+                        Ok(())
+                    }
+                    Err(e) => match e.error_len() {
+                        None => continue,
+                        Some(_) => Err(Box::new(Utf8Error)),
+                    },
+                },
+            };
         }
-
-        self.fetch(Self::pull)
     }
 
-    /// Pull more bytes, allows the content to grow infinitely.
+    /// Pull bytes, makes the [`content`](Self::content) has at least `n` bytes.
     ///
-    /*  NOTE: The offset of content would be pinned. */
-    pub fn pull_more(&mut self) -> TheResult<()> {
-        let Source::Reader {
-            buf, buf_cap, off_read, ..
-        } = &mut self.src
-        else {
-            return Ok(());
-        };
-
-        fn m7d8(n: usize) -> usize {
-            (n >> 1) + (n >> 2) + (n >> 3)
-        }
-
-        if *off_read > m7d8(*buf_cap) {
-            *buf_cap <<= 1;
-            if *buf_cap > buf.len() {
-                let mut buf_new = unsafe { Box::new_uninit_slice(*buf_cap).assume_init() };
-                unsafe { ptr::copy_nonoverlapping(buf.as_ptr(), buf_new.as_mut_ptr(), *off_read) }
-                drop(mem::replace(buf, buf_new));
-            }
-        }
-
-        self.fetch(Self::pull_more)
-    }
-
-    /// Pull more bytes, makes the content has at least `n` bytes.
-    ///
-    /// Returns `Ok(false)` if encountered the EOF, unable to read such more bytes.
-    ///
-    /*  NOTE: The offset of content would be pinned.  */
+    /// Returns `Ok(false)` if encountered the EOF, unable to read such more bytes, or `n > 8192`.
     pub fn pull_at_least(&mut self, n: usize) -> TheResult<bool> {
+        if n > Self::THRESHOLD {
+            return Ok(false);
+        }
+
         loop {
             let Source::Reader { off_valid, .. } = &self.src else {
                 return Ok(self.content().len() >= n);
             };
 
-            match self.off_consumed + n > *off_valid {
-                false => return Ok(true),
-                true => match !self.eof {
-                    false => return Ok(false),
-                    true => self.pull_more()?,
+            match *off_valid - self.off_consumed >= n {
+                true => return Ok(true),
+                false => match self.eof {
+                    true => return Ok(false),
+                    false => self.pull()?,
                 },
             }
         }
     }
 
-    fn fetch(&mut self, rerun: fn(&mut Self) -> TheResult<()>) -> TheResult<()> {
-        let Source::Reader {
-            rdr,
-            buf,
-            buf_cap,
-            off_read,
-            off_valid,
-        } = &mut self.src
-        else {
-            unreachable!()
-        };
-
-        let len = unsafe { rdr.read(buf.get_unchecked_mut(*off_read..*buf_cap))? };
-
-        self.eof = len == 0;
-
-        if !self.eof {
-            *off_read += len;
-            match self.validate()? {
-                true => Ok(()),
-                false => rerun(self),
-            }
-        } else {
-            match *off_valid == *off_read {
-                true => Ok(()),
-                false => Err(Box::new(Utf8Error {
-                    position: self.did_consumed + *off_valid + 1,
-                })),
-            }
-        }
-    }
-
-    fn validate(&mut self) -> TheResult<bool> {
-        let Source::Reader {
-            buf,
-            off_read,
-            off_valid,
-            ..
-        } = &mut self.src
-        else {
-            unreachable!()
-        };
-
-        if let Err(e) = unsafe { from_utf8(buf.get_unchecked(*off_valid..*off_read)) } {
-            match e.error_len() {
-                None => Ok(false),
-                Some(_) => Err(Box::new(Utf8Error {
-                    position: self.did_consumed + *off_valid + e.valid_up_to() + 1,
-                })),
-            }
-        } else {
-            *off_valid = *off_read;
-            Ok(true)
-        }
-    }
-
     //------------------------------------------------------------------------------
 
-    pub fn select_begin(&mut self) {
-        // self.off_selected.insert(self.off_consumed);
-        todo!()
+    #[inline]
+    pub fn begin_select(&mut self) {
+        self.selecting = true;
+        self.off_selected = self.off_consumed;
+        self.ctr_line_selected = self.ctr_line_consumed;
+        self.ctr_column_selected = self.ctr_column_consumed;
     }
 
-    pub fn select_commit(&mut self) -> Option<&str> {
-        let start = self.off_consumed;
-        self.off_selected.take().map(usize::from).map(|off| {
-            self.off_consumed = off;
-            self.__content(start..off)
+    #[inline]
+    pub fn commit_select(&mut self) -> Option<&str> {
+        self.selecting.then(|| {
+            self.selecting = false;
+            self.content_behind(self.off_selected..self.off_consumed)
         })
     }
 
-    pub fn select_rollback(&mut self) -> Option<&str> {
-        self.off_selected
-            .take()
-            .map(usize::from)
-            .map(|off| self.__content(self.off_consumed..off))
+    #[inline]
+    pub fn rollback_select(&mut self) -> Option<&str> {
+        self.selecting.then(|| {
+            self.selecting = false;
+            let span = self.off_selected..self.off_consumed;
+            self.off_consumed = self.off_selected;
+            self.ctr_line_consumed = self.ctr_line_selected;
+            self.ctr_column_consumed = self.ctr_column_selected;
+            self.content_behind(span)
+        })
     }
 
     pub fn selection(&self) -> Option<&str> {
-        self.off_selected
-            .map(usize::from)
-            .map(|off| self.__content(self.off_consumed..off))
+        self.selecting
+            .then(|| self.content_behind(self.off_selected..self.off_consumed))
     }
 
     //------------------------------------------------------------------------------
 
-    /// Consume one character.
+    /// Consumes one character.
     ///
-    /// This method will automatically [`pull`](Self::pull) if the content is empty.
+    /// This method will automatically [`pull`](Self::pull) only if the content is empty.
     #[allow(clippy::should_implement_trait)]
     pub fn next(&mut self) -> TheResult<Option<char>> {
-        self.pull()?;
+        if self.content().is_empty() {
+            self.pull()?;
+        }
 
-        Ok(self.content().chars().next().inspect(|ch| {
+        Ok(self.content().chars().next().inspect(|&ch| {
+            if ch == '\n' {
+                self.ctr_line_consumed = self.ctr_line_consumed.saturating_add(1);
+                self.ctr_column_consumed = 0;
+            } else {
+                self.ctr_column_consumed += self.ctr_column_consumed.saturating_add(1);
+            }
+
             self.off_consumed += ch.len_utf8();
         }))
     }
 
     /// Peeks one character.
-    ///
-    /// This method will automatically [`pull`](Self::pull) if the content is empty.
     pub fn peek(&mut self) -> TheResult<Option<char>> {
-        self.pull()?;
+        if self.content().is_empty() {
+            self.pull()?;
+        }
 
         Ok(self.content().chars().next())
     }
 
-    /// As same as the [`next`](Self::next), but [`pull_more`](Self::pull_more) instead.
-    ///
-    /** Private method because opaque and unpinned internal offsets. */
-    #[inline(always)]
-    fn nexting(&mut self) -> TheResult<Option<char>> {
-        if self.content().is_empty() {
-            self.pull_more()?;
-        }
-
-        Ok(self.content().chars().next().inspect(|ch| {
-            self.off_consumed += ch.len_utf8();
-        }))
-    }
-
-    /// Consume one character then peeks the second if the previous call is still [`peeking`](Self::peeking),
+    /// Consumes one character then peeks the second if the previous call is still [`aheading`](Self::aheading),
     /// peeks one character otherwise.
     ///
-    /// This method will automatically [`pull_more`](Self::pull_more) if the content is insufficient.
+    /// # Safety
     ///
-    /// NOTE: Needs manually let `self.peeked = None`.
+    /// Requires manually let `self.lookahead = Peeked::None`,
+    /// otherwise the offsets may not lie on UTF-8 sequence boundaries.
     ///
     /** Private method because opaque and unpinned internal offsets. */
-    #[inline(always)]
-    fn peeking(&mut self) -> TheResult<Option<char>> {
-        if let Some(len) = self.peeked.take() {
-            self.off_consumed += u8::from(len) as usize;
+    fn aheading(&mut self) -> TheResult<Option<char>> {
+        if self.lookahead != Peeked::None {
+            self.off_consumed += if self.lookahead == Peeked::Newline {
+                self.ctr_line_consumed = self.ctr_line_consumed.saturating_add(1);
+                self.ctr_column_consumed = 0;
+                1
+            } else {
+                self.ctr_column_consumed = self.ctr_column_consumed.saturating_add(1);
+                self.lookahead as usize
+            };
+
+            self.lookahead = Peeked::None;
         }
 
         if self.content().is_empty() {
-            self.pull_more()?;
+            self.pull()?;
         }
 
-        Ok(self.content().chars().next().inspect(|ch| {
-            self.peeked = Some((ch.len_utf8() as u8).try_into().unwrap());
-        }))
+        Ok(self
+            .content()
+            .chars()
+            .next()
+            .inspect(|&ch| self.lookahead = Peeked::from(ch)))
     }
 
     //------------------------------------------------------------------------------
 
-    /// Consume N characters.
+    /// *(backtrack)* Consumes N characters.
     ///
-    /// Returns `Ok(Err(_))` if encountered the EOF.
-    ///
-    /// This method will automatically [`pull_more`](Self::pull_more) if the content is insufficient.
-    pub fn take(&mut self, n_char: usize) -> TheResult<Result<&str, &str>> {
-        let start = self.off_consumed;
+    /// Returns `Ok(None)` and doesn't consume if encountered the EOF, unable to take such more characters.
+    pub fn take(&mut self, n_char: usize) -> TheResult<Option<&str>> {
+        self.locking = true;
 
+        let start = self.off_consumed;
         for _ in 0..n_char {
-            if self.nexting()?.is_none() {
-                return Ok(Err(self.__content(start..self.off_consumed)));
+            if self.next().inspect_err(|_| self.locking = false)?.is_none() {
+                self.locking = false;
+
+                self.off_consumed = start;
+
+                return Ok(None);
             }
         }
 
-        Ok(Ok(self.__content(start..self.off_consumed)))
+        self.locking = false;
+
+        Ok(Some(self.content_behind(start..self.off_consumed)))
     }
 
-    /// Consume one character if `predicate`.
+    /// *(backtrack)* Consumes one character if `predicate`.
     ///
     /// Returns `Ok(None)` if encountered the EOF.
-    ///
-    /// This method will automatically [`pull`](Self::pull) if the content is empty.
     pub fn take_once<P>(&mut self, predicate: P) -> TheResult<Option<char>>
     where
         P: Predicate,
     {
-        Ok(match self.peek()? {
-            None => None,
-            Some(ch) => match predicate.predicate(ch) {
-                false => None,
-                true => {
-                    self.off_consumed += ch.len_utf8();
-                    Some(ch)
-                }
-            },
-        })
+        if let Some(ch) = self.peek()? {
+            if ch == '\n' {
+                self.ctr_line_consumed = self.ctr_line_consumed.saturating_add(1);
+                self.ctr_column_consumed = 0;
+            } else {
+                self.ctr_column_consumed += self.ctr_column_consumed.saturating_add(1);
+            }
+
+            if predicate.predicate(ch) {
+                self.off_consumed += ch.len_utf8();
+
+                return Ok(Some(ch));
+            }
+        }
+
+        Ok(None)
     }
 
-    /// Consume N..M characters consisting of `predicate`.
+    /// *(backtrack)* Consumes N..M characters consisting of `predicate`.
     ///
     /// Peeks the first unexpected character additionally, may be `None` if encountered the EOF.
     ///
-    /// Returns `Ok(Err(_))` and doesn't consume if the taking times not in `range`.
-    ///
-    /// This method will automatically [`pull_more`](Self::pull_more) if the content is insufficient.
-    #[allow(clippy::type_complexity)]
-    pub fn take_times<P, U>(
-        &mut self,
-        predicate: P,
-        range: U,
-    ) -> TheResult<Result<(&str, Option<char>), (&str, Option<char>)>>
+    /// Returns `Ok(None)` and doesn't consume if the taking times not in `range`.
+    pub fn take_times<P, U>(&mut self, predicate: P, range: U) -> TheResult<Option<(&str, Option<char>)>>
     where
         P: Predicate,
         U: URangeBounds,
     {
-        self.peeked = None;
+        self.locking = true;
 
+        self.lookahead = Peeked::None;
         let mut times = 0;
         let start = self.off_consumed;
         let ch = loop {
-            match self.peeking()? {
+            match self.aheading().inspect_err(|_| self.locking = false)? {
                 None => break None,
                 Some(ch) => match range.want_more(times) && predicate.predicate(ch) {
                     false => break Some(ch),
@@ -594,31 +578,30 @@ impl<R: Read> Utf8Parser<'_, R> {
             }
         };
 
-        let span = start..self.off_consumed;
+        self.locking = false;
 
-        Ok(match range.contains(times) {
-            true => Ok((self.__content(span), ch)),
+        match range.contains(times) {
+            true => Ok(Some((self.content_behind(start..self.off_consumed), ch))),
             false => {
                 self.off_consumed = start;
-                Err((self.__content(span), ch))
+                Ok(None)
             }
-        })
+        }
     }
 
-    /// Consume X characters consisting of `predicate`.
+    /// Consumes X characters consisting of `predicate`.
     ///
     /// Peeks the first unexpected character additionally, may be `None` if encountered the EOF.
-    ///
-    /// This method will automatically [`pull_more`](Self::pull_more) if the content is insufficient.
     pub fn take_while<P>(&mut self, predicate: P) -> TheResult<(&str, Option<char>)>
     where
         P: Predicate,
     {
-        self.peeked = None;
+        self.locking = true;
 
+        self.lookahead = Peeked::None;
         let start = self.off_consumed;
         let ch = loop {
-            match self.peeking()? {
+            match self.aheading().inspect_err(|_| self.locking = false)? {
                 None => break None,
                 Some(ch) => match predicate.predicate(ch) {
                     false => break Some(ch),
@@ -627,145 +610,128 @@ impl<R: Read> Utf8Parser<'_, R> {
             }
         };
 
-        Ok((self.__content(start..self.off_consumed), ch))
+        self.locking = false;
+
+        Ok((self.content_behind(start..self.off_consumed), ch))
     }
 
-    /// Consume K characters if matched `pattern`.
+    /// *(backtrack)* Consumes K characters if matched `pattern`.
     ///
     /// Returns `Ok(None)` and doesn't consume if did't match anything.
-    ///
-    /// This method will automatically [`pull`](Self::pull) if the content is insufficient.
     pub fn matches<P>(&mut self, pattern: P) -> TheResult<Option<P::Discriminant>>
     where
         P: Pattern,
     {
         self.pull_at_least(pattern.max_len())?;
 
-        Ok(match pattern.matches(self.content()) {
-            None => None,
+        match pattern.matches(self.content()) {
+            None => Ok(None),
             Some((len, discr)) => {
                 self.off_consumed += len;
-
-                Some(discr)
+                Ok(Some(discr))
             }
-        })
+        }
     }
 
-    /// Consume X characters until encountered `predicate`.
+    /// *(backtrack)* Consumes X characters until encountered `predicate`.
     ///
-    /// The `predicate` is excluded from the result and also marked as consumed.
+    /// The `predicate` is excluded from the returned slice, but is also consumed.
     ///
-    /// Returns `Ok(Err(_))` and doesn't consume if encountered the EOF.
-    ///
-    /// This method will automatically [`pull_more`](Self::pull_more) if the content is insufficient.
-    pub fn skim_till<P>(&mut self, predicate: P) -> TheResult<Result<(&str, char), &str>>
+    /// Returns `Ok(None)` and doesn't consume if encountered the EOF.
+    pub fn skim_till<P>(&mut self, predicate: P) -> TheResult<Option<(&str, char)>>
     where
         P: Predicate,
     {
-        self.peeked = None;
+        /* I'm bored to please the borrow checker */
+        let off = addr_of_mut!(self.off_consumed);
+        let (s, p) = self.skip_till(predicate)?;
+
+        match p {
+            Some(ch) => Ok(Some((s, ch))),
+            None => unsafe {
+                *off -= s.len();
+                Ok(None)
+            },
+        }
+    }
+
+    /// *(backtrack)* Consumes X characters until encountered `pattern`.
+    ///
+    /// The `pattern` is excluded from the returned slice, but is also consumed.
+    ///
+    /// Returns `Ok(None)` and doesn't consume if encountered the EOF.
+    pub fn skim_until<P>(&mut self, pattern: P) -> TheResult<Option<(&str, P::Discriminant)>>
+    where
+        P: Pattern,
+    {
+        /* I'm bored to please the borrow checker */
+        let off = addr_of_mut!(self.off_consumed);
+        let (s, p) = self.skip_until(pattern)?;
+
+        match p {
+            Some(discr) => Ok(Some((s, discr))),
+            None => unsafe {
+                *off -= s.len();
+                Ok(None)
+            },
+        }
+    }
+
+    /// Consumes X characters until encountered `predicate`.
+    ///
+    /// Consumes the first encountered character additionally, may be `None` if encountered the EOF.
+    pub fn skip_till<P>(&mut self, predicate: P) -> TheResult<(&str, Option<char>)>
+    where
+        P: Predicate,
+    {
+        self.locking = true;
 
         let start = self.off_consumed;
         let ch = loop {
-            match self.peeking()? {
+            match self.next().inspect_err(|_| self.locking = false)? {
                 None => break None,
-                Some(ch) => match !predicate.predicate(ch) {
-                    false => break Some(ch),
-                    true => continue,
+                Some(ch) => match predicate.predicate(ch) {
+                    true => break Some(ch),
+                    false => continue,
                 },
             }
         };
 
-        let spanned = self.__content(start..self.off_consumed);
+        self.locking = false;
 
-        Ok(match ch {
-            Some(ch) => Ok((spanned, ch)),
-            None => Err(spanned),
-        })
+        Ok((self.content_behind(start..self.off_consumed), ch))
     }
 
-    /// Consume X characters until encountered `pattern`.
+    /// Consumes X characters until encountered `pattern`.
     ///
-    /// The `pattern` is excluded from the result and also marked as consumed.
-    ///
-    /// Returns `Ok(Err(_))` and doesn't consume if encountered the EOF.
-    ///
-    /// This method will automatically [`pull_more`](Self::pull_more) if the content is insufficient.
-    pub fn skim_until<P>(&mut self, pattern: P) -> TheResult<Result<(&str, P::Discriminant), &str>>
+    /// Consumes the first encountered sub-pattern additionally, may be `None` if encountered the EOF.
+    pub fn skip_until<P>(&mut self, pattern: P) -> TheResult<(&str, Option<P::Discriminant>)>
     where
         P: Pattern,
     {
-        let start = self.off_consumed;
+        self.locking = true;
 
-        loop {
-            self.pull_at_least(pattern.max_len())?;
+        let start = self.off_consumed;
+        let (span, discr) = loop {
+            self.pull_at_least(pattern.max_len())
+                .inspect_err(|_| self.locking = false)?;
 
             if self.exhausted() {
                 let span = start..self.off_consumed;
-
-                self.off_consumed = start;
-
-                return Ok(Err(self.__content(span)));
+                break (span, None);
             }
 
-            match pattern.matches(self.content()) {
-                Some((len, discr)) => {
-                    let span = start..self.off_consumed;
-
-                    self.off_consumed += len;
-
-                    return Ok(Ok((self.__content(span), discr)));
-                }
-                None => {
-                    self.next()?;
-                }
-            }
-        }
-    }
-
-    /// Deprecate X characters until encountered `predicate`.
-    ///
-    /// Peeks the first encountered character additionally, may be `None` if encountered the EOF.
-    pub fn skip_till<P>(&mut self, predicate: P) -> TheResult<Option<char>>
-    where
-        P: Predicate,
-    {
-        self.peeked = None;
-
-        Ok(loop {
-            match self.peeking()? {
-                None => break None,
-                Some(ch) => match !predicate.predicate(ch) {
-                    false => break Some(ch),
-                    true => continue,
-                },
-            }
-        })
-    }
-
-    /// Deprecate X characters until encountered `pattern`.
-    ///
-    /// Peeks the first encountered sub-pattern additionally, may be `None` if encountered the EOF.
-    pub fn skip_until<P>(&mut self, pattern: P) -> TheResult<Option<P::Discriminant>>
-    where
-        P: Pattern,
-    {
-        loop {
-            self.pull_at_least(pattern.max_len())?;
-
-            if self.exhausted() {
-                return Ok(None);
+            if let Some((len, discr)) = pattern.matches(self.content()) {
+                let span = start..self.off_consumed;
+                self.off_consumed += len;
+                break (span, Some(discr));
             }
 
-            match pattern.matches(self.content()) {
-                Some((len, discr)) => {
-                    self.off_consumed += len;
+            self.next()?;
+        };
 
-                    return Ok(Some(discr));
-                }
-                None => {
-                    self.next()?;
-                }
-            }
-        }
+        self.locking = false;
+
+        Ok((self.content_behind(span), discr))
     }
 }

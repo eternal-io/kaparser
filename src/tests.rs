@@ -7,13 +7,10 @@ fn takes() -> TheResult<()> {
     let mut rdr = Utf8Parser::from_str("Ｘ01234567Ｙ89abcdefＺ");
 
     assert_eq!(rdr.take_once(FULL_WIDTH_XYZ)?, Some(FULL_WIDTH_XYZ[0]));
-    assert_eq!(rdr.take_times(is_digit, 2)?, Ok(("01", Some('2'))));
-    assert_eq!(
-        rdr.take_while(all!(is_octdigit, FULL_WIDTH_XYZ))?,
-        ("234567Ｙ", Some('8'))
-    );
+    assert_eq!(rdr.take_times(is_digit, 2)?, Some(("01", Some('2'))));
+    assert_eq!(rdr.take_while((is_octdigit, FULL_WIDTH_XYZ))?, ("234567Ｙ", Some('8')));
 
-    assert_eq!(rdr.take_times(not!(is_alphabetic), 3..)?, (Err(("89", Some('a')))));
+    assert_eq!(rdr.take_times(not!(is_alphabetic), 3..)?, None);
 
     assert_eq!(rdr.take_while(any)?, ("89abcdefＺ", None));
 
@@ -47,11 +44,32 @@ fn matches() -> TheResult<()> {
 fn until() -> TheResult<()> {
     let mut rdr = Utf8Parser::from_str("~Boom~Baz~Bar~Foo~你好~");
 
-    assert_eq!(rdr.skim_until(WordTokens)?, Ok(("~Boom~", WordToken::Baz)));
-    assert_eq!(rdr.skim_until(WordTokens)?, Ok(("~", WordToken::Bar)));
-    assert_eq!(rdr.skim_until(WordTokens)?, Ok(("~", WordToken::Foo)));
-    assert_eq!(rdr.skim_until(WordTokens)?, Ok(("~", WordToken::Hello)));
-    assert_eq!(rdr.skim_until(WordTokens)?, Err("~"));
+    assert_eq!(rdr.skim_until(WordTokens)?, Some(("~Boom~", WordToken::Baz)));
+    assert_eq!(rdr.skim_until(WordTokens)?, Some(("~", WordToken::Bar)));
+    assert_eq!(rdr.skim_until(WordTokens)?, Some(("~", WordToken::Foo)));
+    assert_eq!(rdr.skim_until(WordTokens)?, Some(("~", WordToken::Hello)));
+    assert_eq!(rdr.skip_until(WordTokens)?, ("~", None));
+
+    Ok(())
+}
+
+#[test]
+fn select() -> TheResult<()> {
+    let mut rdr = Utf8Parser::from_str("-123.456");
+
+    rdr.begin_select();
+
+    assert_eq!(rdr.take_once('-')?, Some('-'));
+    assert_eq!(rdr.take_while(is_digit)?, ("123", Some('.')));
+    assert_eq!(rdr.next()?, Some('.'));
+
+    assert_eq!(rdr.selection(), Some("-123."));
+    rdr.bump(3);
+    assert!(rdr.exhausted());
+    assert!(rdr.content().is_empty());
+
+    assert_eq!(rdr.rollback_select(), Some("-123.456"));
+    assert_eq!(rdr.content(), "-123.456");
 
     Ok(())
 }

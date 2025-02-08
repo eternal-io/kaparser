@@ -1,10 +1,10 @@
 [package]
 name = "kaparser"
-version = "0.0.0"
+version = "0.0.1"
 edition = "2021"
 authors = ["K--Aethiax"]
 
-description = "K--Aethiax's common parser."
+description = "K--Aethiax's common parser, a procedure oriented parser."
 
 documentation = "https://docs.rs/kaparser"
 repository = "https://github.com/eternal-io/kaparser"
