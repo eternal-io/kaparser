@@ -1,54 +1,46 @@
-use crate::{Precede, URangeBounds};
-use core::{
-    marker::PhantomData,
-    ops::{Range, RangeFull, RangeInclusive},
-};
+use super::*;
+use core::ops::{Range, RangeFull, RangeInclusive};
 
-/// Trait for matches a set of items.
+/// Match a set of items (`char`, `u8`, `T`).
 pub trait Predicate<T> {
     fn predicate(&self, value: &T) -> bool;
-
-    fn take_times(&self, times: impl URangeBounds)
-    where
-        T: PartialEq,
-    {
-        todo!()
-    }
 }
 
 impl<T, F: Fn(&T) -> bool> Predicate<T> for F {
+    #[inline(always)]
     fn predicate(&self, value: &T) -> bool {
         self(value)
     }
 }
 
-impl<T: PartialEq> Predicate<T> for &[T] {
-    fn predicate(&self, value: &T) -> bool {
-        self.contains(value)
-    }
-}
-impl<T: PartialEq, const N: usize> Predicate<T> for [T; N] {
-    fn predicate(&self, value: &T) -> bool {
-        self.as_ref().contains(value)
-    }
-}
-
 impl<T: PartialOrd> Predicate<T> for Range<T> {
+    #[inline(always)]
     fn predicate(&self, value: &T) -> bool {
         self.contains(value)
     }
 }
 impl<T: PartialOrd> Predicate<T> for RangeInclusive<T> {
+    #[inline(always)]
     fn predicate(&self, value: &T) -> bool {
         self.contains(value)
     }
 }
 impl<T> Predicate<T> for RangeFull {
+    #[inline(always)]
     fn predicate(&self, value: &T) -> bool {
         let _ = value;
         true
     }
 }
+impl<T> Predicate<T> for () {
+    #[inline(always)]
+    fn predicate(&self, value: &T) -> bool {
+        let _ = value;
+        false
+    }
+}
+
+//------------------------------------------------------------------------------
 
 macro_rules! impl_predicate_for_primitives {
     ( $($ty:ty),+$(,)? ) => { $(
@@ -68,37 +60,39 @@ impl_predicate_for_primitives! {
              f32, f64,
 }
 
+//------------------------------------------------------------------------------
+
 macro_rules! impl_predicate_for_tuple {
-    ( $( $Pn:ident ~ $n:tt )+ ) => {
-        impl<T, $($Pn: Predicate<T>),+> Predicate<T> for ($($Pn,)+) {
-            #[inline(always)] #[allow(unused_variables)]
+    ( $( $OrdN:ident ~ $IdxN:tt )+ ) => {
+        impl<T, $($OrdN: Predicate<T>),+> Predicate<T> for ($($OrdN,)+) {
+            #[inline(always)]
             fn predicate(&self, value: &T) -> bool {
-                impl_predicate_for_tuple!( @ self value $($n),+ )
+                impl_predicate_for_tuple!( @ self value $($IdxN),+ )
             }
         }
     };
 
-    ( @ $self:ident $value:ident $n:tt ) => {
-        $self.$n.predicate($value)
+    ( @ $self:ident $value:ident $IdxA:tt ) => {
+        $self.$IdxA.predicate($value)
     };
 
-    ( @ $self:ident $value:ident $n:tt, $($n_:tt),* ) => {
-        $self.$n.predicate($value) || impl_predicate_for_tuple!( @ $self $value $($n_),* )
+    ( @ $self:ident $value:ident $IdxA:tt, $($IdxN:tt),* ) => {
+        $self.$IdxA.predicate($value) || impl_predicate_for_tuple!( @ $self $value $($IdxN),* )
     };
 }
 
 macro_rules! impl_predicate_for_tuples {
-    ( $Pk:ident ~ $k:tt $( $Pn:ident ~ $n:tt )* ) => {
-        impl_predicate_for_tuples!( @ $Pk ~ $k ; $($Pn ~ $n)* );
+    ( $GenK:ident ~ $IdxK:tt $( $GenN:ident ~ $IdxN:tt )* ) => {
+        impl_predicate_for_tuples!( @                   $GenK ~ $IdxK ; $($GenN ~ $IdxN)* );
     };
 
-    ( @ $( $Pn:ident ~ $n:tt )+ ; $Pk:ident ~ $k:tt $( $Pm:ident ~ $m:tt )* ) => {
-        impl_predicate_for_tuple!( $($Pn ~ $n)+ );
-        impl_predicate_for_tuples!( @ $($Pn ~ $n)+ $Pk ~ $k ; $($Pm ~ $m)* );
+    ( @ $( $GenN:ident ~ $IdxN:tt )+ ; $GenK:ident ~ $IdxK:tt $( $GenM:ident ~ $IdxM:tt )* ) => {
+        impl_predicate_for_tuple!( $($GenN ~ $IdxN)+ );
+        impl_predicate_for_tuples!( @ $($GenN ~ $IdxN)+ $GenK ~ $IdxK ; $($GenM ~ $IdxM)* );
     };
 
-    ( @ $( $Pn:ident ~ $n:tt )+ ; ) => {
-        impl_predicate_for_tuple!( $($Pn ~ $n)+ );
+    ( @ $( $GenN:ident ~ $IdxN:tt )+ ; ) => {
+        impl_predicate_for_tuple!( $($GenN ~ $IdxN)+ );
     };
 }
 
@@ -126,22 +120,20 @@ impl_predicate_for_tuples! {
 /// ASCII newline `\n`.
 #[inline(always)]
 pub const fn is_newline(ch: &char) -> bool {
-    *ch == '\n'
+    matches!(ch, '\n')
 }
-
 /// ASCII whitespace.
 ///
 /// Note that this is different from [`char::is_ascii_whitespace`].
 /// This includes U+000B VERTICAL TAB.
 #[inline(always)]
 pub const fn is_whitespace(ch: &char) -> bool {
-    matches!(ch, '\n' | '\t' | '\r' | '\x0b' | '\x0c' | '\x20')
+    matches!(ch, '\x20' | '\t' | '\r' | '\x0c' | '\x0b' | '\n')
 }
-
 /// [ASCII whitespace](is_whitespace) with No Newline.
 #[inline(always)]
 pub const fn is_whitespace_nn(ch: &char) -> bool {
-    matches!(ch, '\n' | '\t' | '\r' | '\x0b' | '\x0c' | '\x20')
+    matches!(ch, '\x20' | '\t' | '\r' | '\x0c' | '\x0b')
 }
 
 /// Any ASCII character.
