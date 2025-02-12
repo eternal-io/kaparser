@@ -1,8 +1,11 @@
 use super::*;
-use core::ops::{Range, RangeFull, RangeInclusive};
+use core::{
+    marker::PhantomData,
+    ops::{Range, RangeFrom, RangeFull, RangeInclusive, RangeTo, RangeToInclusive},
+};
 
 /// Match a set of items (`char`, `u8`, `T`).
-pub trait Predicate<T> {
+pub trait Predicate<T>: Sized {
     fn predicate(&self, value: &T) -> bool;
 }
 
@@ -12,7 +15,6 @@ impl<T, F: Fn(&T) -> bool> Predicate<T> for F {
         self(value)
     }
 }
-
 impl<T: PartialOrd> Predicate<T> for Range<T> {
     #[inline(always)]
     fn predicate(&self, value: &T) -> bool {
@@ -25,6 +27,26 @@ impl<T: PartialOrd> Predicate<T> for RangeInclusive<T> {
         self.contains(value)
     }
 }
+
+impl<T: PartialOrd> Predicate<T> for RangeFrom<T> {
+    #[inline(always)]
+    fn predicate(&self, value: &T) -> bool {
+        self.contains(value)
+    }
+}
+impl<T: PartialOrd> Predicate<T> for RangeTo<T> {
+    #[inline(always)]
+    fn predicate(&self, value: &T) -> bool {
+        self.contains(value)
+    }
+}
+impl<T: PartialOrd> Predicate<T> for RangeToInclusive<T> {
+    #[inline(always)]
+    fn predicate(&self, value: &T) -> bool {
+        self.contains(value)
+    }
+}
+
 impl<T> Predicate<T> for RangeFull {
     #[inline(always)]
     fn predicate(&self, value: &T) -> bool {

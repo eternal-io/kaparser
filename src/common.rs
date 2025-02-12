@@ -1,8 +1,28 @@
-use super::*;
 use core::ops::{Range, RangeFrom, RangeFull, RangeInclusive, RangeTo, RangeToInclusive};
 
 #[doc(hidden)]
 pub use paste::paste;
+
+#[cold]
+#[inline(always)]
+pub(crate) const fn cold_path() {}
+
+#[inline(always)]
+pub(crate) const fn likely(cond: bool) -> bool {
+    if !cond {
+        cold_path();
+    }
+    cond
+}
+#[inline(always)]
+pub(crate) const fn unlikely(cond: bool) -> bool {
+    if cond {
+        cold_path();
+    }
+    cond
+}
+
+//------------------------------------------------------------------------------
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash)]
 pub enum Transfer {
@@ -134,6 +154,7 @@ macro_rules! resume_proceed {
         $( $LabelN:lifetime: $PointN:pat => $BlockN:block )* ;
            $LabelK:lifetime: $PointK:pat => $BlockK:block
     ) => {
+        #[allow(unused_labels)]
         $LabelK: loop {
             resume_proceed!( @MATCH $label: $check => $($LabelN)* $LabelK $label ; $($PointN,)* $PointK );
             $BlockK
@@ -200,7 +221,60 @@ macro_rules! gen_product_types {
     ( @ $( $Lens1N:literal ~ $GenN:ident ~ $OrdN:tt )+ ; ) => {};
 }
 
-gen_product_types! {
+// gen_product_types! {
+//     0  ~ A ~ 1
+//     1  ~ B ~ 2
+//     2  ~ C ~ 3
+//     3  ~ D ~ 4
+//     4  ~ E ~ 5
+//     5  ~ F ~ 6
+//     6  ~ G ~ 7
+//     7  ~ H ~ 8
+//     8  ~ I ~ 9
+//     9  ~ J ~ 10
+//     10 ~ K ~ 11
+//     11 ~ L ~ 12
+//     12 ~ M ~ 13
+//     13 ~ N ~ 14
+//     14 ~ O ~ 15
+//     15 ~ P ~ 16
+//     16 ~ Q ~ 17
+// }
+
+//------------------------------------------------------------------------------
+
+/// `Lens1X` means `LenX - 1`. `Gen` means "Generic". Always `N < K < M`.
+macro_rules! gen_alternates {
+    (      $Lens1K:literal ~ $GenK:ident ~ $OrdK:tt
+        $( $Lens1M:literal ~ $GenM:ident ~ $OrdM:tt )*
+    ) => {
+        gen_alternates! { @
+              $Lens1K ~ $GenK ~ $OrdK ;
+            $($Lens1M ~ $GenM ~ $OrdM)*
+        }
+    };
+
+    ( @ $( $Lens1N:literal ~ $GenN:ident ~ $OrdN:tt )+ ;
+           $Lens1K:literal ~ $GenK:ident ~ $OrdK:tt
+        $( $Lens1M:literal ~ $GenM:ident ~ $OrdM:tt )*
+    ) => { $crate::common::paste! {
+        #[derive(Debug, Clone)]
+        pub enum [<Alt $Lens1K>]<$($GenN),*> { $(
+           #[doc = "Variant " $OrdN " of " $Lens1K "."]
+            [<Var $OrdN>]($GenN),
+        )+ }
+
+        gen_alternates! { @
+            $($Lens1N ~ $GenN ~ $OrdN)+
+              $Lens1K ~ $GenK ~ $OrdK ;
+            $($Lens1M ~ $GenM ~ $OrdM)*
+        }
+    } };
+
+    ( @ $( $Lens1N:literal ~ $GenN:ident ~ $OrdN:tt )+ ; ) => {};
+}
+
+gen_alternates! {
     0  ~ A ~ 1
     1  ~ B ~ 2
     2  ~ C ~ 3
@@ -222,53 +296,52 @@ gen_product_types! {
 
 //------------------------------------------------------------------------------
 
-/// `Lens1X` means `LenX - 1`. `Gen` means "Generic". Always `N < K < M`.
-macro_rules! gen_sum_types {
-    (      $Lens1K:literal ~ $GenK:ident ~ $OrdK:tt
-        $( $Lens1M:literal ~ $GenM:ident ~ $OrdM:tt )*
+macro_rules! gen_checkpoints {
+    (      $Lens1K:literal ~ $OrdK:tt
+        $( $Lens1M:literal ~ $OrdM:tt )*
     ) => {
-        gen_sum_types! { @
-              $Lens1K ~ $GenK ~ $OrdK ;
-            $($Lens1M ~ $GenM ~ $OrdM)*
+        gen_checkpoints! { @
+              $Lens1K ~ $OrdK ;
+            $($Lens1M ~ $OrdM)*
         }
     };
 
-    ( @ $( $Lens1N:literal ~ $GenN:ident ~ $OrdN:tt )+ ;
-           $Lens1K:literal ~ $GenK:ident ~ $OrdK:tt
-        $( $Lens1M:literal ~ $GenM:ident ~ $OrdM:tt )*
+    ( @ $( $Lens1N:literal ~ $OrdN:tt )+ ;
+           $Lens1K:literal ~ $OrdK:tt
+        $( $Lens1M:literal ~ $OrdM:tt )*
     ) => { $crate::common::paste! {
-        #[derive(Debug)]
-        pub enum [<Sum $Lens1K>]<$($GenN),*> { $(
-           #[doc = "Variant " $OrdN " of " $Lens1K "."]
-            [<Var $OrdN>]($GenN),
+        #[doc(hidden)]
+        #[derive(Clone)]
+        pub enum [<Check $Lens1K>] { $(
+            [<Point $OrdN>],
         )+ }
 
-        gen_sum_types! { @
-            $($Lens1N ~ $GenN ~ $OrdN)+
-              $Lens1K ~ $GenK ~ $OrdK ;
-            $($Lens1M ~ $GenM ~ $OrdM)*
+        gen_checkpoints! { @
+            $($Lens1N ~ $OrdN)+
+              $Lens1K ~ $OrdK ;
+            $($Lens1M ~ $OrdM)*
         }
     } };
 
-    ( @ $( $Lens1N:literal ~ $GenN:ident ~ $OrdN:tt )+ ; ) => {};
+    ( @ $( $Lens1N:literal ~ $OrdN:tt )+ ; ) => {};
 }
 
-gen_sum_types! {
-    0  ~ A ~ 1
-    1  ~ B ~ 2
-    2  ~ C ~ 3
-    3  ~ D ~ 4
-    4  ~ E ~ 5
-    5  ~ F ~ 6
-    6  ~ G ~ 7
-    7  ~ H ~ 8
-    8  ~ I ~ 9
-    9  ~ J ~ 10
-    10 ~ K ~ 11
-    11 ~ L ~ 12
-    12 ~ M ~ 13
-    13 ~ N ~ 14
-    14 ~ O ~ 15
-    15 ~ P ~ 16
-    16 ~ Q ~ 17
+gen_checkpoints! {
+    0  ~ 1
+    1  ~ 2
+    2  ~ 3
+    3  ~ 4
+    4  ~ 5
+    5  ~ 6
+    6  ~ 7
+    7  ~ 8
+    8  ~ 9
+    9  ~ 10
+    10 ~ 11
+    11 ~ 12
+    12 ~ 13
+    13 ~ 14
+    14 ~ 15
+    15 ~ 16
+    16 ~ 17
 }
