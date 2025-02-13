@@ -44,11 +44,17 @@ impl Transfer {
 
 //------------------------------------------------------------------------------
 
+#[allow(clippy::len_without_is_empty)]
 pub trait Slice {
+    fn len(&self) -> usize;
     fn split_at(&self, mid: usize) -> (&Self, &Self);
 }
 
 impl Slice for str {
+    #[inline(always)]
+    fn len(&self) -> usize {
+        self.len()
+    }
     #[inline(always)]
     fn split_at(&self, mid: usize) -> (&Self, &Self) {
         self.split_at(mid)
@@ -56,6 +62,10 @@ impl Slice for str {
 }
 
 impl<T> Slice for [T] {
+    #[inline(always)]
+    fn len(&self) -> usize {
+        self.len()
+    }
     #[inline(always)]
     fn split_at(&self, mid: usize) -> (&Self, &Self) {
         self.split_at(mid)
@@ -67,7 +77,7 @@ impl<T> Slice for [T] {
 /// You can abbreviate `n..=n` to `n`.
 pub trait URangeBounds {
     fn contains(&self, times: usize) -> bool;
-    fn saturated(&self, times: usize) -> bool;
+    fn unsaturated(&self, times: usize) -> bool;
 }
 
 #[rustfmt::skip]
@@ -76,31 +86,31 @@ mod urange_bounds {
 
     impl URangeBounds for usize {
         fn contains(&self, times: usize) -> bool { times == *self }
-        fn saturated(&self, times: usize) -> bool { times < *self }
+        fn unsaturated(&self, times: usize) -> bool { times <= *self }
     }
     impl URangeBounds for RangeFull {
         fn contains(&self, _t: usize) -> bool { true }
-        fn saturated(&self, _t: usize) -> bool { true }
+        fn unsaturated(&self, _t: usize) -> bool { true }
     }
     impl URangeBounds for RangeFrom<usize> {
         fn contains(&self, times: usize) -> bool { self.contains(&times) }
-        fn saturated(&self, _t: usize) -> bool { true }
+        fn unsaturated(&self, _t: usize) -> bool { true }
     }
     impl URangeBounds for Range<usize> {
         fn contains(&self, times: usize) -> bool { self.contains(&times) }
-        fn saturated(&self, times: usize) -> bool { times + 1 < self.end }
+        fn unsaturated(&self, times: usize) -> bool { times < self.end }
     }
     impl URangeBounds for RangeTo<usize> {
         fn contains(&self, times: usize) -> bool { self.contains(&times) }
-        fn saturated(&self, times: usize) -> bool { times + 1 < self.end }
+        fn unsaturated(&self, times: usize) -> bool { times < self.end }
     }
     impl URangeBounds for RangeInclusive<usize> {
         fn contains(&self, times: usize) -> bool { self.contains(&times) }
-        fn saturated(&self, times: usize) -> bool { times < *self.end() }
+        fn unsaturated(&self, times: usize) -> bool { times <= *self.end() }
     }
     impl URangeBounds for RangeToInclusive<usize> {
         fn contains(&self, times: usize) -> bool { self.contains(&times) }
-        fn saturated(&self, times: usize) -> bool { times < self.end }
+        fn unsaturated(&self, times: usize) -> bool { times <= self.end }
     }
 }
 

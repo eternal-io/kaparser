@@ -1,6 +1,6 @@
 use super::*;
 
-pub fn seq<'i, U: ?Sized + Slice, S: Sequencable<'i, U>>(seq: S) -> Sequence<'i, U, S> {
+pub const fn seq<'i, U: ?Sized + Slice, S: Sequencable<'i, U>>(seq: S) -> Sequence<'i, U, S> {
     Sequence {
         seq,
         phantom: PhantomData,
@@ -18,7 +18,7 @@ pub trait Sequencable<'i, U: ?Sized + Slice> {
     type Captured;
     type Internal: Clone;
 
-    fn init_seq() -> Self::Internal;
+    fn init_seq(&self) -> Self::Internal;
 
     fn proceed_seq(&self, slice: &'i U, entry: &mut Self::Internal, eof: bool) -> ProceedResult;
 
@@ -30,8 +30,8 @@ impl<'i, U: ?Sized + Slice, S: Sequencable<'i, U>> Proceed<'i, U> for Sequence<'
     type Internal = S::Internal;
 
     #[inline(always)]
-    fn init() -> Self::Internal {
-        S::init_seq()
+    fn init(&self) -> Self::Internal {
+        self.seq.init_seq()
     }
     #[inline(always)]
     fn proceed(&self, slice: &'i U, entry: &mut Self::Internal, eof: bool) -> ProceedResult {
@@ -50,8 +50,8 @@ macro_rules! impl_sequencable_for_tuple {
             type Internal = ([<Check $Len>], ($((usize, $GenN::Internal),)+));
 
             #[inline(always)]
-            fn init_seq() -> Self::Internal {
-                ([<Check $Len>]::Point1, ($((0, $GenN::init()),)+))
+            fn init_seq(&self) -> Self::Internal {
+                ([<Check $Len>]::Point1, ($((0, self.$IdxN.init()),)+))
             }
 
             #[inline(always)]
@@ -61,7 +61,7 @@ macro_rules! impl_sequencable_for_tuple {
                 let mut tot_len = 0usize;
 
                 resume_proceed! {
-                    'south: *checkpoint => { $(
+                    'north: *checkpoint => { $(
                         $LabN: [<Point $OrdN>] => {
                             *checkpoint = [<Point $OrdN>];
 
@@ -72,8 +72,7 @@ macro_rules! impl_sequencable_for_tuple {
 
                             match self.$IdxN.proceed(slice.split_at(*off).1, state, eof)? {
                                 Transfer::Accepted(len) => {
-                                    *off += len;
-                                    tot_len = *off;
+                                    tot_len = *off + len;
                                 }
                                 Transfer::Rejected => {
                                     return Ok(Transfer::Rejected);

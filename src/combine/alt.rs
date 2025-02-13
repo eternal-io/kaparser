@@ -1,6 +1,6 @@
 use super::*;
 
-pub fn alt<'i, U: ?Sized + Slice, A: Alternatable<'i, U>>(alt: A) -> Alternate<'i, U, A> {
+pub const fn alt<'i, U: ?Sized + Slice, A: Alternatable<'i, U>>(alt: A) -> Alternate<'i, U, A> {
     Alternate {
         alt,
         phantom: PhantomData,
@@ -18,7 +18,7 @@ pub trait Alternatable<'i, U: ?Sized + Slice> {
     type Captured;
     type Internal: Clone;
 
-    fn init_alt() -> Self::Internal;
+    fn init_alt(&self) -> Self::Internal;
 
     fn proceed_alt(&self, slice: &'i U, entry: &mut Self::Internal, eof: bool) -> ProceedResult;
 
@@ -30,8 +30,8 @@ impl<'i, U: ?Sized + Slice, A: Alternatable<'i, U>> Proceed<'i, U> for Alternate
     type Internal = A::Internal;
 
     #[inline(always)]
-    fn init() -> Self::Internal {
-        A::init_alt()
+    fn init(&self) -> Self::Internal {
+        self.alt.init_alt()
     }
     #[inline(always)]
     fn proceed(&self, slice: &'i U, entry: &mut Self::Internal, eof: bool) -> ProceedResult {
@@ -50,7 +50,7 @@ macro_rules! impl_alternatable_for_tuple {
             type Internal = [<Alt $Len>]<$(Option<$GenN::Internal>),+>;
 
             #[inline(always)]
-            fn init_alt() -> Self::Internal {
+            fn init_alt(&self) -> Self::Internal {
                 [<Alt $Len>]::[<Var $Len>](None)
             }
 
@@ -60,7 +60,7 @@ macro_rules! impl_alternatable_for_tuple {
                 use [<Alt $Len>]::*;
 
                 resume_proceed! {
-                    'north: entry => { $(
+                    'south: entry => { $(
                         $LabN: $VarN(_) => {
                             let state = match entry {
                                 $VarN(some) => {
@@ -72,7 +72,7 @@ macro_rules! impl_alternatable_for_tuple {
                                     let $VarN(none) = entry else { unreachable!() };
                                     none
                                 }
-                            }.get_or_insert_with(|| $GenN::init());
+                            }.get_or_insert_with(|| self.$IdxN.init());
 
                             match self.$IdxN.proceed(slice, state, eof)? {
                                 Transfer::Rejected => (),

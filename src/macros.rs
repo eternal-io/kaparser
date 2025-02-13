@@ -1,11 +1,26 @@
 #[doc(hidden)]
 #[macro_export]
 macro_rules! repeat {
-    ($n:tt..$m:tt, $p:expr) => {
-        $crate::combine::repeat::repeat::<_, _, $n, { $m - $n - 1 }>($p)
+    ($n:tt, $p:expr) => {
+        $crate::combine::repeat::repeat_exact::<_, _, $n>($p)
     };
-    ($n:tt..=$m:tt, $p:expr) => {
-        $crate::combine::repeat::repeat::<_, _, $n, { $m - $n }>($p)
+    ($n:tt..=$x:tt, $p:expr) => {
+        $crate::combine::repeat::repeat::<_, _, $n, { $x - $n }>($p)
+    };
+    (..=$x:tt, $p:expr) => {
+        $crate::combine::repeat::repeat_at_most::<_, _, $x>($p)
+    };
+
+    ($n:tt..$x:tt, $p:expr) => {
+        compile_error!("use `n..=x` instead")
+    };
+    (..$x:tt, $p:expr) => {
+        compile_error!("use `..=x` instead")
+    };
+
+    ($n:tt.., $p:expr) => {
+        todo!()
+        compile_error!("consider use `silent(...)` or `collect(...)` instead")
     };
 }
 

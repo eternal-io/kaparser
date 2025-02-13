@@ -1,5 +1,5 @@
 #![allow(clippy::let_unit_value)]
-use super::{common::*, predicate::*};
+use crate::{common::*, predicate::*};
 use core::num::NonZeroUsize;
 
 #[doc(inline)]
@@ -18,7 +18,7 @@ pub trait Proceed<'i, U: ?Sized + Slice> {
     type Internal: Clone;
 
     /// `[T; N]` doesn't implement `Default`, so we have to initialize it manually.
-    fn init() -> Self::Internal;
+    fn init(&self) -> Self::Internal;
 
     /// 一旦返回了 `Ok(_)`，则不再具有可重入性。
     fn proceed(&self, slice: &'i U, entry: &mut Self::Internal, eof: bool) -> ProceedResult;
@@ -38,9 +38,7 @@ impl<'i> Proceed<'i, str> for &str {
     type Internal = ();
 
     #[inline(always)]
-    fn init() -> Self::Internal {
-        ()
-    }
+    fn init(&self) -> Self::Internal {}
 
     #[inline(always)]
     fn proceed(&self, slice: &'i str, entry: &mut Self::Internal, eof: bool) -> ProceedResult {
@@ -48,7 +46,7 @@ impl<'i> Proceed<'i, str> for &str {
         let _ = entry;
         (slice.len() >= self.len())
             .then(|| Transfer::perhaps(slice.starts_with(self).then_some(self.len())))
-            .ok_or(Some((self.len() - slice.len()).try_into().unwrap()))
+            .ok_or_else(|| Some((self.len() - slice.len()).try_into().unwrap()))
     }
 
     #[inline(always)]
@@ -63,9 +61,7 @@ impl<'i, T: 'i + PartialEq> Proceed<'i, [T]> for &[T] {
     type Internal = ();
 
     #[inline(always)]
-    fn init() -> Self::Internal {
-        ()
-    }
+    fn init(&self) -> Self::Internal {}
 
     #[inline(always)]
     fn proceed(&self, slice: &'i [T], entry: &mut Self::Internal, eof: bool) -> ProceedResult {
@@ -73,7 +69,7 @@ impl<'i, T: 'i + PartialEq> Proceed<'i, [T]> for &[T] {
         let _ = entry;
         (slice.len() >= self.len())
             .then(|| Transfer::perhaps(slice.starts_with(self).then_some(self.len())))
-            .ok_or(Some((self.len() - slice.len()).try_into().unwrap()))
+            .ok_or_else(|| Some((self.len() - slice.len()).try_into().unwrap()))
     }
 
     #[inline(always)]
@@ -90,9 +86,7 @@ impl<'i, P: Predicate<char>> Proceed<'i, str> for [P; 1] {
     type Internal = ();
 
     #[inline(always)]
-    fn init() -> Self::Internal {
-        ()
-    }
+    fn init(&self) -> Self::Internal {}
 
     #[inline(always)]
     fn proceed(&self, slice: &'i str, entry: &mut Self::Internal, eof: bool) -> ProceedResult {
@@ -117,9 +111,7 @@ impl<'i, T: Clone, P: Predicate<T>> Proceed<'i, [T]> for [P; 1] {
     type Internal = ();
 
     #[inline(always)]
-    fn init() -> Self::Internal {
-        ()
-    }
+    fn init(&self) -> Self::Internal {}
 
     #[inline(always)]
     fn proceed(&self, slice: &'i [T], entry: &mut Self::Internal, eof: bool) -> ProceedResult {

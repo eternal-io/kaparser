@@ -3,6 +3,7 @@ use super::*;
 #[doc(inline)]
 pub use crate::repeat;
 
+#[inline(always)]
 pub const fn repeat<'i, U: ?Sized + Slice, P: Proceed<'i, U>, const AT_LEAST: usize, const MAY_MORE: usize>(
     body: P,
 ) -> Repeat<'i, U, P, AT_LEAST, MAY_MORE> {
@@ -10,6 +11,31 @@ pub const fn repeat<'i, U: ?Sized + Slice, P: Proceed<'i, U>, const AT_LEAST: us
         body,
         phantom: PhantomData,
     }
+}
+
+#[inline(always)]
+pub const fn repeat_exact<'i, U: ?Sized + Slice, P: Proceed<'i, U>, const TIMES: usize>(
+    body: P,
+) -> RepeatExact<'i, U, P, TIMES> {
+    RepeatExact {
+        body: repeat(body),
+        phantom: PhantomData,
+    }
+}
+
+#[inline(always)]
+pub const fn repeat_at_most<'i, U: ?Sized + Slice, P: Proceed<'i, U>, const TIMES: usize>(
+    body: P,
+) -> RepeatAtMost<'i, U, P, TIMES> {
+    RepeatAtMost {
+        body: repeat(body),
+        phantom: PhantomData,
+    }
+}
+
+#[inline(always)]
+pub const fn repeat_unlimit() {
+    todo!()
 }
 
 //------------------------------------------------------------------------------
@@ -30,10 +56,10 @@ impl<'i, U: ?Sized + Slice, P: Proceed<'i, U>, const AT_LEAST: usize, const MAY_
     );
 
     #[allow(unsafe_code)]
-    fn init() -> Self::Internal {
+    fn init(&self) -> Self::Internal {
         let mut at_least: MaybeUninit<[(usize, P::Internal); AT_LEAST]> = MaybeUninit::uninit();
         let mut may_more: MaybeUninit<[(usize, P::Internal); MAY_MORE]> = MaybeUninit::uninit();
-        let item = P::init();
+        let item = self.body.init();
 
         for i in 0..AT_LEAST {
             unsafe {
@@ -67,8 +93,7 @@ impl<'i, U: ?Sized + Slice, P: Proceed<'i, U>, const AT_LEAST: usize, const MAY_
 
                 match self.body.proceed(slice.split_at(*off).1, state, eof)? {
                     Transfer::Accepted(len) => {
-                        *off += len;
-                        tot_len = *off;
+                        tot_len = *off + len;
                     }
                     Transfer::Rejected => match necessary {
                         false => break,
@@ -129,15 +154,39 @@ impl<'i, U: ?Sized + Slice, P: Proceed<'i, U>, const TIMES: usize> Proceed<'i, U
     type Captured = [P::Captured; TIMES];
     type Internal = (usize, [(usize, P::Internal); TIMES], [(usize, P::Internal); 0]);
 
-    fn init() -> Self::Internal {
-        Repeat::<'i, U, P, TIMES, 0>::init()
+    fn init(&self) -> Self::Internal {
+        self.body.init()
     }
 
     fn proceed(&self, slice: &'i U, entry: &mut Self::Internal, eof: bool) -> ProceedResult {
-        todo!()
+        self.body.proceed(slice, entry, eof)
     }
 
     fn extract(&self, slice: &'i U, entry: Self::Internal) -> Self::Captured {
-        todo!()
+        self.body.extract(slice, entry).0
+    }
+}
+
+//------------------------------------------------------------------------------
+
+pub struct RepeatAtMost<'i, U: ?Sized + Slice, P: Proceed<'i, U>, const TIMES: usize> {
+    body: Repeat<'i, U, P, 0, TIMES>,
+    phantom: PhantomData<&'i U>,
+}
+
+impl<'i, U: ?Sized + Slice, P: Proceed<'i, U>, const TIMES: usize> Proceed<'i, U> for RepeatAtMost<'i, U, P, TIMES> {
+    type Captured = [Option<P::Captured>; TIMES];
+    type Internal = (usize, [(usize, P::Internal); 0], [(usize, P::Internal); TIMES]);
+
+    fn init(&self) -> Self::Internal {
+        self.body.init()
+    }
+
+    fn proceed(&self, slice: &'i U, entry: &mut Self::Internal, eof: bool) -> ProceedResult {
+        self.body.proceed(slice, entry, eof)
+    }
+
+    fn extract(&self, slice: &'i U, entry: Self::Internal) -> Self::Captured {
+        self.body.extract(slice, entry).1
     }
 }
