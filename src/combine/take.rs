@@ -2,7 +2,11 @@ use super::*;
 use core::ops::RangeFrom;
 
 #[inline(always)]
-pub const fn take<T, P: Predicate<T>, R: URangeBounds>(range: R, predicate: P) -> Take<T, P, R> {
+pub const fn take<T, P, R>(range: R, predicate: P) -> Take<T, P, R>
+where
+    P: Predicate<T>,
+    R: URangeBounds,
+{
     Take {
         range,
         predicate,
@@ -12,13 +16,21 @@ pub const fn take<T, P: Predicate<T>, R: URangeBounds>(range: R, predicate: P) -
 
 //------------------------------------------------------------------------------
 
-pub struct Take<T, P: Predicate<T>, R: URangeBounds> {
+pub struct Take<T, P, R>
+where
+    P: Predicate<T>,
+    R: URangeBounds,
+{
     range: R,
     predicate: P,
     phantom: PhantomData<T>,
 }
 
-impl<'i, P: Predicate<char>, R: URangeBounds> Proceed<'i, str> for Take<char, P, R> {
+impl<'i, P, R> Proceed<'i, str> for Take<char, P, R>
+where
+    P: Predicate<char>,
+    R: URangeBounds,
+{
     type Captured = &'i str;
     type Internal = (usize, usize);
 
@@ -34,23 +46,23 @@ impl<'i, P: Predicate<char>, R: URangeBounds> Proceed<'i, str> for Take<char, P,
             .1
             .char_indices()
             .enumerate()
-            .take_while(|(i, (_, ch))| self.range.unsaturated(*times + *i) && self.predicate.predicate(ch))
+            .take_while(|(i, (_, ch))| self.range.unfulfilled(*times + *i) && self.predicate.predicate(ch))
             .last()
         {
             *tot_off += off + ch.len_utf8();
             *times += i;
         }
 
-        match eof {
+        Ok(match eof {
             true => match self.range.contains(*times) {
-                true => Ok(Transfer::Accepted(*tot_off)),
-                false => Ok(Transfer::Rejected),
+                true => (Transfer::Accepted, *tot_off),
+                false => (Transfer::Rejected, *tot_off),
             },
-            false => match !self.range.unsaturated(*times) {
-                true => Ok(Transfer::Accepted(*tot_off)),
-                false => Err(None),
+            false => match self.range.unfulfilled(*times) {
+                true => return Err(None),
+                false => (Transfer::Accepted, *tot_off),
             },
-        }
+        })
     }
     #[inline(always)]
     fn extract(&self, slice: &'i str, entry: Self::Internal) -> Self::Captured {
@@ -58,9 +70,57 @@ impl<'i, P: Predicate<char>, R: URangeBounds> Proceed<'i, str> for Take<char, P,
     }
 }
 
+impl<'i, T, P, R> Proceed<'i, [T]> for Take<T, P, R>
+where
+    T: 'i + PartialEq,
+    P: Predicate<T>,
+    R: URangeBounds,
+{
+    type Captured = &'i [T];
+    type Internal = (usize, usize);
+
+    #[inline(always)]
+    fn init(&self) -> Self::Internal {
+        (0, 1)
+    }
+    #[inline(always)]
+    fn proceed(&self, slice: &'i [T], entry: &mut Self::Internal, eof: bool) -> ProceedResult {
+        let (tot_off, times) = entry;
+        if let Some((i, _)) = slice
+            .split_at(*tot_off)
+            .1
+            .iter()
+            .enumerate()
+            .take_while(|(i, value)| self.range.unfulfilled(*times + *i) && self.predicate.predicate(value))
+            .last()
+        {
+            *tot_off += i + 1;
+            *times += i;
+        }
+
+        Ok(match eof {
+            true => match self.range.contains(*times) {
+                true => (Transfer::Accepted, *tot_off),
+                false => (Transfer::Rejected, *tot_off),
+            },
+            false => match self.range.unfulfilled(*times) {
+                true => return Err(None),
+                false => (Transfer::Accepted, *tot_off),
+            },
+        })
+    }
+    #[inline(always)]
+    fn extract(&self, slice: &'i [T], entry: Self::Internal) -> Self::Captured {
+        &slice[..entry.0]
+    }
+}
+
 //------------------------------------------------------------------------------
 
-impl<'i, P: Predicate<char>> Proceed<'i, str> for RangeFrom<P> {
+impl<'i, P> Proceed<'i, str> for RangeFrom<P>
+where
+    P: Predicate<char>,
+{
     type Captured = &'i str;
     type Internal = usize;
 
@@ -76,10 +136,13 @@ impl<'i, P: Predicate<char>> Proceed<'i, str> for RangeFrom<P> {
             .char_indices()
             .find(|(_, ch)| !self.start.predicate(ch))
         {
-            Some((off, _)) => Ok(Transfer::Accepted(*entry + off)),
+            Some((off, _)) => {
+                *entry += off;
+                Ok((Transfer::Accepted, *entry))
+            }
             None => {
                 *entry = slice.len();
-                eof.then_some(Transfer::Accepted(*entry)).ok_or(None)
+                eof.then_some((Transfer::Accepted, *entry)).ok_or(None)
             }
         }
     }
@@ -89,7 +152,11 @@ impl<'i, P: Predicate<char>> Proceed<'i, str> for RangeFrom<P> {
     }
 }
 
-impl<'i, T: 'i, P: Predicate<T>> Proceed<'i, [T]> for RangeFrom<P> {
+impl<'i, T, P> Proceed<'i, [T]> for RangeFrom<P>
+where
+    T: 'i + PartialEq,
+    P: Predicate<T>,
+{
     type Captured = &'i [T];
     type Internal = usize;
 
@@ -106,10 +173,13 @@ impl<'i, T: 'i, P: Predicate<T>> Proceed<'i, [T]> for RangeFrom<P> {
             .enumerate()
             .find(|(_, value)| !self.start.predicate(value))
         {
-            Some((off, _)) => Ok(Transfer::Accepted(*entry + off)),
+            Some((off, _)) => {
+                *entry += off;
+                Ok((Transfer::Accepted, *entry))
+            }
             None => {
                 *entry = slice.len();
-                eof.then_some(Transfer::Accepted(*entry)).ok_or(None)
+                eof.then_some((Transfer::Accepted, *entry)).ok_or(None)
             }
         }
     }

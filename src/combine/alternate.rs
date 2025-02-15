@@ -1,6 +1,11 @@
 use super::*;
 
-pub const fn alt<'i, U: ?Sized + Slice, A: Alternatable<'i, U>>(alt: A) -> Alternate<'i, U, A> {
+#[inline(always)]
+pub const fn alt<'i, U, A>(alt: A) -> Alternate<'i, U, A>
+where
+    U: 'i + ?Sized + Slice,
+    A: Alternatable<'i, U>,
+{
     Alternate {
         alt,
         phantom: PhantomData,
@@ -9,14 +14,21 @@ pub const fn alt<'i, U: ?Sized + Slice, A: Alternatable<'i, U>>(alt: A) -> Alter
 
 //------------------------------------------------------------------------------
 
-pub struct Alternate<'i, U: ?Sized + Slice, A: Alternatable<'i, U>> {
+pub struct Alternate<'i, U, A>
+where
+    U: 'i + ?Sized + Slice,
+    A: Alternatable<'i, U>,
+{
     alt: A,
     phantom: PhantomData<&'i U>,
 }
 
-pub trait Alternatable<'i, U: ?Sized + Slice> {
+pub trait Alternatable<'i, U>
+where
+    U: 'i + ?Sized + Slice,
+{
     type Captured;
-    type Internal: Clone;
+    type Internal: 'static + Clone;
 
     fn init_alt(&self) -> Self::Internal;
 
@@ -25,7 +37,11 @@ pub trait Alternatable<'i, U: ?Sized + Slice> {
     fn extract_alt(&self, slice: &'i U, entry: Self::Internal) -> Self::Captured;
 }
 
-impl<'i, U: ?Sized + Slice, A: Alternatable<'i, U>> Proceed<'i, U> for Alternate<'i, U, A> {
+impl<'i, U, A> Proceed<'i, U> for Alternate<'i, U, A>
+where
+    U: 'i + ?Sized + Slice,
+    A: Alternatable<'i, U>,
+{
     type Captured = A::Captured;
     type Internal = A::Internal;
 
@@ -44,59 +60,44 @@ impl<'i, U: ?Sized + Slice, A: Alternatable<'i, U>> Proceed<'i, U> for Alternate
 }
 
 macro_rules! impl_alternatable_for_tuple {
-    ( $Len:literal, $( $LabN:lifetime ~ $GenN:ident ~ $VarN:ident ~ $OrdN:literal ~ $IdxN:tt )+ ) => { $crate::common::paste! {
-        impl<'i, U: ?Sized + Slice, $($GenN: Proceed<'i, U>),+> Alternatable<'i, U> for ($($GenN,)+) {
-            type Captured = [<Alt $Len>]<$($GenN::Captured),+>;
-            type Internal = [<Alt $Len>]<$(Option<$GenN::Internal>),+>;
+    ( $Alt:ident, $( $LabN:lifetime ~ $GenN:ident ~ $VarN:ident ~ $OrdN:literal ~ $IdxN:tt )+ ) => { $crate::common::paste! {
+        impl<'i, U: 'i + ?Sized + Slice, $($GenN: Proceed<'i, U>),+> Alternatable<'i, U> for ($($GenN,)+) {
+            type Captured = $Alt<$($GenN::Captured),+>;
+            type Internal = $Alt<$($GenN::Internal),+>;
 
             #[inline(always)]
             fn init_alt(&self) -> Self::Internal {
-                [<Alt $Len>]::[<Var $Len>](None)
+                $Alt::Var1(self.0.init())
             }
 
             #[inline(always)]
-            #[allow(unreachable_patterns, irrefutable_let_patterns)]
+            #[allow(irrefutable_let_patterns)]
             fn proceed_alt(&self, slice: &'i U, entry: &mut Self::Internal, eof: bool) -> ProceedResult {
-                use [<Alt $Len>]::*;
+                use $Alt::*;
 
-                resume_proceed! {
-                    'south: entry => { $(
-                        $LabN: $VarN(_) => {
-                            let state = match entry {
-                                $VarN(some) => {
-                                    cold_path();
-                                    some
-                                }
-                                _ => {
-                                    *entry = $VarN(None);
-                                    let $VarN(none) = entry else { unreachable!() };
-                                    none
-                                }
-                            }.get_or_insert_with(|| self.$IdxN.init());
-
-                            match self.$IdxN.proceed(slice, state, eof)? {
+                proceed! {
+                    entry => { $(
+                        $LabN: $VarN(_) => [{
+                            *entry = $VarN(self.$IdxN.init());
+                        }] {
+                            let $VarN(state) = entry else { unreachable!() };
+                            let (t, len) = self.$IdxN.proceed(slice, state, eof)?;
+                            match t {
                                 Transfer::Rejected => (),
-
-                                Transfer::Accepted(len) => {
-                                    return Ok(Transfer::Accepted(len));
-                                }
-                                Transfer::Halt(len) => {
-                                    cold_path();
-                                    return Ok(Transfer::Halt(len));
-                                }
+                                t => return Ok((t, len)),
                             }
                         }
                     )+ }
                 }
 
-                Ok(Transfer::Rejected)
+                Ok((Transfer::Rejected, 0))
             }
 
             #[inline(always)]
             fn extract_alt(&self, slice: &'i U, entry: Self::Internal) -> Self::Captured {
-                use [<Alt $Len>]::*;
+                use $Alt::*;
                 match entry { $(
-                    $VarN(state) => $VarN(self.$IdxN.extract(slice, state.unwrap())),
+                    $VarN(state) => $VarN(self.$IdxN.extract(slice, state)),
                 )+ }
             }
         }
@@ -117,7 +118,7 @@ macro_rules! impl_alternatable_for_tuples {
            $Lens1K:literal ~ $LabK:lifetime ~ $OrdK:literal ~ $IdxK:tt
         $( $Lens1M:literal ~ $LabM:lifetime ~ $OrdM:literal ~ $IdxM:tt )*
     ) => { $crate::common::paste! {
-        impl_alternatable_for_tuple!( $Lens1K, $($LabN ~ [<P $OrdN>] ~ [<Var $OrdN>] ~ $OrdN ~ $IdxN)+ );
+        impl_alternatable_for_tuple!( [<Alt $Lens1K>], $($LabN ~ [<P $OrdN>] ~ [<Var $OrdN>] ~ $OrdN ~ $IdxN)+ );
 
         impl_alternatable_for_tuples! { @
             $($Lens1N ~ $LabN ~ $OrdN ~ $IdxN)+

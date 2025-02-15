@@ -1,7 +1,4 @@
-use core::{
-    marker::PhantomData,
-    ops::{Range, RangeFrom, RangeFull, RangeInclusive, RangeTo, RangeToInclusive},
-};
+use core::ops::{Range, RangeFrom, RangeFull, RangeInclusive, RangeTo, RangeToInclusive};
 
 /// Match a set of items (`char`, `u8`, `T`).
 pub trait Predicate<T>: Sized {
@@ -138,80 +135,77 @@ impl_predicate_for_tuples! {
 
 //------------------------------------------------------------------------------
 
-/// ASCII newline `\n`.
-#[inline(always)]
-pub const fn is_newline(ch: &char) -> bool {
-    matches!(ch, '\n')
-}
-/// ASCII whitespace.
-///
-/// Note that this is different from [`char::is_ascii_whitespace`].
-/// This includes U+000B VERTICAL TAB.
-#[inline(always)]
-pub const fn is_whitespace(ch: &char) -> bool {
-    matches!(ch, '\x20' | '\t' | '\r' | '\x0c' | '\x0b' | '\n')
-}
-/// [ASCII whitespace](is_whitespace) with No Newline.
-#[inline(always)]
-pub const fn is_whitespace_nn(ch: &char) -> bool {
-    matches!(ch, '\x20' | '\t' | '\r' | '\x0c' | '\x0b')
+macro_rules! gen_ascii_predicates {
+    ( $(
+      $(#[$attr:meta])*
+        $desc:literal $func:ident($ch:ident) => $expr:expr
+    ),* $(,)? ) => { $crate::common::paste! { $(
+        #[doc = "ASCII " $desc ".\n\n"]
+      $(#[$attr])*
+        #[inline(always)]
+        pub const fn $func($ch: &char) -> bool {
+            $expr
+        }
+    )* } };
 }
 
-/// Any ASCII character.
-#[inline(always)]
-pub const fn is_ascii(ch: &char) -> bool {
-    ch.is_ascii()
-}
-/// ASCII uppercase `[A-Z]`.
-#[inline(always)]
-pub const fn is_uppercase(ch: &char) -> bool {
-    ch.is_ascii_uppercase()
-}
-/// ASCII lowercase `[a-z]`.
-#[inline(always)]
-pub const fn is_lowercase(ch: &char) -> bool {
-    ch.is_ascii_lowercase()
-}
-/// ASCII alphabetic `[A-Za-z]`.
-#[inline(always)]
-pub const fn is_alphabetic(ch: &char) -> bool {
-    ch.is_ascii_alphabetic()
-}
-/// ASCII alphanumeric `[0-9A-Za-z]`.
-#[inline(always)]
-pub const fn is_alphanumeric(ch: &char) -> bool {
-    ch.is_ascii_alphanumeric()
+macro_rules! gen_unicode_predicates {
+    ( $(
+        $(#[$attr:meta])*
+        $prop:literal $func:ident($ch:ident) => $expr:expr
+    ),* $(,)? ) => { $crate::common::paste! { $(
+        #[doc = "Unicode character " $prop ".\n\n"]
+      $(#[$attr])*
+        #[inline(always)]
+        pub fn $func($ch: &char) -> bool {
+            $expr
+        }
+    )* } };
 }
 
-/// ASCII decimal digit `[0-9]`.
-#[inline(always)]
-pub const fn is_digit(ch: &char) -> bool {
-    ch.is_ascii_digit()
-}
-/// ASCII hexadecimal digit `[0-9A-Fa-f]`.
-#[inline(always)]
-pub const fn is_hexdigit(ch: &char) -> bool {
-    ch.is_ascii_hexdigit()
-}
-/// ASCII octal digit `[0-7]`.
-#[inline(always)]
-pub const fn is_octdigit(ch: &char) -> bool {
-    matches!(ch, '0'..='7')
-}
-/// ASCII binary digit `[0-1]`.
-#[inline(always)]
-pub const fn is_bindigit(ch: &char) -> bool {
-    matches!(ch, '0' | '1')
+gen_ascii_predicates! {
+    /// U+0000 NUL ..= U+001F UNIT SEPARATOR, or U+007F DELETE.
+    r"control"                              is_ctrl(ch)  => ch.is_ascii_control(),
+
+    /// U+0021 ‘!’ ..= U+007E ‘~’.
+    r"printable"                            is_print(ch) => ch.is_ascii_graphic(),
+
+    /// - U+0021 ..= U+002F `! " # $ % & ' ( ) * + , - . /`, or
+    /// - U+003A ..= U+0040 `: ; < = > ? @`, or
+    /// - U+005B ..= U+0060 ``[ \ ] ^ _ ` ``, or
+    /// - U+007B ..= U+007E `{ | } ~`
+    r"punctuation"                          is_punct(ch) => ch.is_ascii_punctuation(),
+
+    /// Note that this is different from [`char::is_ascii_whitespace`].
+    /// This includes U+000B VERTICAL TAB.
+    r"whitespace"                           is_ws(ch)    => matches!(ch, '\x20' | '\t' | '\r' | '\x0c' | '\x0b' | '\n'),
+    "[whitespace](is_ws) with No Newline."  is_ws_nn(ch) => matches!(ch, '\x20' | '\t' | '\r' | '\x0c' | '\x0b' ),
+    r"newline `\n`"                         is_nl(ch)    => matches!(ch, '\n'),
+
+    r"any"                                  is_ascii(ch) => ch.is_ascii(),
+    r"uppercase `[A-Z]`"                    is_upper(ch) => ch.is_ascii_uppercase(),
+    r"lowercase `[a-z]`"                    is_lower(ch) => ch.is_ascii_lowercase(),
+    r"alphabetic `[A-Za-z]`"                is_alpha(ch) => ch.is_ascii_alphabetic(),
+    r"alphanumeric `[0-9A-Za-z]`"           is_alnum(ch) => ch.is_ascii_alphanumeric(),
+
+    r"decimal digit `[0-9]`"                is_dec(ch)  => ch.is_ascii_digit(),
+    r"hexadecimal digit `[0-9A-Fa-f]`"      is_hex(ch)  => ch.is_ascii_hexdigit(),
+    r"octal digit `[0-7]`"                  is_oct(ch)  => matches!(ch, '0'..='7'),
+    r"binary digit `[0-1]`"                 is_bin(ch)  => matches!(ch, '0' | '1'),
 }
 
-/// Unicode XID_Start character.
-#[inline(always)]
-pub fn is_xid_start(ch: &char) -> bool {
-    unicode_ident::is_xid_start(*ch)
-}
+pub mod unc {
+    gen_unicode_predicates! {
+        "with `XID_Start` property"      xid0(ch)   => unicode_ident::is_xid_start(*ch),
+        "with `XID_Continue` property"   xid1(ch)   => unicode_ident::is_xid_continue(*ch),
 
-/// Unicode XID_Continue character.
-#[inline(always)]
-pub fn is_xid_continue(ch: &char) -> bool {
-    unicode_ident::is_xid_continue(*ch)
+        "with `White_Space` property"      ws(ch)   => ch.is_whitespace(),
+        "with `Lowercase` property"     lower(ch)   => ch.is_lowercase(),
+        "with `Uppercase` property"     upper(ch)   => ch.is_uppercase(),
+        "with `Alphabetic` property"    alpha(ch)   => ch.is_alphabetic(),
+        "with `Alphabetic` property or in numbers category"
+                                        alnum(ch)   => ch.is_alphanumeric(),
+        "in numbers category"             num(ch)   => ch.is_numeric(),
+        "in control codes category"      ctrl(ch)   => ch.is_control(),
+    }
 }

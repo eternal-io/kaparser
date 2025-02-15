@@ -1,6 +1,11 @@
 use super::*;
 
-pub const fn seq<'i, U: ?Sized + Slice, S: Sequencable<'i, U>>(seq: S) -> Sequence<'i, U, S> {
+#[inline(always)]
+pub const fn seq<'i, U, S>(seq: S) -> Sequence<'i, U, S>
+where
+    U: 'i + ?Sized + Slice,
+    S: Sequencable<'i, U>,
+{
     Sequence {
         seq,
         phantom: PhantomData,
@@ -9,14 +14,21 @@ pub const fn seq<'i, U: ?Sized + Slice, S: Sequencable<'i, U>>(seq: S) -> Sequen
 
 //------------------------------------------------------------------------------
 
-pub struct Sequence<'i, U: ?Sized + Slice, S: Sequencable<'i, U>> {
+pub struct Sequence<'i, U, S>
+where
+    U: 'i + ?Sized + Slice,
+    S: Sequencable<'i, U>,
+{
     seq: S,
     phantom: PhantomData<&'i U>,
 }
 
-pub trait Sequencable<'i, U: ?Sized + Slice> {
+pub trait Sequencable<'i, U>
+where
+    U: 'i + ?Sized + Slice,
+{
     type Captured;
-    type Internal: Clone;
+    type Internal: 'static + Clone;
 
     fn init_seq(&self) -> Self::Internal;
 
@@ -25,7 +37,11 @@ pub trait Sequencable<'i, U: ?Sized + Slice> {
     fn extract_seq(&self, slice: &'i U, entry: Self::Internal) -> Self::Captured;
 }
 
-impl<'i, U: ?Sized + Slice, S: Sequencable<'i, U>> Proceed<'i, U> for Sequence<'i, U, S> {
+impl<'i, U, S> Proceed<'i, U> for Sequence<'i, U, S>
+where
+    U: 'i + ?Sized + Slice,
+    S: Sequencable<'i, U>,
+{
     type Captured = S::Captured;
     type Internal = S::Internal;
 
@@ -45,7 +61,7 @@ impl<'i, U: ?Sized + Slice, S: Sequencable<'i, U>> Proceed<'i, U> for Sequence<'
 
 macro_rules! impl_sequencable_for_tuple {
     ( $Len:literal, $( $LabN:lifetime ~ $GenN:ident ~ $ValN:ident ~ $OrdN:literal ~ $IdxN:tt )+ ) => { $crate::common::paste! {
-        impl<'i, U: ?Sized + Slice, $($GenN: Proceed<'i, U>),+> Sequencable<'i, U> for ($($GenN,)+) {
+        impl<'i, U: 'i + ?Sized + Slice, $($GenN: Proceed<'i, U>),+> Sequencable<'i, U> for ($($GenN,)+) {
             type Captured = ($($GenN::Captured,)+);
             type Internal = ([<Check $Len>], ($((usize, $GenN::Internal),)+));
 
@@ -57,50 +73,39 @@ macro_rules! impl_sequencable_for_tuple {
             #[inline(always)]
             fn proceed_seq(&self, slice: &'i U, entry: &mut Self::Internal, eof: bool) -> ProceedResult {
                 use [<Check $Len>]::*;
-                let (checkpoint, children) = entry;
-                let mut tot_len = 0usize;
+                let (checkpoint, states) = entry;
+                let mut offset = 0usize;
 
-                resume_proceed! {
-                    'north: *checkpoint => { $(
-                        $LabN: [<Point $OrdN>] => {
+                proceed! {
+                    *checkpoint => { $(
+                        $LabN: [<Point $OrdN>] => [{
                             *checkpoint = [<Point $OrdN>];
-
-                            let (off, state) = &mut children.$IdxN;
+                        }] {
+                            let (off, state) = &mut states.$IdxN;
                             if likely(*off == 0) {
-                                *off = tot_len;
+                                *off = offset;
                             }
 
-                            match self.$IdxN.proceed(slice.split_at(*off).1, state, eof)? {
-                                Transfer::Accepted(len) => {
-                                    tot_len = *off + len;
-                                }
-                                Transfer::Rejected => {
-                                    return Ok(Transfer::Rejected);
-                                }
-                                Transfer::Halt(len) => {
-                                    cold_path();
-                                    return Ok(Transfer::Halt(*off + len))
-                                }
+                            let (t, len) = self.$IdxN.proceed(slice.split_at(*off).1, state, eof)?;
+                            offset = *off + len;
+                            match t {
+                                Transfer::Accepted => (),
+                                t => return Ok((t, offset)),
                             }
                         }
                     )+ }
                 }
 
-                Ok(Transfer::Accepted(tot_len))
+                Ok((Transfer::Accepted, offset))
             }
 
             #[inline(always)]
-            #[allow(unsafe_code)]
             fn extract_seq(&self, slice: &'i U, entry: Self::Internal) -> Self::Captured {
-                let ($($ValN,)+) = entry.1;
-                let mut captuer = MaybeUninit::<Self::Captured>::uninit();
                 $(
-                    let cap = self.$IdxN.extract(slice.split_at($ValN.0).1, $ValN.1);
-                    unsafe {
-                        (&raw mut (*captuer.as_mut_ptr()).$IdxN).write(cap);
-                    }
+                    let $ValN = entry.1.$IdxN;
+                    let $ValN = self.$IdxN.extract(slice.split_at($ValN.0).1, $ValN.1);
                 )+
-                unsafe { captuer.assume_init() }
+                ($($ValN,)+)
             }
         }
     } };

@@ -26,18 +26,25 @@ pub(crate) const fn unlikely(cond: bool) -> bool {
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash)]
 pub enum Transfer {
-    Accepted(usize),
+    Accepted,
     Rejected,
-    Halt(usize),
+    Halt,
 }
 
 impl Transfer {
     #[inline(always)]
-    pub const fn perhaps(opt: Option<usize>) -> Self {
-        if let Some(len) = opt {
-            Self::Accepted(len)
-        } else {
-            Self::Rejected
+    pub const fn perhaps(res: Result<usize, usize>) -> (Self, usize) {
+        match res {
+            Ok(len) => (Self::Accepted, len),
+            Err(len) => (Self::Rejected, len),
+        }
+    }
+
+    #[inline(always)]
+    pub const fn cut(self) -> Self {
+        match self {
+            Self::Accepted => Self::Accepted,
+            Self::Rejected | Self::Halt => Self::Halt,
         }
     }
 }
@@ -48,6 +55,7 @@ impl Transfer {
 pub trait Slice {
     fn len(&self) -> usize;
     fn split_at(&self, mid: usize) -> (&Self, &Self);
+    fn starts_with(&self, prefix: &Self) -> bool;
 }
 
 impl Slice for str {
@@ -59,9 +67,13 @@ impl Slice for str {
     fn split_at(&self, mid: usize) -> (&Self, &Self) {
         self.split_at(mid)
     }
+    #[inline(always)]
+    fn starts_with(&self, prefix: &Self) -> bool {
+        self.starts_with(prefix)
+    }
 }
 
-impl<T> Slice for [T] {
+impl<T: PartialEq> Slice for [T] {
     #[inline(always)]
     fn len(&self) -> usize {
         self.len()
@@ -70,6 +82,10 @@ impl<T> Slice for [T] {
     fn split_at(&self, mid: usize) -> (&Self, &Self) {
         self.split_at(mid)
     }
+    #[inline(always)]
+    fn starts_with(&self, prefix: &Self) -> bool {
+        self.starts_with(prefix)
+    }
 }
 
 //------------------------------------------------------------------------------
@@ -77,7 +93,7 @@ impl<T> Slice for [T] {
 /// You can abbreviate `n..=n` to `n`.
 pub trait URangeBounds {
     fn contains(&self, times: usize) -> bool;
-    fn unsaturated(&self, times: usize) -> bool;
+    fn unfulfilled(&self, times: usize) -> bool;
 }
 
 #[rustfmt::skip]
@@ -86,170 +102,95 @@ mod urange_bounds {
 
     impl URangeBounds for usize {
         fn contains(&self, times: usize) -> bool { times == *self }
-        fn unsaturated(&self, times: usize) -> bool { times <= *self }
+        fn unfulfilled(&self, times: usize) -> bool { times <= *self }
     }
     impl URangeBounds for RangeFull {
         fn contains(&self, _t: usize) -> bool { true }
-        fn unsaturated(&self, _t: usize) -> bool { true }
+        fn unfulfilled(&self, _t: usize) -> bool { true }
     }
     impl URangeBounds for RangeFrom<usize> {
         fn contains(&self, times: usize) -> bool { self.contains(&times) }
-        fn unsaturated(&self, _t: usize) -> bool { true }
+        fn unfulfilled(&self, _t: usize) -> bool { true }
     }
     impl URangeBounds for Range<usize> {
         fn contains(&self, times: usize) -> bool { self.contains(&times) }
-        fn unsaturated(&self, times: usize) -> bool { times < self.end }
+        fn unfulfilled(&self, times: usize) -> bool { times < self.end }
     }
     impl URangeBounds for RangeTo<usize> {
         fn contains(&self, times: usize) -> bool { self.contains(&times) }
-        fn unsaturated(&self, times: usize) -> bool { times < self.end }
+        fn unfulfilled(&self, times: usize) -> bool { times < self.end }
     }
     impl URangeBounds for RangeInclusive<usize> {
         fn contains(&self, times: usize) -> bool { self.contains(&times) }
-        fn unsaturated(&self, times: usize) -> bool { times <= *self.end() }
+        fn unfulfilled(&self, times: usize) -> bool { times <= *self.end() }
     }
     impl URangeBounds for RangeToInclusive<usize> {
         fn contains(&self, times: usize) -> bool { self.contains(&times) }
-        fn unsaturated(&self, times: usize) -> bool { times <= self.end }
+        fn unfulfilled(&self, times: usize) -> bool { times <= self.end }
     }
 }
 
 //------------------------------------------------------------------------------
 
-macro_rules! resume_proceed {
-    (   $label:lifetime: $check:expr => {
-        $( $LabelN:lifetime: $PointN:pat => $BlockN:block )+
-    } ) => {
-        resume_proceed!( @REARRANGE $label: $check => ; $($LabelN: $PointN => $BlockN)+ );
+macro_rules! proceed {
+    (
+        $switch:expr => {
+            $( $LabN:lifetime: $CaseN:pat => $([$InitN:block])? $ProcN:block )+
+        }
+    ) => {
+        proceed!( @REARRANGE $switch => ; $($LabN: $CaseN => $([$InitN])? $ProcN)+ );
     };
 
-    ( @REARRANGE $label:lifetime: $check:expr =>
-        $( $LabelN:lifetime: $PointN:pat => $BlockN:block )* ;
-           $LabelK:lifetime: $PointK:pat => $BlockK:block
-        $( $LabelM:lifetime: $PointM:pat => $BlockM:block )*
+    ( @REARRANGE $switch:expr =>
+        $( $LabN:lifetime: $CaseN:pat => $([$InitN:block])? $ProcN:block )* ;
+           $LabK:lifetime: $CaseK:pat => $([$InitK:block])? $ProcK:block
+        $( $LabM:lifetime: $CaseM:pat => $([$InitM:block])? $ProcM:block )*
     ) => {
-        resume_proceed! {
-            @REARRANGE $label: $check =>
-              $LabelK: $PointK => $BlockK
-            $($LabelN: $PointN => $BlockN)* ;
-            $($LabelM: $PointM => $BlockM)*
+        proceed! {
+            @REARRANGE $switch =>
+              $LabK: $CaseK => $([$InitK])? $ProcK
+            $($LabN: $CaseN => $([$InitN])? $ProcN)* ;
+            $($LabM: $CaseM => $([$InitM])? $ProcM)*
         }
     };
 
-    ( @REARRANGE $label:lifetime: $check:expr =>
-        $( $LabelN:lifetime: $PointN:pat => $BlockN:block )+ ;
+    ( @REARRANGE $switch:expr =>
+        $( $LabN:lifetime: $CaseN:pat => $([$InitN:block])? $ProcN:block )+ ;
     ) => {
-        resume_proceed!( @ENTER $label: $check => ; $($LabelN: $PointN => $BlockN)+ );
+        proceed!( @ENTER $switch => ; $($LabN: $CaseN => $([$InitN])? $ProcN)+ );
     };
 
-    ( @ENTER $label:lifetime: $check:expr =>
-        $( $LabelN:lifetime: $PointN:pat => $BlockN:block )* ;
-           $LabelK:lifetime: $PointK:pat => $BlockK:block
-        $( $LabelM:lifetime: $PointM:pat => $BlockM:block )+
+    ( @ENTER $switch:expr =>
+        $( $LabN:lifetime: $CaseN:pat => $([$InitN:block])? $ProcN:block )* ;
+           $LabK:lifetime: $CaseK:pat => $([$InitK:block])? $ProcK:block
+        $( $LabM:lifetime: $CaseM:pat => $([$InitM:block])? $ProcM:block )+
     ) => {
-        #[allow(unused_labels)]
-        $LabelK: loop {
-            resume_proceed! {
-                @ENTER $label: $check =>
-                $($LabelN: $PointN => $BlockN)*
-                  $LabelK: $PointK => $BlockK ;
-                $($LabelM: $PointM => $BlockM)+
+        $LabK: loop {
+            proceed! {
+                @ENTER $switch =>
+                  $LabK: $CaseK => $([$InitK])? $ProcK
+                $($LabN: $CaseN => $([$InitN])? $ProcN)* ;
+                $($LabM: $CaseM => $([$InitM])? $ProcM)+
             }
-            $BlockK
+            $($InitK)?
             break;
         }
+        $ProcK
     };
 
-    ( @ENTER $label:lifetime: $check:expr =>
-        $( $LabelN:lifetime: $PointN:pat => $BlockN:block )* ;
-           $LabelK:lifetime: $PointK:pat => $BlockK:block
+    ( @ENTER $switch:expr =>
+        $( $LabN:lifetime: $CaseN:pat => $([$InitN:block])? $ProcN:block )* ;
+           $LabK:lifetime: $CaseK:pat => $([$InitK:block])? $ProcK:block
     ) => {
-        #[allow(unused_labels)]
-        $LabelK: loop {
-            resume_proceed!( @MATCH $label: $check => $($LabelN)* $LabelK $label ; $($PointN,)* $PointK );
-            $BlockK
-            break;
-        }
-    };
-
-    ( @MATCH $label:lifetime: $check:expr =>
-        $LabelA:lifetime $( $LabelN:lifetime )+ ;
-                         $( $PointN:pat ),+
-    ) => {
-        resume_proceed!( @MATCH $label: $check => ; $($PointN => $LabelN)+ )
-    };
-
-    ( @MATCH $label:lifetime: $check:expr =>
-        $( $PointN:pat => $LabelN:lifetime )* ;
-           $PointK:pat => $LabelK:lifetime
-        $( $PointM:pat => $LabelM:lifetime )*
-    ) => {
-        resume_proceed!( @MATCH $label: $check => $PointK => $LabelK $($PointN => $LabelN)* ; $($PointM => $LabelM)* )
-    };
-
-    ( @MATCH $label:lifetime: $check:expr =>
-        $( $PointN:pat => $LabelN:lifetime )+ ;
-    ) => {
-        $label: loop {
-            match $check {
-                $( $PointN => break $LabelN, )+
+        $LabK: loop {
+            match $switch {
+                $CaseK => break $LabK,
+              $($CaseN => break $LabN,)*
             }
         }
+        $ProcK
     };
 }
-
-//------------------------------------------------------------------------------
-
-/// `Lens1X` means `LenX - 1`. `Gen` means "Generic". Always `N < K < M`.
-macro_rules! gen_product_types {
-    (      $Lens1K:literal ~ $GenK:ident ~ $OrdK:tt
-        $( $Lens1M:literal ~ $GenM:ident ~ $OrdM:tt )*
-    ) => {
-        gen_product_types! { @
-              $Lens1K ~ $GenK ~ $OrdK ;
-            $($Lens1M ~ $GenM ~ $OrdM)*
-        }
-    };
-
-    ( @ $( $Lens1N:literal ~ $GenN:ident ~ $OrdN:tt )+ ;
-           $Lens1K:literal ~ $GenK:ident ~ $OrdK:tt
-        $( $Lens1M:literal ~ $GenM:ident ~ $OrdM:tt )*
-    ) => { $crate::common::paste! {
-        #[derive(Debug, Default)]
-        pub struct [<Product $Lens1K>]<$($GenN),*> { $(
-           #[doc = "Value " $OrdN " of " $Lens1K "."]
-            pub [<val $OrdN>]: $GenN,
-        )+ }
-
-        gen_product_types! { @
-            $($Lens1N ~ $GenN ~ $OrdN)+
-              $Lens1K ~ $GenK ~ $OrdK ;
-            $($Lens1M ~ $GenM ~ $OrdM)*
-        }
-    } };
-
-    ( @ $( $Lens1N:literal ~ $GenN:ident ~ $OrdN:tt )+ ; ) => {};
-}
-
-// gen_product_types! {
-//     0  ~ A ~ 1
-//     1  ~ B ~ 2
-//     2  ~ C ~ 3
-//     3  ~ D ~ 4
-//     4  ~ E ~ 5
-//     5  ~ F ~ 6
-//     6  ~ G ~ 7
-//     7  ~ H ~ 8
-//     8  ~ I ~ 9
-//     9  ~ J ~ 10
-//     10 ~ K ~ 11
-//     11 ~ L ~ 12
-//     12 ~ M ~ 13
-//     13 ~ N ~ 14
-//     14 ~ O ~ 15
-//     15 ~ P ~ 16
-//     16 ~ Q ~ 17
-// }
 
 //------------------------------------------------------------------------------
 

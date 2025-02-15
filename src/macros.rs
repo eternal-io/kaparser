@@ -1,14 +1,14 @@
 #[doc(hidden)]
 #[macro_export]
-macro_rules! repeat {
+macro_rules! rep {
     ($n:tt, $p:expr) => {
-        $crate::combine::repeat::repeat_exact::<_, _, $n>($p)
+        $crate::combine::repeat::repeat_exact::<_, _, { $n }>($p)
     };
     ($n:tt..=$x:tt, $p:expr) => {
-        $crate::combine::repeat::repeat::<_, _, $n, { $x - $n }>($p)
+        $crate::combine::repeat::repeat::<_, _, { $n }, { $x - $n }>($p)
     };
     (..=$x:tt, $p:expr) => {
-        $crate::combine::repeat::repeat_at_most::<_, _, $x>($p)
+        $crate::combine::repeat::repeat_at_most::<_, _, { $x }>($p)
     };
 
     ($n:tt..$x:tt, $p:expr) => {
@@ -19,8 +19,7 @@ macro_rules! repeat {
     };
 
     ($n:tt.., $p:expr) => {
-        todo!()
-        compile_error!("consider use `silent(...)` or `collect(...)` instead")
+        compile_error!("consider use `reiterate` or `reiterate_with`")
     };
 }
 

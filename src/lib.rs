@@ -1,5 +1,5 @@
 #![cfg_attr(not(feature = "std"), no_std)]
-#![allow(unused_imports, unused_variables)]
+#![allow(unused_imports)]
 #![deny(unsafe_code)]
 
 extern crate alloc;

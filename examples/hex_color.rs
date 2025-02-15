@@ -1,6 +1,6 @@
 use kaparser::prelude::*;
 
-#[derive(Debug, PartialEq)]
+#[derive(Debug, PartialEq, Eq)]
 enum Color {
     Rgb(u8, u8, u8),
     Rgba(u8, u8, u8, u8),
@@ -8,19 +8,15 @@ enum Color {
 
 fn parse_color(s: &str) -> Option<Color> {
     // This is really a constant! But you don't want to write out its type...
-    let pat = const { seq(("#", repeat!(3..=4, take(2, is_hexdigit)))) };
-    let (_tag, ([r, g, b], [a])) = pat.matches(s)?;
-
-    let [r, g, b] = [
-        u8::from_str_radix(r, 16).unwrap(),
-        u8::from_str_radix(g, 16).unwrap(),
-        u8::from_str_radix(b, 16).unwrap(),
-    ];
-
-    Some(match a {
-        None => Color::Rgb(r, g, b),
-        Some(a) => Color::Rgba(r, g, b, u8::from_str_radix(a, 16).unwrap()),
-    })
+    let pat = const { seq(("#", rep!(3..=4, take(2, is_hex)))) };
+    let (_t, ([r, g, b], [a])) = pat.matches(s)?;
+    let r = u8::from_str_radix(r, 16).unwrap();
+    let g = u8::from_str_radix(g, 16).unwrap();
+    let b = u8::from_str_radix(b, 16).unwrap();
+    match a {
+        None => Some(Color::Rgb(r, g, b)),
+        Some(a) => Some(Color::Rgba(r, g, b, u8::from_str_radix(a, 16).unwrap())),
+    }
 }
 
 fn main() {
