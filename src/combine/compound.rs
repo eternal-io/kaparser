@@ -32,12 +32,12 @@ where
 
     fn init_com(&self) -> Self::Internal;
 
-    fn proceed_com(&self, slice: &'i U, entry: &mut Self::Internal, eof: bool) -> ProceedResult;
+    fn precede_com(&self, slice: &'i U, entry: &mut Self::Internal, eof: bool) -> PrecedeResult;
 
     fn extract_com(&self, slice: &'i U, entry: Self::Internal) -> Self::Captured;
 }
 
-impl<'i, U, C> Proceed<'i, U> for Compound<'i, U, C>
+impl<'i, U, C> Precede<'i, U> for Compound<'i, U, C>
 where
     U: 'i + ?Sized + Slice,
     C: Compoundable<'i, U>,
@@ -50,8 +50,8 @@ where
         self.com.init_com()
     }
     #[inline(always)]
-    fn proceed(&self, slice: &'i U, entry: &mut Self::Internal, eof: bool) -> ProceedResult {
-        self.com.proceed_com(slice, entry, eof)
+    fn precede(&self, slice: &'i U, entry: &mut Self::Internal, eof: bool) -> PrecedeResult {
+        self.com.precede_com(slice, entry, eof)
     }
     #[inline(always)]
     fn extract(&self, slice: &'i U, entry: Self::Internal) -> Self::Captured {
@@ -61,7 +61,7 @@ where
 
 macro_rules! impl_compoundable_for_tuple {
     ( $Alt:ident, $( $LabN:lifetime ~ $GenN:ident ~ $VarN:ident ~ $IdxN:tt )+ ) => { $crate::common::paste! {
-        impl<'i, U: 'i + ?Sized + Slice, $($GenN: Proceed<'i, U>),+> Compoundable<'i, U> for ($($GenN,)+) {
+        impl<'i, U: 'i + ?Sized + Slice, $($GenN: Precede<'i, U>),+> Compoundable<'i, U> for ($($GenN,)+) {
             type Captured = &'i U;
             type Internal = (usize, $Alt<$($GenN::Internal),+>);
 
@@ -72,17 +72,17 @@ macro_rules! impl_compoundable_for_tuple {
 
             #[inline(always)]
             #[allow(irrefutable_let_patterns)]
-            fn proceed_com(&self, slice: &'i U, entry: &mut Self::Internal, eof: bool) -> ProceedResult {
+            fn precede_com(&self, slice: &'i U, entry: &mut Self::Internal, eof: bool) -> PrecedeResult {
                 use $Alt::*;
                 let (offset, states) = entry;
 
-                proceed! {
+                resume_precede! {
                     states => { $(
                         $LabN: $VarN(_) => [{
                             *states = $VarN(self.$IdxN.init());
                         }] {
                             let $VarN(state) = states else { unreachable!() };
-                            let (t, len) = self.$IdxN.proceed(slice.split_at(*offset).1, state, eof)?;
+                            let (t, len) = self.$IdxN.precede(slice.split_at(*offset).1, state, eof)?;
                             *offset += len;
                             match t {
                                 Transfer::Accepted => (),

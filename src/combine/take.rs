@@ -26,7 +26,7 @@ where
     phantom: PhantomData<T>,
 }
 
-impl<'i, P, R> Proceed<'i, str> for Take<char, P, R>
+impl<'i, P, R> Precede<'i, str> for Take<char, P, R>
 where
     P: Predicate<char>,
     R: URangeBounds,
@@ -39,7 +39,7 @@ where
         (0, 1)
     }
     #[inline(always)]
-    fn proceed(&self, slice: &'i str, entry: &mut Self::Internal, eof: bool) -> ProceedResult {
+    fn precede(&self, slice: &'i str, entry: &mut Self::Internal, eof: bool) -> PrecedeResult {
         let (tot_off, times) = entry;
         if let Some((i, (off, ch))) = slice
             .split_at(*tot_off)
@@ -70,7 +70,7 @@ where
     }
 }
 
-impl<'i, T, P, R> Proceed<'i, [T]> for Take<T, P, R>
+impl<'i, T, P, R> Precede<'i, [T]> for Take<T, P, R>
 where
     T: 'i + PartialEq,
     P: Predicate<T>,
@@ -84,7 +84,7 @@ where
         (0, 1)
     }
     #[inline(always)]
-    fn proceed(&self, slice: &'i [T], entry: &mut Self::Internal, eof: bool) -> ProceedResult {
+    fn precede(&self, slice: &'i [T], entry: &mut Self::Internal, eof: bool) -> PrecedeResult {
         let (tot_off, times) = entry;
         if let Some((i, _)) = slice
             .split_at(*tot_off)
@@ -117,7 +117,7 @@ where
 
 //------------------------------------------------------------------------------
 
-impl<'i, P> Proceed<'i, str> for RangeFrom<P>
+impl<'i, P> Precede<'i, str> for RangeFrom<P>
 where
     P: Predicate<char>,
 {
@@ -129,7 +129,7 @@ where
         0
     }
     #[inline(always)]
-    fn proceed(&self, slice: &'i str, entry: &mut Self::Internal, eof: bool) -> ProceedResult {
+    fn precede(&self, slice: &'i str, entry: &mut Self::Internal, eof: bool) -> PrecedeResult {
         match slice
             .split_at(*entry)
             .1
@@ -152,7 +152,7 @@ where
     }
 }
 
-impl<'i, T, P> Proceed<'i, [T]> for RangeFrom<P>
+impl<'i, T, P> Precede<'i, [T]> for RangeFrom<P>
 where
     T: 'i + PartialEq,
     P: Predicate<T>,
@@ -165,7 +165,7 @@ where
         0
     }
     #[inline(always)]
-    fn proceed(&self, slice: &'i [T], entry: &mut Self::Internal, eof: bool) -> ProceedResult {
+    fn precede(&self, slice: &'i [T], entry: &mut Self::Internal, eof: bool) -> PrecedeResult {
         match slice
             .split_at(*entry)
             .1

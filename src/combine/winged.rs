@@ -20,7 +20,7 @@ pub struct Winged<'i, T> {
     phantom: PhantomData<&'i ()>,
 }
 
-impl<'i> Proceed<'i, str> for Winged<'i, char> {
+impl<'i> Precede<'i, str> for Winged<'i, char> {
     type Captured = &'i str;
     type Internal = (usize, Phase, usize, usize);
 
@@ -28,9 +28,9 @@ impl<'i> Proceed<'i, str> for Winged<'i, char> {
         (0, Phase::PrimaryLeft, 0, 0)
     }
 
-    fn proceed(&self, slice: &'i str, entry: &mut Self::Internal, eof: bool) -> ProceedResult {
+    fn precede(&self, slice: &'i str, entry: &mut Self::Internal, eof: bool) -> PrecedeResult {
         let (tot_off, phase, content_start, content_len) = entry;
-        proceed! {
+        resume_precede! {
             phase => {
                 'A: Phase::PrimaryLeft => {}
                 'B: Phase::SecondaryLeft => {}

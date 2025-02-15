@@ -1,4 +1,4 @@
-use crate::{common::*, predicate::*, proceed::*};
+use crate::{common::*, predicate::*, precede::*};
 use core::{marker::PhantomData, mem::MaybeUninit};
 
 pub mod alternate;

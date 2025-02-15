@@ -31,7 +31,7 @@ macro_rules! token_set {
     () => {};
 }
 
-// /// Generate structures, implement [`Proceed`] for a set of tokens conveniently.
+// /// Generate structures, implement [`Precede`] for a set of tokens conveniently.
 // #[macro_export]
 // macro_rules! token_set {
 //     ( $(
@@ -65,7 +65,7 @@ macro_rules! token_set {
 //                 "\n\nZST type by [`token_set!`] macro, only for passing as argument."]
 //         pub(crate) struct [<$name Tokens>];
 //
-//         impl Proceed for [<$name Tokens>] {
+//         impl Precede for [<$name Tokens>] {
 //             type Discriminant = [<$name Token>];
 //
 //             fn max_len(&self) -> usize {

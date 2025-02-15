@@ -32,12 +32,12 @@ where
 
     fn init_seq(&self) -> Self::Internal;
 
-    fn proceed_seq(&self, slice: &'i U, entry: &mut Self::Internal, eof: bool) -> ProceedResult;
+    fn precede_seq(&self, slice: &'i U, entry: &mut Self::Internal, eof: bool) -> PrecedeResult;
 
     fn extract_seq(&self, slice: &'i U, entry: Self::Internal) -> Self::Captured;
 }
 
-impl<'i, U, S> Proceed<'i, U> for Sequence<'i, U, S>
+impl<'i, U, S> Precede<'i, U> for Sequence<'i, U, S>
 where
     U: 'i + ?Sized + Slice,
     S: Sequencable<'i, U>,
@@ -50,8 +50,8 @@ where
         self.seq.init_seq()
     }
     #[inline(always)]
-    fn proceed(&self, slice: &'i U, entry: &mut Self::Internal, eof: bool) -> ProceedResult {
-        self.seq.proceed_seq(slice, entry, eof)
+    fn precede(&self, slice: &'i U, entry: &mut Self::Internal, eof: bool) -> PrecedeResult {
+        self.seq.precede_seq(slice, entry, eof)
     }
     #[inline(always)]
     fn extract(&self, slice: &'i U, entry: Self::Internal) -> Self::Captured {
@@ -61,7 +61,7 @@ where
 
 macro_rules! impl_sequencable_for_tuple {
     ( $Len:literal, $( $LabN:lifetime ~ $GenN:ident ~ $ValN:ident ~ $OrdN:literal ~ $IdxN:tt )+ ) => { $crate::common::paste! {
-        impl<'i, U: 'i + ?Sized + Slice, $($GenN: Proceed<'i, U>),+> Sequencable<'i, U> for ($($GenN,)+) {
+        impl<'i, U: 'i + ?Sized + Slice, $($GenN: Precede<'i, U>),+> Sequencable<'i, U> for ($($GenN,)+) {
             type Captured = ($($GenN::Captured,)+);
             type Internal = ([<Check $Len>], ($((usize, $GenN::Internal),)+));
 
@@ -71,12 +71,12 @@ macro_rules! impl_sequencable_for_tuple {
             }
 
             #[inline(always)]
-            fn proceed_seq(&self, slice: &'i U, entry: &mut Self::Internal, eof: bool) -> ProceedResult {
+            fn precede_seq(&self, slice: &'i U, entry: &mut Self::Internal, eof: bool) -> PrecedeResult {
                 use [<Check $Len>]::*;
                 let (checkpoint, states) = entry;
                 let mut offset = 0usize;
 
-                proceed! {
+                resume_precede! {
                     *checkpoint => { $(
                         $LabN: [<Point $OrdN>] => [{
                             *checkpoint = [<Point $OrdN>];
@@ -86,7 +86,7 @@ macro_rules! impl_sequencable_for_tuple {
                                 *off = offset;
                             }
 
-                            let (t, len) = self.$IdxN.proceed(slice.split_at(*off).1, state, eof)?;
+                            let (t, len) = self.$IdxN.precede(slice.split_at(*off).1, state, eof)?;
                             offset = *off + len;
                             match t {
                                 Transfer::Accepted => (),

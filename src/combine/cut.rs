@@ -4,8 +4,8 @@ use super::*;
 pub const fn cut<'i, U, P, Q>(head: P, body: Q) -> Cut<'i, U, P, Q>
 where
     U: 'i + ?Sized + Slice,
-    P: Proceed<'i, U>,
-    Q: Proceed<'i, U>,
+    P: Precede<'i, U>,
+    Q: Precede<'i, U>,
 {
     Cut {
         head,
@@ -19,19 +19,19 @@ where
 pub struct Cut<'i, U, P, Q>
 where
     U: 'i + ?Sized + Slice,
-    P: Proceed<'i, U>,
-    Q: Proceed<'i, U>,
+    P: Precede<'i, U>,
+    Q: Precede<'i, U>,
 {
     head: P,
     body: Q,
     phantom: PhantomData<&'i U>,
 }
 
-impl<'i, U, P, Q> Proceed<'i, U> for Cut<'i, U, P, Q>
+impl<'i, U, P, Q> Precede<'i, U> for Cut<'i, U, P, Q>
 where
     U: 'i + ?Sized + Slice,
-    P: Proceed<'i, U>,
-    Q: Proceed<'i, U>,
+    P: Precede<'i, U>,
+    Q: Precede<'i, U>,
 {
     type Captured = (P::Captured, Q::Captured);
     type Internal = (usize, P::Internal, Q::Internal);
@@ -41,11 +41,11 @@ where
         (0, self.head.init(), self.body.init())
     }
     #[inline(always)]
-    fn proceed(&self, slice: &'i U, entry: &mut Self::Internal, eof: bool) -> ProceedResult {
+    fn precede(&self, slice: &'i U, entry: &mut Self::Internal, eof: bool) -> PrecedeResult {
         let (cut, head, body) = entry;
 
         if *cut == 0 {
-            let (t, len) = self.head.proceed(slice, head, eof)?;
+            let (t, len) = self.head.precede(slice, head, eof)?;
             if let Transfer::Accepted = t {
                 *cut += len;
             } else {
@@ -53,7 +53,7 @@ where
             }
         }
 
-        let (t, len) = self.body.proceed(slice.split_at(*cut).1, body, eof)?;
+        let (t, len) = self.body.precede(slice.split_at(*cut).1, body, eof)?;
         if let Transfer::Accepted = t {
             Ok((Transfer::Accepted, len))
         } else {

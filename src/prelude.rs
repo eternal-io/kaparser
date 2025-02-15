@@ -12,5 +12,5 @@ pub use crate::{
     },
     parser::*,
     predicate::*,
-    proceed::{token_set, Proceed},
+    precede::{token_set, Precede},
 };

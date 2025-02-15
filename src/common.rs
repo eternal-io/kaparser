@@ -132,13 +132,13 @@ mod urange_bounds {
 
 //------------------------------------------------------------------------------
 
-macro_rules! proceed {
+macro_rules! resume_precede {
     (
         $switch:expr => {
             $( $LabN:lifetime: $CaseN:pat => $([$InitN:block])? $ProcN:block )+
         }
     ) => {
-        proceed!( @REARRANGE $switch => ; $($LabN: $CaseN => $([$InitN])? $ProcN)+ );
+        resume_precede!( @REARRANGE $switch => ; $($LabN: $CaseN => $([$InitN])? $ProcN)+ );
     };
 
     ( @REARRANGE $switch:expr =>
@@ -146,7 +146,7 @@ macro_rules! proceed {
            $LabK:lifetime: $CaseK:pat => $([$InitK:block])? $ProcK:block
         $( $LabM:lifetime: $CaseM:pat => $([$InitM:block])? $ProcM:block )*
     ) => {
-        proceed! {
+        resume_precede! {
             @REARRANGE $switch =>
               $LabK: $CaseK => $([$InitK])? $ProcK
             $($LabN: $CaseN => $([$InitN])? $ProcN)* ;
@@ -157,7 +157,7 @@ macro_rules! proceed {
     ( @REARRANGE $switch:expr =>
         $( $LabN:lifetime: $CaseN:pat => $([$InitN:block])? $ProcN:block )+ ;
     ) => {
-        proceed!( @ENTER $switch => ; $($LabN: $CaseN => $([$InitN])? $ProcN)+ );
+        resume_precede!( @ENTER $switch => ; $($LabN: $CaseN => $([$InitN])? $ProcN)+ );
     };
 
     ( @ENTER $switch:expr =>
@@ -166,7 +166,7 @@ macro_rules! proceed {
         $( $LabM:lifetime: $CaseM:pat => $([$InitM:block])? $ProcM:block )+
     ) => {
         $LabK: loop {
-            proceed! {
+            resume_precede! {
                 @ENTER $switch =>
                   $LabK: $CaseK => $([$InitK])? $ProcK
                 $($LabN: $CaseN => $([$InitN])? $ProcN)* ;

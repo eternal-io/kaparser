@@ -9,7 +9,7 @@ enum Color {
 fn parse_color(s: &str) -> Option<Color> {
     // This is really a constant! But you don't want to write out its type...
     let pat = const { seq(("#", rep!(3..=4, take(2, is_hex)))) };
-    let (_t, ([r, g, b], [a])) = pat.matches(s)?;
+    let (_t, ([r, g, b], [a])) = pat.parse(s)?;
     let r = u8::from_str_radix(r, 16).unwrap();
     let g = u8::from_str_radix(g, 16).unwrap();
     let b = u8::from_str_radix(b, 16).unwrap();

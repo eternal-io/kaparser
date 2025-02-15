@@ -14,14 +14,14 @@ where
 pub const fn until<'i, U, P>(end: P) -> RangeToInclusive<P>
 where
     U: 'i + ?Sized + Slice,
-    P: Proceed<'i, U>,
+    P: Precede<'i, U>,
 {
     RangeToInclusive { end }
 }
 
 //------------------------------------------------------------------------------
 
-impl<'i, P> Proceed<'i, str> for RangeTo<P>
+impl<'i, P> Precede<'i, str> for RangeTo<P>
 where
     P: Predicate<char>,
 {
@@ -33,7 +33,7 @@ where
         0
     }
     #[inline(always)]
-    fn proceed(&self, slice: &'i str, entry: &mut Self::Internal, eof: bool) -> ProceedResult {
+    fn precede(&self, slice: &'i str, entry: &mut Self::Internal, eof: bool) -> PrecedeResult {
         match slice
             .split_at(*entry)
             .1
@@ -57,7 +57,7 @@ where
     }
 }
 
-impl<'i, T, P> Proceed<'i, [T]> for RangeTo<P>
+impl<'i, T, P> Precede<'i, [T]> for RangeTo<P>
 where
     T: 'i + PartialEq,
     P: Predicate<T>,
@@ -70,7 +70,7 @@ where
         0
     }
     #[inline(always)]
-    fn proceed(&self, slice: &'i [T], entry: &mut Self::Internal, eof: bool) -> ProceedResult {
+    fn precede(&self, slice: &'i [T], entry: &mut Self::Internal, eof: bool) -> PrecedeResult {
         match slice
             .split_at(*entry)
             .1
@@ -97,9 +97,9 @@ where
 
 //------------------------------------------------------------------------------
 
-impl<'i, P> Proceed<'i, str> for RangeToInclusive<P>
+impl<'i, P> Precede<'i, str> for RangeToInclusive<P>
 where
-    P: Proceed<'i, str>,
+    P: Precede<'i, str>,
 {
     type Captured = (&'i str, P::Captured);
     type Internal = (usize, P::Internal);
@@ -109,10 +109,10 @@ where
         (0, self.end.init())
     }
     #[inline(always)]
-    fn proceed(&self, slice: &'i str, entry: &mut Self::Internal, eof: bool) -> ProceedResult {
+    fn precede(&self, slice: &'i str, entry: &mut Self::Internal, eof: bool) -> PrecedeResult {
         let (off, state) = entry;
         for ch in slice.split_at(*off).1.chars() {
-            let (t, len) = self.end.proceed(slice.split_at(*off).1, state, eof)?;
+            let (t, len) = self.end.precede(slice.split_at(*off).1, state, eof)?;
             match t {
                 Transfer::Rejected => (),
                 t => return Ok((t, len)),
@@ -129,10 +129,10 @@ where
     }
 }
 
-impl<'i, T, P> Proceed<'i, [T]> for RangeToInclusive<P>
+impl<'i, T, P> Precede<'i, [T]> for RangeToInclusive<P>
 where
     T: 'i + PartialEq,
-    P: Proceed<'i, [T]>,
+    P: Precede<'i, [T]>,
 {
     type Captured = (&'i [T], P::Captured);
     type Internal = (usize, P::Internal);
@@ -142,10 +142,10 @@ where
         (0, self.end.init())
     }
     #[inline(always)]
-    fn proceed(&self, slice: &'i [T], entry: &mut Self::Internal, eof: bool) -> ProceedResult {
+    fn precede(&self, slice: &'i [T], entry: &mut Self::Internal, eof: bool) -> PrecedeResult {
         let (off, state) = entry;
         while *off < slice.len() {
-            let (t, len) = self.end.proceed(slice.split_at(*off).1, state, eof)?;
+            let (t, len) = self.end.precede(slice.split_at(*off).1, state, eof)?;
             match t {
                 Transfer::Rejected => (),
                 t => return Ok((t, len)),

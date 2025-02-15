@@ -18,6 +18,6 @@ pub mod combine;
 pub mod parser;
 pub mod predicate;
 pub mod prelude;
-pub mod proceed;
+pub mod precede;
 
 pub type TheResult<T> = Result<T, Box<dyn Error>>;

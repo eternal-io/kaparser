@@ -5,10 +5,10 @@ use core::num::NonZeroUsize;
 #[doc(inline)]
 pub use crate::token_set;
 
-pub type ProceedResult = Result<(Transfer, usize), Option<NonZeroUsize>>;
+pub type PrecedeResult = Result<(Transfer, usize), Option<NonZeroUsize>>;
 
 /// Match a set of slices of items (`&str`, `&[u8]`, `&[T]`, [custom](crate::token_set)).
-pub trait Proceed<'i, U>
+pub trait Precede<'i, U>
 where
     U: 'i + ?Sized + Slice,
 {
@@ -19,17 +19,17 @@ where
     fn init(&self) -> Self::Internal;
 
     /// 一旦返回了 `Ok(_)`，则不再具有可重入性。
-    fn proceed(&self, slice: &'i U, entry: &mut Self::Internal, eof: bool) -> ProceedResult;
+    fn precede(&self, slice: &'i U, entry: &mut Self::Internal, eof: bool) -> PrecedeResult;
 
     /// # Safety
     /// # Panics
     ///
-    /// 只在 [`proceed`](Proceed::proceed) 返回 `Ok(Accepted(_))` 时才保证一定能够返回正确结果，
+    /// 只在 [`precede`](Precede::precede) 返回 `Ok(Accepted(_))` 时才保证一定能够返回正确结果，
     /// 否则，可能是无意义的结果，甚至 panic。
     fn extract(&self, slice: &'i U, entry: Self::Internal) -> Self::Captured;
 }
 
-impl<'i, U> Proceed<'i, U> for &U
+impl<'i, U> Precede<'i, U> for &U
 where
     U: 'i + ?Sized + Slice,
 {
@@ -40,7 +40,7 @@ where
     fn init(&self) -> Self::Internal {}
 
     #[inline(always)]
-    fn proceed(&self, slice: &'i U, entry: &mut Self::Internal, eof: bool) -> ProceedResult {
+    fn precede(&self, slice: &'i U, entry: &mut Self::Internal, eof: bool) -> PrecedeResult {
         let _ = eof;
         let _ = entry;
         (slice.len() >= self.len())
@@ -57,7 +57,7 @@ where
 
 //------------------------------------------------------------------------------
 
-impl<'i, P> Proceed<'i, str> for [P; 1]
+impl<'i, P> Precede<'i, str> for [P; 1]
 where
     P: Predicate<char>,
 {
@@ -68,7 +68,7 @@ where
     fn init(&self) -> Self::Internal {}
 
     #[inline(always)]
-    fn proceed(&self, slice: &'i str, entry: &mut Self::Internal, eof: bool) -> ProceedResult {
+    fn precede(&self, slice: &'i str, entry: &mut Self::Internal, eof: bool) -> PrecedeResult {
         let _ = eof;
         let _ = entry;
         slice
@@ -85,7 +85,7 @@ where
     }
 }
 
-impl<'i, T, P> Proceed<'i, [T]> for [P; 1]
+impl<'i, T, P> Precede<'i, [T]> for [P; 1]
 where
     T: 'i + PartialEq,
     P: Predicate<T>,
@@ -97,7 +97,7 @@ where
     fn init(&self) -> Self::Internal {}
 
     #[inline(always)]
-    fn proceed(&self, slice: &'i [T], entry: &mut Self::Internal, eof: bool) -> ProceedResult {
+    fn precede(&self, slice: &'i [T], entry: &mut Self::Internal, eof: bool) -> PrecedeResult {
         let _ = eof;
         let _ = entry;
         slice

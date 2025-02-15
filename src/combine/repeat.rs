@@ -9,7 +9,7 @@ pub const fn repeat<'i, U, P, const AT_LEAST: usize, const MAY_MORE: usize>(
 ) -> Repeat<'i, U, P, AT_LEAST, MAY_MORE>
 where
     U: 'i + ?Sized + Slice,
-    P: Proceed<'i, U>,
+    P: Precede<'i, U>,
 {
     Repeat {
         body,
@@ -21,7 +21,7 @@ where
 pub const fn repeat_exact<'i, U, P, const TIMES: usize>(body: P) -> RepeatExact<'i, U, P, TIMES>
 where
     U: 'i + ?Sized + Slice,
-    P: Proceed<'i, U>,
+    P: Precede<'i, U>,
 {
     RepeatExact { body: repeat(body) }
 }
@@ -30,7 +30,7 @@ where
 pub const fn repeat_at_most<'i, U, P, const TIMES: usize>(body: P) -> RepeatAtMost<'i, U, P, TIMES>
 where
     U: 'i + ?Sized + Slice,
-    P: Proceed<'i, U>,
+    P: Precede<'i, U>,
 {
     RepeatAtMost { body: repeat(body) }
 }
@@ -40,16 +40,16 @@ where
 pub struct Repeat<'i, U, P, const AT_LEAST: usize, const MAY_MORE: usize>
 where
     U: 'i + ?Sized + Slice,
-    P: Proceed<'i, U>,
+    P: Precede<'i, U>,
 {
     body: P,
     phantom: PhantomData<&'i U>,
 }
 
-impl<'i, U, P, const AT_LEAST: usize, const MAY_MORE: usize> Proceed<'i, U> for Repeat<'i, U, P, AT_LEAST, MAY_MORE>
+impl<'i, U, P, const AT_LEAST: usize, const MAY_MORE: usize> Precede<'i, U> for Repeat<'i, U, P, AT_LEAST, MAY_MORE>
 where
     U: 'i + ?Sized + Slice,
-    P: Proceed<'i, U>,
+    P: Precede<'i, U>,
 {
     type Captured = ([P::Captured; AT_LEAST], [Option<P::Captured>; MAY_MORE]);
     type Internal = (
@@ -80,7 +80,7 @@ where
     }
 
     #[inline(always)]
-    fn proceed(&self, slice: &'i U, entry: &mut Self::Internal, eof: bool) -> ProceedResult {
+    fn precede(&self, slice: &'i U, entry: &mut Self::Internal, eof: bool) -> PrecedeResult {
         let (checkpoint, at_least, may_more) = entry;
         let mut resuming = *checkpoint;
         let mut offset = 0usize;
@@ -96,7 +96,7 @@ where
                     *off = offset;
                 }
 
-                let (t, len) = self.body.proceed(slice.split_at(*off).1, state, eof)?;
+                let (t, len) = self.body.precede(slice.split_at(*off).1, state, eof)?;
                 offset = *off + len;
                 match t {
                     Transfer::Accepted => (),
@@ -155,26 +155,26 @@ where
 pub struct RepeatExact<'i, U, P, const TIMES: usize>
 where
     U: 'i + ?Sized + Slice,
-    P: Proceed<'i, U>,
+    P: Precede<'i, U>,
 {
     body: Repeat<'i, U, P, TIMES, 0>,
 }
 
-impl<'i, U, P, const TIMES: usize> Proceed<'i, U> for RepeatExact<'i, U, P, TIMES>
+impl<'i, U, P, const TIMES: usize> Precede<'i, U> for RepeatExact<'i, U, P, TIMES>
 where
     U: 'i + ?Sized + Slice,
-    P: Proceed<'i, U>,
+    P: Precede<'i, U>,
 {
     type Captured = [P::Captured; TIMES];
-    type Internal = <Repeat<'i, U, P, TIMES, 0> as Proceed<'i, U>>::Internal;
+    type Internal = <Repeat<'i, U, P, TIMES, 0> as Precede<'i, U>>::Internal;
 
     #[inline(always)]
     fn init(&self) -> Self::Internal {
         self.body.init()
     }
     #[inline(always)]
-    fn proceed(&self, slice: &'i U, entry: &mut Self::Internal, eof: bool) -> ProceedResult {
-        self.body.proceed(slice, entry, eof)
+    fn precede(&self, slice: &'i U, entry: &mut Self::Internal, eof: bool) -> PrecedeResult {
+        self.body.precede(slice, entry, eof)
     }
     #[inline(always)]
     fn extract(&self, slice: &'i U, entry: Self::Internal) -> Self::Captured {
@@ -187,26 +187,26 @@ where
 pub struct RepeatAtMost<'i, U, P, const TIMES: usize>
 where
     U: 'i + ?Sized + Slice,
-    P: Proceed<'i, U>,
+    P: Precede<'i, U>,
 {
     body: Repeat<'i, U, P, 0, TIMES>,
 }
 
-impl<'i, U, P, const TIMES: usize> Proceed<'i, U> for RepeatAtMost<'i, U, P, TIMES>
+impl<'i, U, P, const TIMES: usize> Precede<'i, U> for RepeatAtMost<'i, U, P, TIMES>
 where
     U: 'i + ?Sized + Slice,
-    P: Proceed<'i, U>,
+    P: Precede<'i, U>,
 {
     type Captured = [Option<P::Captured>; TIMES];
-    type Internal = <Repeat<'i, U, P, 0, TIMES> as Proceed<'i, U>>::Internal;
+    type Internal = <Repeat<'i, U, P, 0, TIMES> as Precede<'i, U>>::Internal;
 
     #[inline(always)]
     fn init(&self) -> Self::Internal {
         self.body.init()
     }
     #[inline(always)]
-    fn proceed(&self, slice: &'i U, entry: &mut Self::Internal, eof: bool) -> ProceedResult {
-        self.body.proceed(slice, entry, eof)
+    fn precede(&self, slice: &'i U, entry: &mut Self::Internal, eof: bool) -> PrecedeResult {
+        self.body.precede(slice, entry, eof)
     }
     #[inline(always)]
     fn extract(&self, slice: &'i U, entry: Self::Internal) -> Self::Captured {

@@ -7,19 +7,19 @@ use super::*;
 pub struct Prefix<'i, U, P, Q>
 where
     U: 'i + ?Sized + Slice,
-    P: Proceed<'i, U>,
-    Q: Proceed<'i, U>,
+    P: Precede<'i, U>,
+    Q: Precede<'i, U>,
 {
     body: P,
     prefix: Q,
     phantom: PhantomData<&'i U>,
 }
 
-impl<'i, U, P, Q> Proceed<'i, U> for Prefix<'i, U, P, Q>
+impl<'i, U, P, Q> Precede<'i, U> for Prefix<'i, U, P, Q>
 where
     U: 'i + ?Sized + Slice,
-    P: Proceed<'i, U>,
-    Q: Proceed<'i, U>,
+    P: Precede<'i, U>,
+    Q: Precede<'i, U>,
 {
     type Captured = P::Captured;
     type Internal = (usize, Alt2<P::Internal, Q::Internal>);
@@ -29,11 +29,11 @@ where
         (0, Alt2::Var2(self.prefix.init()))
     }
     #[inline(always)]
-    fn proceed(&self, slice: &'i U, entry: &mut Self::Internal, eof: bool) -> ProceedResult {
+    fn precede(&self, slice: &'i U, entry: &mut Self::Internal, eof: bool) -> PrecedeResult {
         let (offset, state) = entry;
 
         if let Alt2::Var2(prefix) = state {
-            let (t, len) = self.prefix.proceed(slice, prefix, eof)?;
+            let (t, len) = self.prefix.precede(slice, prefix, eof)?;
 
             *offset += len;
 
@@ -46,7 +46,7 @@ where
         }
 
         let Alt2::Var1(body) = state else { unreachable!() };
-        let (t, len) = self.body.proceed(slice.split_at(*offset).1, body, eof)?;
+        let (t, len) = self.body.precede(slice.split_at(*offset).1, body, eof)?;
 
         *offset += len;
 

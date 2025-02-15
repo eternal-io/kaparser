@@ -4,7 +4,7 @@ use super::*;
 pub const fn reiterate<'i, U, P, R>(range: R, body: P) -> Reiterate<'i, U, P, R>
 where
     U: 'i + ?Sized + Slice,
-    P: Proceed<'i, U>,
+    P: Precede<'i, U>,
     R: URangeBounds,
 {
     Reiterate {
@@ -18,7 +18,7 @@ where
 pub const fn reiterate_with<'i, U, P, R, St, F>(range: R, fold: F, body: P) -> ReiterateWith<'i, U, P, R, St, F>
 where
     U: 'i + ?Sized + Slice,
-    P: Proceed<'i, U>,
+    P: Precede<'i, U>,
     R: URangeBounds,
     St: Default + Clone,
     F: Fn(&mut St, P::Captured),
@@ -36,7 +36,7 @@ where
 pub struct Reiterate<'i, U, P, R>
 where
     U: 'i + ?Sized + Slice,
-    P: Proceed<'i, U>,
+    P: Precede<'i, U>,
     R: URangeBounds,
 {
     body: P,
@@ -44,10 +44,10 @@ where
     phantom: PhantomData<&'i U>,
 }
 
-impl<'i, U, P, R> Proceed<'i, U> for Reiterate<'i, U, P, R>
+impl<'i, U, P, R> Precede<'i, U> for Reiterate<'i, U, P, R>
 where
     U: 'i + ?Sized + Slice,
-    P: Proceed<'i, U>,
+    P: Precede<'i, U>,
     R: URangeBounds,
 {
     type Captured = &'i U;
@@ -58,13 +58,13 @@ where
         (0, 1, None)
     }
     #[inline(always)]
-    fn proceed(&self, slice: &'i U, entry: &mut Self::Internal, eof: bool) -> ProceedResult {
+    fn precede(&self, slice: &'i U, entry: &mut Self::Internal, eof: bool) -> PrecedeResult {
         let (tot_off, times, state) = entry;
         while self.range.unfulfilled(*times) {
             let right = slice.split_at(*tot_off).1;
             let (t, len) = self
                 .body
-                .proceed(right, state.get_or_insert_with(|| self.body.init()), eof)?;
+                .precede(right, state.get_or_insert_with(|| self.body.init()), eof)?;
 
             *tot_off += len;
 
@@ -93,7 +93,7 @@ where
 pub struct ReiterateWith<'i, U, P, R, St, F>
 where
     U: 'i + ?Sized + Slice,
-    P: Proceed<'i, U>,
+    P: Precede<'i, U>,
     R: URangeBounds,
     St: Default + Clone,
     F: Fn(&mut St, P::Captured),
@@ -104,10 +104,10 @@ where
     phantom: PhantomData<(&'i U, St)>,
 }
 
-impl<'i, U, P, R, St, F> Proceed<'i, U> for ReiterateWith<'i, U, P, R, St, F>
+impl<'i, U, P, R, St, F> Precede<'i, U> for ReiterateWith<'i, U, P, R, St, F>
 where
     U: 'i + ?Sized + Slice,
-    P: Proceed<'i, U>,
+    P: Precede<'i, U>,
     R: URangeBounds,
     St: 'static + Default + Clone,
     F: Fn(&mut St, P::Captured),
@@ -120,13 +120,13 @@ where
         (0, 1, St::default(), None)
     }
     #[inline(always)]
-    fn proceed(&self, slice: &'i U, entry: &mut Self::Internal, eof: bool) -> ProceedResult {
+    fn precede(&self, slice: &'i U, entry: &mut Self::Internal, eof: bool) -> PrecedeResult {
         let (tot_off, times, st, state) = entry;
         while self.range.unfulfilled(*times) {
             let right = slice.split_at(*tot_off).1;
             let (t, len) = self
                 .body
-                .proceed(right, state.get_or_insert_with(|| self.body.init()), eof)?;
+                .precede(right, state.get_or_insert_with(|| self.body.init()), eof)?;
 
             *tot_off += len;
 
