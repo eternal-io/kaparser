@@ -1,7 +1,7 @@
 use super::*;
 
 #[inline(always)]
-pub const fn reiterate<'i, U, P, R>(range: R, body: P) -> Reiterate<'i, U, P, R>
+pub const fn reiter<'i, U, P, R>(range: R, body: P) -> Reiterate<'i, U, P, R>
 where
     U: 'i + ?Sized + Slice,
     P: Precede<'i, U>,
@@ -15,7 +15,7 @@ where
 }
 
 #[inline(always)]
-pub const fn reiterate_with<'i, U, P, R, St, F>(range: R, fold: F, body: P) -> ReiterateWith<'i, U, P, R, St, F>
+pub const fn reiter_with<'i, U, P, R, St, F>(range: R, fold: F, body: P) -> ReiterateWith<'i, U, P, R, St, F>
 where
     U: 'i + ?Sized + Slice,
     P: Precede<'i, U>,
@@ -59,27 +59,27 @@ where
     }
     #[inline(always)]
     fn precede(&self, slice: &'i U, entry: &mut Self::Internal, eof: bool) -> PrecedeResult {
-        let (tot_off, times, state) = entry;
+        let (offset, times, state) = entry;
         while self.range.unfulfilled(*times) {
-            let right = slice.split_at(*tot_off).1;
+            let right = slice.split_at(*offset).1;
             let (t, len) = self
                 .body
                 .precede(right, state.get_or_insert_with(|| self.body.init()), eof)?;
 
-            *tot_off += len;
+            *offset += len;
 
             match t {
                 Transfer::Accepted => drop(state.take()),
                 Transfer::Rejected => break,
-                Transfer::Halt => return Ok((Transfer::Halt, len)),
+                Transfer::Halt => return Ok((t, len)),
             }
 
             *times += 1;
         }
 
         match self.range.contains(*times) {
-            true => Ok((Transfer::Accepted, *tot_off)),
-            false => Ok((Transfer::Rejected, *tot_off)),
+            true => Ok((Transfer::Accepted, *offset)),
+            false => Ok((Transfer::Rejected, *offset)),
         }
     }
     #[inline(always)]
@@ -121,32 +121,32 @@ where
     }
     #[inline(always)]
     fn precede(&self, slice: &'i U, entry: &mut Self::Internal, eof: bool) -> PrecedeResult {
-        let (tot_off, times, st, state) = entry;
+        let (offset, times, st, state) = entry;
         while self.range.unfulfilled(*times) {
-            let right = slice.split_at(*tot_off).1;
+            let right = slice.split_at(*offset).1;
             let (t, len) = self
                 .body
                 .precede(right, state.get_or_insert_with(|| self.body.init()), eof)?;
 
-            *tot_off += len;
+            *offset += len;
 
             match t {
                 Transfer::Accepted => (self.fold)(st, self.body.extract(right, state.take().unwrap())),
                 Transfer::Rejected => break,
-                Transfer::Halt => return Ok((Transfer::Halt, len)),
+                Transfer::Halt => return Ok((t, len)),
             }
 
             *times += 1;
         }
 
         match self.range.contains(*times) {
-            true => Ok((Transfer::Accepted, *tot_off)),
-            false => Ok((Transfer::Rejected, *tot_off)),
+            true => Ok((Transfer::Accepted, *offset)),
+            false => Ok((Transfer::Rejected, *offset)),
         }
     }
     #[inline(always)]
     fn extract(&self, slice: &'i U, entry: Self::Internal) -> Self::Captured {
-        let (tot_off, _, st, _) = entry;
-        (slice.split_at(tot_off).0, st)
+        let (offset, _, st, _) = entry;
+        (slice.split_at(offset).0, st)
     }
 }

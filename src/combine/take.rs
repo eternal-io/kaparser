@@ -40,27 +40,27 @@ where
     }
     #[inline(always)]
     fn precede(&self, slice: &'i str, entry: &mut Self::Internal, eof: bool) -> PrecedeResult {
-        let (tot_off, times) = entry;
+        let (offset, times) = entry;
         if let Some((i, (off, ch))) = slice
-            .split_at(*tot_off)
+            .split_at(*offset)
             .1
             .char_indices()
             .enumerate()
             .take_while(|(i, (_, ch))| self.range.unfulfilled(*times + *i) && self.predicate.predicate(ch))
             .last()
         {
-            *tot_off += off + ch.len_utf8();
+            *offset += off + ch.len_utf8();
             *times += i;
         }
 
         Ok(match eof {
             true => match self.range.contains(*times) {
-                true => (Transfer::Accepted, *tot_off),
-                false => (Transfer::Rejected, *tot_off),
+                true => (Transfer::Accepted, *offset),
+                false => (Transfer::Rejected, *offset),
             },
             false => match self.range.unfulfilled(*times) {
                 true => return Err(None),
-                false => (Transfer::Accepted, *tot_off),
+                false => (Transfer::Accepted, *offset),
             },
         })
     }
@@ -85,27 +85,27 @@ where
     }
     #[inline(always)]
     fn precede(&self, slice: &'i [T], entry: &mut Self::Internal, eof: bool) -> PrecedeResult {
-        let (tot_off, times) = entry;
+        let (offset, times) = entry;
         if let Some((i, _)) = slice
-            .split_at(*tot_off)
+            .split_at(*offset)
             .1
             .iter()
             .enumerate()
             .take_while(|(i, value)| self.range.unfulfilled(*times + *i) && self.predicate.predicate(value))
             .last()
         {
-            *tot_off += i + 1;
+            *offset += i + 1;
             *times += i;
         }
 
         Ok(match eof {
             true => match self.range.contains(*times) {
-                true => (Transfer::Accepted, *tot_off),
-                false => (Transfer::Rejected, *tot_off),
+                true => (Transfer::Accepted, *offset),
+                false => (Transfer::Rejected, *offset),
             },
             false => match self.range.unfulfilled(*times) {
                 true => return Err(None),
-                false => (Transfer::Accepted, *tot_off),
+                false => (Transfer::Accepted, *offset),
             },
         })
     }

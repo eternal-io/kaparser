@@ -188,24 +188,24 @@ gen_ascii_predicates! {
     r"alphabetic `[A-Za-z]`"                is_alpha(ch) => ch.is_ascii_alphabetic(),
     r"alphanumeric `[0-9A-Za-z]`"           is_alnum(ch) => ch.is_ascii_alphanumeric(),
 
-    r"decimal digit `[0-9]`"                is_dec(ch)  => ch.is_ascii_digit(),
-    r"hexadecimal digit `[0-9A-Fa-f]`"      is_hex(ch)  => ch.is_ascii_hexdigit(),
-    r"octal digit `[0-7]`"                  is_oct(ch)  => matches!(ch, '0'..='7'),
-    r"binary digit `[0-1]`"                 is_bin(ch)  => matches!(ch, '0' | '1'),
+    r"decimal digit `[0-9]`"                is_dec(ch) => ch.is_ascii_digit(),
+    r"hexadecimal digit `[0-9A-Fa-f]`"      is_hex(ch) => ch.is_ascii_hexdigit(),
+    r"octal digit `[0-7]`"                  is_oct(ch) => matches!(ch, '0'..='7'),
+    r"binary digit `[0-1]`"                 is_bin(ch) => matches!(ch, '0' | '1'),
 }
 
 pub mod unc {
     gen_unicode_predicates! {
-        "with `XID_Start` property"      xid0(ch)   => unicode_ident::is_xid_start(*ch),
-        "with `XID_Continue` property"   xid1(ch)   => unicode_ident::is_xid_continue(*ch),
+        "with `XID_Start` property"     xid0(ch) => unicode_ident::is_xid_start(*ch),
+        "with `XID_Continue` property"  xid1(ch) => unicode_ident::is_xid_continue(*ch),
 
-        "with `White_Space` property"      ws(ch)   => ch.is_whitespace(),
-        "with `Lowercase` property"     lower(ch)   => ch.is_lowercase(),
-        "with `Uppercase` property"     upper(ch)   => ch.is_uppercase(),
-        "with `Alphabetic` property"    alpha(ch)   => ch.is_alphabetic(),
-        "with `Alphabetic` property or in numbers category"
-                                        alnum(ch)   => ch.is_alphanumeric(),
-        "in numbers category"             num(ch)   => ch.is_numeric(),
-        "in control codes category"      ctrl(ch)   => ch.is_control(),
+        "with `White_Space` property"             ws(ch) => ch.is_whitespace(),
+        "with `Lowercase` property"            lower(ch) => ch.is_lowercase(),
+        "with `Uppercase` property"            upper(ch) => ch.is_uppercase(),
+        "with `Alphabetic` property"           alpha(ch) => ch.is_alphabetic(),
+        "with `Alphabetic` property or in general numbers categories"
+                                               alnum(ch) => ch.is_alphanumeric(),
+        "in general numbers categories"          num(ch) => ch.is_numeric(),
+        "in general control codes category"     ctrl(ch) => ch.is_control(),
     }
 }

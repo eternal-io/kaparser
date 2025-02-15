@@ -1,34 +1,39 @@
 use super::*;
 
 #[inline(always)]
-pub const fn cut<'i, U, P>(body: P) -> Cut<'i, U, P>
+pub const fn with<'i, U, P, F, Ḟ>(then: F, body: P) -> With<'i, U, P, F, Ḟ>
 where
     U: 'i + ?Sized + Slice,
     P: Precede<'i, U>,
+    F: Fn(P::Captured) -> Ḟ,
 {
-    Cut {
+    With {
         body,
+        then,
         phantom: PhantomData,
     }
 }
 
 //------------------------------------------------------------------------------
 
-pub struct Cut<'i, U, P>
+pub struct With<'i, U, P, F, ඞ>
 where
     U: 'i + ?Sized + Slice,
     P: Precede<'i, U>,
+    F: Fn(P::Captured) -> ඞ,
 {
     body: P,
-    phantom: PhantomData<&'i U>,
+    then: F,
+    phantom: PhantomData<(&'i U, ඞ)>,
 }
 
-impl<'i, U, P> Precede<'i, U> for Cut<'i, U, P>
+impl<'i, U, P, F, ඞ> Precede<'i, U> for With<'i, U, P, F, ඞ>
 where
     U: 'i + ?Sized + Slice,
     P: Precede<'i, U>,
+    F: Fn(P::Captured) -> ඞ,
 {
-    type Captured = P::Captured;
+    type Captured = ඞ;
     type Internal = P::Internal;
 
     #[inline(always)]
@@ -37,11 +42,10 @@ where
     }
     #[inline(always)]
     fn precede(&self, slice: &'i U, entry: &mut Self::Internal, eof: bool) -> PrecedeResult {
-        let (t, len) = self.body.precede(slice, entry, eof)?;
-        Ok((t.cut(), len))
+        self.body.precede(slice, entry, eof)
     }
     #[inline(always)]
     fn extract(&self, slice: &'i U, entry: Self::Internal) -> Self::Captured {
-        self.body.extract(slice, entry)
+        (self.then)(self.body.extract(slice, entry))
     }
 }

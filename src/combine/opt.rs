@@ -1,47 +1,53 @@
 use super::*;
 
 #[inline(always)]
-pub const fn cut<'i, U, P>(body: P) -> Cut<'i, U, P>
+pub const fn opt<'i, U, P>(opt: P) -> Optional<'i, U, P>
 where
     U: 'i + ?Sized + Slice,
     P: Precede<'i, U>,
 {
-    Cut {
-        body,
+    Optional {
+        opt,
         phantom: PhantomData,
     }
 }
 
 //------------------------------------------------------------------------------
 
-pub struct Cut<'i, U, P>
+pub struct Optional<'i, U, P>
 where
     U: 'i + ?Sized + Slice,
     P: Precede<'i, U>,
 {
-    body: P,
+    opt: P,
     phantom: PhantomData<&'i U>,
 }
 
-impl<'i, U, P> Precede<'i, U> for Cut<'i, U, P>
+impl<'i, U, P> Precede<'i, U> for Optional<'i, U, P>
 where
     U: 'i + ?Sized + Slice,
     P: Precede<'i, U>,
 {
-    type Captured = P::Captured;
-    type Internal = P::Internal;
+    type Captured = Option<P::Captured>;
+    type Internal = Option<P::Internal>;
 
     #[inline(always)]
     fn init(&self) -> Self::Internal {
-        self.body.init()
+        Some(self.opt.init())
     }
     #[inline(always)]
     fn precede(&self, slice: &'i U, entry: &mut Self::Internal, eof: bool) -> PrecedeResult {
-        let (t, len) = self.body.precede(slice, entry, eof)?;
-        Ok((t.cut(), len))
+        let (t, len) = self.opt.precede(slice, entry.as_mut().unwrap(), eof)?;
+        match t {
+            Transfer::Rejected => {
+                drop(entry.take());
+                Ok((Transfer::Accepted, 0))
+            }
+            t => Ok((t, len)),
+        }
     }
     #[inline(always)]
     fn extract(&self, slice: &'i U, entry: Self::Internal) -> Self::Captured {
-        self.body.extract(slice, entry)
+        entry.map(|state| self.opt.extract(slice, state))
     }
 }

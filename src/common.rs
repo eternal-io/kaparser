@@ -3,10 +3,6 @@ use core::ops::{Range, RangeFrom, RangeFull, RangeInclusive, RangeTo, RangeToInc
 #[doc(hidden)]
 pub use paste::paste;
 
-#[cold]
-#[inline(always)]
-pub(crate) const fn cold_path() {}
-
 #[inline(always)]
 pub(crate) const fn likely(cond: bool) -> bool {
     if !cond {
@@ -21,6 +17,9 @@ pub(crate) const fn unlikely(cond: bool) -> bool {
     }
     cond
 }
+#[cold]
+#[inline(always)]
+pub(crate) const fn cold_path() {}
 
 //------------------------------------------------------------------------------
 
@@ -51,11 +50,14 @@ impl Transfer {
 
 //------------------------------------------------------------------------------
 
-#[allow(clippy::len_without_is_empty)]
 pub trait Slice {
     fn len(&self) -> usize;
     fn split_at(&self, mid: usize) -> (&Self, &Self);
     fn starts_with(&self, prefix: &Self) -> bool;
+
+    fn is_empty(&self) -> bool {
+        self.len() == 0
+    }
 }
 
 impl Slice for str {
@@ -209,6 +211,7 @@ macro_rules! gen_alternates {
            $Lens1K:literal ~ $GenK:ident ~ $OrdK:tt
         $( $Lens1M:literal ~ $GenM:ident ~ $OrdM:tt )*
     ) => { $crate::common::paste! {
+        #[doc(hidden)]
         #[derive(Debug, Clone)]
         pub enum [<Alt $Lens1K>]<$($GenN),*> { $(
            #[doc = "Variant " $OrdN " of " $Lens1K "."]

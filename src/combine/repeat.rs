@@ -102,12 +102,12 @@ where
                     Transfer::Accepted => (),
 
                     Transfer::Rejected => match necessary {
-                        true => return Ok((Transfer::Rejected, offset)),
+                        true => return Ok((t, offset)),
                         false => break,
                     },
                     Transfer::Halt => {
                         cold_path();
-                        return Ok((Transfer::Halt, offset));
+                        return Ok((t, offset));
                     }
                 }
 

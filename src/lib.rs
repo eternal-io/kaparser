@@ -1,13 +1,5 @@
 #![cfg_attr(not(feature = "std"), no_std)]
-#![allow(unused_imports)]
 #![deny(unsafe_code)]
-
-extern crate alloc;
-#[cfg(feature = "std")]
-extern crate std;
-
-use alloc::boxed::Box;
-use core::{error::Error, fmt, mem, num::NonZeroU16, ops::Range, ptr::copy_nonoverlapping, str::from_utf8_unchecked};
 
 #[macro_use]
 mod macros;
@@ -16,8 +8,16 @@ mod macros;
 pub mod common;
 pub mod combine;
 pub mod parser;
+pub mod precede;
 pub mod predicate;
 pub mod prelude;
-pub mod precede;
-
-pub type TheResult<T> = Result<T, Box<dyn Error>>;
+pub mod anything {
+    //! This module re-exports all items in kaparser.
+    //!
+    //! It can help define `const COMBINATOR`s with type annotations... if you *really* want.
+    //!
+    //! Before doing so, please check [`combine::def`](crate::combine::def), maybe the rules you want are already defined.
+    //! If they're not there and you're sure these rules are commonly used, feel free to open an issue.
+    #[doc(hidden)]
+    pub use crate::{combine::*, parser::*};
+}
