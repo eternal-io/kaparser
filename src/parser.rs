@@ -1,7 +1,7 @@
 #[cfg(feature = "std")]
 extern crate std;
 
-use crate::{common::*, precede::*};
+use crate::{common::*, pattern::*};
 
 pub trait SimpleParser<'i, U>
 where
@@ -17,7 +17,7 @@ where
 impl<'i, U, P> SimpleParser<'i, U> for P
 where
     U: 'i + ?Sized + Slice,
-    P: Precede<'i, U>,
+    P: Pattern<'i, U>,
 {
     type Captured = P::Captured;
 

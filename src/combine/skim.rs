@@ -14,14 +14,14 @@ where
 pub const fn until<'i, U, P>(end: P) -> RangeToInclusive<P>
 where
     U: 'i + ?Sized + Slice,
-    P: Precede<'i, U>,
+    P: Pattern<'i, U>,
 {
     RangeToInclusive { end }
 }
 
 //------------------------------------------------------------------------------
 
-impl<'i, P> Precede<'i, str> for RangeTo<P>
+impl<'i, P> Pattern<'i, str> for RangeTo<P>
 where
     P: Predicate<char>,
 {
@@ -57,7 +57,7 @@ where
     }
 }
 
-impl<'i, T, P> Precede<'i, [T]> for RangeTo<P>
+impl<'i, T, P> Pattern<'i, [T]> for RangeTo<P>
 where
     T: 'i + PartialEq,
     P: Predicate<T>,
@@ -97,9 +97,9 @@ where
 
 //------------------------------------------------------------------------------
 
-impl<'i, P> Precede<'i, str> for RangeToInclusive<P>
+impl<'i, P> Pattern<'i, str> for RangeToInclusive<P>
 where
-    P: Precede<'i, str>,
+    P: Pattern<'i, str>,
 {
     type Captured = (&'i str, P::Captured);
     type Internal = (usize, P::Internal);
@@ -129,10 +129,10 @@ where
     }
 }
 
-impl<'i, T, P> Precede<'i, [T]> for RangeToInclusive<P>
+impl<'i, T, P> Pattern<'i, [T]> for RangeToInclusive<P>
 where
     T: 'i + PartialEq,
-    P: Precede<'i, [T]>,
+    P: Pattern<'i, [T]>,
 {
     type Captured = (&'i [T], P::Captured);
     type Internal = (usize, P::Internal);

@@ -4,7 +4,7 @@ use super::*;
 pub const fn cut<'i, U, P>(body: P) -> Cut<'i, U, P>
 where
     U: 'i + ?Sized + Slice,
-    P: Precede<'i, U>,
+    P: Pattern<'i, U>,
 {
     Cut {
         body,
@@ -17,16 +17,16 @@ where
 pub struct Cut<'i, U, P>
 where
     U: 'i + ?Sized + Slice,
-    P: Precede<'i, U>,
+    P: Pattern<'i, U>,
 {
     body: P,
     phantom: PhantomData<&'i U>,
 }
 
-impl<'i, U, P> Precede<'i, U> for Cut<'i, U, P>
+impl<'i, U, P> Pattern<'i, U> for Cut<'i, U, P>
 where
     U: 'i + ?Sized + Slice,
-    P: Precede<'i, U>,
+    P: Pattern<'i, U>,
 {
     type Captured = P::Captured;
     type Internal = P::Internal;

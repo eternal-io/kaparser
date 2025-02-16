@@ -1,4 +1,4 @@
-use core::ops::{Range, RangeFrom, RangeFull, RangeInclusive, RangeTo, RangeToInclusive};
+use ::core::ops::{Range, RangeFrom, RangeFull, RangeInclusive, RangeTo, RangeToInclusive};
 
 #[doc(hidden)]
 pub use paste::paste;
@@ -196,60 +196,6 @@ macro_rules! resume_precede {
 
 //------------------------------------------------------------------------------
 
-/// `Lens1X` means `LenX - 1`. `Gen` means "Generic". Always `N < K < M`.
-macro_rules! gen_alternates {
-    (      $Lens1K:literal ~ $GenK:ident ~ $OrdK:tt
-        $( $Lens1M:literal ~ $GenM:ident ~ $OrdM:tt )*
-    ) => {
-        gen_alternates! { @
-              $Lens1K ~ $GenK ~ $OrdK ;
-            $($Lens1M ~ $GenM ~ $OrdM)*
-        }
-    };
-
-    ( @ $( $Lens1N:literal ~ $GenN:ident ~ $OrdN:tt )+ ;
-           $Lens1K:literal ~ $GenK:ident ~ $OrdK:tt
-        $( $Lens1M:literal ~ $GenM:ident ~ $OrdM:tt )*
-    ) => { $crate::common::paste! {
-        #[doc(hidden)]
-        #[derive(Debug, Clone)]
-        pub enum [<Alt $Lens1K>]<$($GenN),*> { $(
-           #[doc = "Variant " $OrdN " of " $Lens1K "."]
-            [<Var $OrdN>]($GenN),
-        )+ }
-
-        gen_alternates! { @
-            $($Lens1N ~ $GenN ~ $OrdN)+
-              $Lens1K ~ $GenK ~ $OrdK ;
-            $($Lens1M ~ $GenM ~ $OrdM)*
-        }
-    } };
-
-    ( @ $( $Lens1N:literal ~ $GenN:ident ~ $OrdN:tt )+ ; ) => {};
-}
-
-gen_alternates! {
-    0  ~ A ~ 1
-    1  ~ B ~ 2
-    2  ~ C ~ 3
-    3  ~ D ~ 4
-    4  ~ E ~ 5
-    5  ~ F ~ 6
-    6  ~ G ~ 7
-    7  ~ H ~ 8
-    8  ~ I ~ 9
-    9  ~ J ~ 10
-    10 ~ K ~ 11
-    11 ~ L ~ 12
-    12 ~ M ~ 13
-    13 ~ N ~ 14
-    14 ~ O ~ 15
-    15 ~ P ~ 16
-    16 ~ Q ~ 17
-}
-
-//------------------------------------------------------------------------------
-
 macro_rules! gen_checkpoints {
     (      $Lens1K:literal ~ $OrdK:tt
         $( $Lens1M:literal ~ $OrdM:tt )*
@@ -298,4 +244,132 @@ gen_checkpoints! {
     14 ~ 15
     15 ~ 16
     16 ~ 17
+}
+
+//------------------------------------------------------------------------------
+
+/// `Lens1X` means `LenX - 1`. `Gen` means "Generic". Always `N < K < M`.
+macro_rules! gen_alternates {
+    (      $Lens1K:literal ~ $GenK:ident ~ $OrdK:tt
+        $( $Lens1M:literal ~ $GenM:ident ~ $OrdM:tt )*
+    ) => {
+        gen_alternates! { @
+              $Lens1K ~ $GenK ~ $OrdK ;
+            $($Lens1M ~ $GenM ~ $OrdM)*
+        }
+    };
+
+    ( @ $( $Lens1N:literal ~ $GenN:ident ~ $OrdN:tt )+ ;
+           $Lens1K:literal ~ $GenK:ident ~ $OrdK:tt
+        $( $Lens1M:literal ~ $GenM:ident ~ $OrdM:tt )*
+    ) => { $crate::common::paste! {
+        #[doc(hidden)]
+        #[derive(Debug)]
+        pub enum [<Alt $Lens1K>]<$($GenN),+> { $(
+           #[doc = "Variant " $OrdN " of " $Lens1K "."]
+            [<Var $OrdN>]($GenN),
+        )+ }
+
+        gen_alternates! { @
+            $($Lens1N ~ $GenN ~ $OrdN)+
+              $Lens1K ~ $GenK ~ $OrdK ;
+            $($Lens1M ~ $GenM ~ $OrdM)*
+        }
+    } };
+
+    ( @ $( $Lens1N:literal ~ $GenN:ident ~ $OrdN:tt )+ ; ) => {};
+}
+
+gen_alternates! {
+    0  ~ A ~ 1
+    1  ~ B ~ 2
+    2  ~ C ~ 3
+    3  ~ D ~ 4
+    4  ~ E ~ 5
+    5  ~ F ~ 6
+    6  ~ G ~ 7
+    7  ~ H ~ 8
+    8  ~ I ~ 9
+    9  ~ J ~ 10
+    10 ~ K ~ 11
+    11 ~ L ~ 12
+    12 ~ M ~ 13
+    13 ~ N ~ 14
+    14 ~ O ~ 15
+    15 ~ P ~ 16
+    16 ~ Q ~ 17
+}
+
+//------------------------------------------------------------------------------
+
+/// `Lens1X` means `LenX - 1`. `Gen` means "Generic". Always `N < K < M`.
+macro_rules! gen_inner_alternates {
+    (      $Lens1K:literal ~ $GenK:ident ~ $OrdK:tt
+        $( $Lens1M:literal ~ $GenM:ident ~ $OrdM:tt )*
+    ) => {
+        gen_inner_alternates! { @
+              $Lens1K ~ $GenK ~ $OrdK ;
+            $($Lens1M ~ $GenM ~ $OrdM)*
+        }
+    };
+
+    ( @ $( $Lens1N:literal ~ $GenN:ident ~ $OrdN:tt )+ ;
+           $Lens1K:literal ~ $GenK:ident ~ $OrdK:tt
+        $( $Lens1M:literal ~ $GenM:ident ~ $OrdM:tt )*
+    ) => { $crate::common::paste! {
+        /// **⚠ INTERNAL USE ONLY ⚠**
+        #[doc(hidden)]
+        pub enum [<InnerAlt $Lens1K>]<$($GenN),+> { $(
+            [<Var $OrdN>]($GenN),
+        )+ }
+
+        gen_inner_alternates! {
+            @IMPL_CLONE [<InnerAlt $Lens1K>]
+            $($Lens1N ~ $GenN ~ $OrdN)+
+        }
+
+        gen_inner_alternates! { @
+            $($Lens1N ~ $GenN ~ $OrdN)+
+              $Lens1K ~ $GenK ~ $OrdK ;
+            $($Lens1M ~ $GenM ~ $OrdM)*
+        }
+    } };
+
+    ( @ $( $Lens1N:literal ~ $GenN:ident ~ $OrdN:tt )+ ; ) => {};
+
+    ( @IMPL_CLONE $Name:ident
+           $Lens1A:literal ~ $GenA:ident ~ $OrdA:tt
+        $( $Lens1N:literal ~ $GenN:ident ~ $OrdN:tt )*
+    ) => {
+        impl<$GenA: Clone, $($GenN),*> Clone for $Name<$GenA, $($GenN),*> {
+            #[inline(always)]
+            #[allow(unreachable_patterns)]
+            fn clone(&self) -> Self {
+                match self {
+                    $Name::Var1(var) => $Name::Var1(var.clone()),
+                    _ => panic!("contract violation"),
+                }
+            }
+        }
+    };
+}
+
+gen_inner_alternates! {
+    0  ~ A ~ 1
+    1  ~ B ~ 2
+    2  ~ C ~ 3
+    3  ~ D ~ 4
+    4  ~ E ~ 5
+    5  ~ F ~ 6
+    6  ~ G ~ 7
+    7  ~ H ~ 8
+    8  ~ I ~ 9
+    9  ~ J ~ 10
+    10 ~ K ~ 11
+    11 ~ L ~ 12
+    12 ~ M ~ 13
+    13 ~ N ~ 14
+    14 ~ O ~ 15
+    15 ~ P ~ 16
+    16 ~ Q ~ 17
 }

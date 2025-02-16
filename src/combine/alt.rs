@@ -37,7 +37,7 @@ where
     fn extract_alt(&self, slice: &'i U, entry: Self::Internal) -> Self::Captured;
 }
 
-impl<'i, U, A> Precede<'i, U> for Alternate<'i, U, A>
+impl<'i, U, A> Pattern<'i, U> for Alternate<'i, U, A>
 where
     U: 'i + ?Sized + Slice,
     A: Alternatable<'i, U>,
@@ -60,20 +60,20 @@ where
 }
 
 macro_rules! impl_alternatable_for_tuple {
-    ( $Alt:ident, $( $LabN:lifetime ~ $GenN:ident ~ $VarN:ident ~ $OrdN:literal ~ $IdxN:tt )+ ) => { $crate::common::paste! {
-        impl<'i, U: 'i + ?Sized + Slice, $($GenN: Precede<'i, U>),+> Alternatable<'i, U> for ($($GenN,)+) {
-            type Captured = $Alt<$($GenN::Captured),+>;
-            type Internal = $Alt<$($GenN::Internal),+>;
+    ( $Len:literal, $( $LabN:lifetime ~ $GenN:ident ~ $VarN:ident ~ $OrdN:literal ~ $IdxN:tt )+ ) => { $crate::common::paste! {
+        impl<'i, U: 'i + ?Sized + Slice, $($GenN: Pattern<'i, U>),+> Alternatable<'i, U> for ($($GenN,)+) {
+            type Captured = [<Alt $Len>]<$($GenN::Captured),+>;
+            type Internal = [<InnerAlt $Len>]<$($GenN::Internal),+>;
 
             #[inline(always)]
             fn init_alt(&self) -> Self::Internal {
-                $Alt::Var1(self.0.init())
+                [<InnerAlt $Len>]::Var1(self.0.init())
             }
 
             #[inline(always)]
             #[allow(irrefutable_let_patterns)]
             fn precede_alt(&self, slice: &'i U, entry: &mut Self::Internal, eof: bool) -> PrecedeResult {
-                use $Alt::*;
+                use [<InnerAlt $Len>]::*;
 
                 resume_precede! {
                     entry => { $(
@@ -95,9 +95,8 @@ macro_rules! impl_alternatable_for_tuple {
 
             #[inline(always)]
             fn extract_alt(&self, slice: &'i U, entry: Self::Internal) -> Self::Captured {
-                use $Alt::*;
                 match entry { $(
-                    $VarN(state) => $VarN(self.$IdxN.extract(slice, state)),
+                    [<InnerAlt $Len>]::$VarN(state) => [<Alt $Len>]::$VarN(self.$IdxN.extract(slice, state)),
                 )+ }
             }
         }
@@ -118,7 +117,7 @@ macro_rules! impl_alternatable_for_tuples {
            $Lens1K:literal ~ $LabK:lifetime ~ $OrdK:literal ~ $IdxK:tt
         $( $Lens1M:literal ~ $LabM:lifetime ~ $OrdM:literal ~ $IdxM:tt )*
     ) => { $crate::common::paste! {
-        impl_alternatable_for_tuple!( [<Alt $Lens1K>], $($LabN ~ [<P $OrdN>] ~ [<Var $OrdN>] ~ $OrdN ~ $IdxN)+ );
+        impl_alternatable_for_tuple!( $Lens1K, $($LabN ~ [<P $OrdN>] ~ [<Var $OrdN>] ~ $OrdN ~ $IdxN)+ );
 
         impl_alternatable_for_tuples! { @
             $($Lens1N ~ $LabN ~ $OrdN ~ $IdxN)+

@@ -37,7 +37,7 @@ where
     fn extract_seq(&self, slice: &'i U, entry: Self::Internal) -> Self::Captured;
 }
 
-impl<'i, U, S> Precede<'i, U> for Sequence<'i, U, S>
+impl<'i, U, S> Pattern<'i, U> for Sequence<'i, U, S>
 where
     U: 'i + ?Sized + Slice,
     S: Sequencable<'i, U>,
@@ -61,7 +61,7 @@ where
 
 macro_rules! impl_sequencable_for_tuple {
     ( $Len:literal, $( $LabN:lifetime ~ $GenN:ident ~ $ValN:ident ~ $OrdN:literal ~ $IdxN:tt )+ ) => { $crate::common::paste! {
-        impl<'i, U: 'i + ?Sized + Slice, $($GenN: Precede<'i, U>),+> Sequencable<'i, U> for ($($GenN,)+) {
+        impl<'i, U: 'i + ?Sized + Slice, $($GenN: Pattern<'i, U>),+> Sequencable<'i, U> for ($($GenN,)+) {
             type Captured = ($($GenN::Captured,)+);
             type Internal = ([<Check $Len>], ($((usize, $GenN::Internal),)+));
 

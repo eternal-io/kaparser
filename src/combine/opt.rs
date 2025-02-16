@@ -4,7 +4,7 @@ use super::*;
 pub const fn opt<'i, U, P>(opt: P) -> Optional<'i, U, P>
 where
     U: 'i + ?Sized + Slice,
-    P: Precede<'i, U>,
+    P: Pattern<'i, U>,
 {
     Optional {
         opt,
@@ -17,16 +17,16 @@ where
 pub struct Optional<'i, U, P>
 where
     U: 'i + ?Sized + Slice,
-    P: Precede<'i, U>,
+    P: Pattern<'i, U>,
 {
     opt: P,
     phantom: PhantomData<&'i U>,
 }
 
-impl<'i, U, P> Precede<'i, U> for Optional<'i, U, P>
+impl<'i, U, P> Pattern<'i, U> for Optional<'i, U, P>
 where
     U: 'i + ?Sized + Slice,
-    P: Precede<'i, U>,
+    P: Pattern<'i, U>,
 {
     type Captured = Option<P::Captured>;
     type Internal = Option<P::Internal>;

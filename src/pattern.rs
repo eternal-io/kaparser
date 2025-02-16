@@ -8,7 +8,7 @@ pub use crate::token_set;
 pub type PrecedeResult = Result<(Transfer, usize), Option<NonZeroUsize>>;
 
 /// Match a set of slices of items (`&str`, `&[u8]`, `&[T]`, [custom](crate::token_set)).
-pub trait Precede<'i, U>
+pub trait Pattern<'i, U>
 where
     U: 'i + ?Sized + Slice,
 {
@@ -21,15 +21,16 @@ where
     /// 一旦返回了 `Ok(_)`，则不再具有可重入性。
     fn precede(&self, slice: &'i U, entry: &mut Self::Internal, eof: bool) -> PrecedeResult;
 
-    /// # Safety
     /// # Panics
     ///
     /// 只在 [`precede`](Precede::precede) 返回 `Ok(Accepted(_))` 时才保证一定能够返回正确结果，
     /// 否则，可能是无意义的结果，甚至 panic。
+    ///
+    /// TODO: 修改函数签名和调用约定，允许重复调用
     fn extract(&self, slice: &'i U, entry: Self::Internal) -> Self::Captured;
 }
 
-impl<'i, U> Precede<'i, U> for &U
+impl<'i, U> Pattern<'i, U> for &U
 where
     U: 'i + ?Sized + Slice,
 {
@@ -57,7 +58,7 @@ where
 
 //------------------------------------------------------------------------------
 
-impl<'i, P> Precede<'i, str> for [P; 1]
+impl<'i, P> Pattern<'i, str> for [P; 1]
 where
     P: Predicate<char>,
 {
@@ -85,7 +86,7 @@ where
     }
 }
 
-impl<'i, T, P> Precede<'i, [T]> for [P; 1]
+impl<'i, T, P> Pattern<'i, [T]> for [P; 1]
 where
     T: 'i + PartialEq,
     P: Predicate<T>,

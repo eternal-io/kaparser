@@ -9,7 +9,7 @@ pub const fn repeat<'i, U, P, const AT_LEAST: usize, const MAY_MORE: usize>(
 ) -> Repeat<'i, U, P, AT_LEAST, MAY_MORE>
 where
     U: 'i + ?Sized + Slice,
-    P: Precede<'i, U>,
+    P: Pattern<'i, U>,
 {
     Repeat {
         body,
@@ -21,7 +21,7 @@ where
 pub const fn repeat_exact<'i, U, P, const TIMES: usize>(body: P) -> RepeatExact<'i, U, P, TIMES>
 where
     U: 'i + ?Sized + Slice,
-    P: Precede<'i, U>,
+    P: Pattern<'i, U>,
 {
     RepeatExact { body: repeat(body) }
 }
@@ -30,7 +30,7 @@ where
 pub const fn repeat_at_most<'i, U, P, const TIMES: usize>(body: P) -> RepeatAtMost<'i, U, P, TIMES>
 where
     U: 'i + ?Sized + Slice,
-    P: Precede<'i, U>,
+    P: Pattern<'i, U>,
 {
     RepeatAtMost { body: repeat(body) }
 }
@@ -40,16 +40,16 @@ where
 pub struct Repeat<'i, U, P, const AT_LEAST: usize, const MAY_MORE: usize>
 where
     U: 'i + ?Sized + Slice,
-    P: Precede<'i, U>,
+    P: Pattern<'i, U>,
 {
     body: P,
     phantom: PhantomData<&'i U>,
 }
 
-impl<'i, U, P, const AT_LEAST: usize, const MAY_MORE: usize> Precede<'i, U> for Repeat<'i, U, P, AT_LEAST, MAY_MORE>
+impl<'i, U, P, const AT_LEAST: usize, const MAY_MORE: usize> Pattern<'i, U> for Repeat<'i, U, P, AT_LEAST, MAY_MORE>
 where
     U: 'i + ?Sized + Slice,
-    P: Precede<'i, U>,
+    P: Pattern<'i, U>,
 {
     type Captured = ([P::Captured; AT_LEAST], [Option<P::Captured>; MAY_MORE]);
     type Internal = (
@@ -155,18 +155,18 @@ where
 pub struct RepeatExact<'i, U, P, const TIMES: usize>
 where
     U: 'i + ?Sized + Slice,
-    P: Precede<'i, U>,
+    P: Pattern<'i, U>,
 {
     body: Repeat<'i, U, P, TIMES, 0>,
 }
 
-impl<'i, U, P, const TIMES: usize> Precede<'i, U> for RepeatExact<'i, U, P, TIMES>
+impl<'i, U, P, const TIMES: usize> Pattern<'i, U> for RepeatExact<'i, U, P, TIMES>
 where
     U: 'i + ?Sized + Slice,
-    P: Precede<'i, U>,
+    P: Pattern<'i, U>,
 {
     type Captured = [P::Captured; TIMES];
-    type Internal = <Repeat<'i, U, P, TIMES, 0> as Precede<'i, U>>::Internal;
+    type Internal = <Repeat<'i, U, P, TIMES, 0> as Pattern<'i, U>>::Internal;
 
     #[inline(always)]
     fn init(&self) -> Self::Internal {
@@ -187,18 +187,18 @@ where
 pub struct RepeatAtMost<'i, U, P, const TIMES: usize>
 where
     U: 'i + ?Sized + Slice,
-    P: Precede<'i, U>,
+    P: Pattern<'i, U>,
 {
     body: Repeat<'i, U, P, 0, TIMES>,
 }
 
-impl<'i, U, P, const TIMES: usize> Precede<'i, U> for RepeatAtMost<'i, U, P, TIMES>
+impl<'i, U, P, const TIMES: usize> Pattern<'i, U> for RepeatAtMost<'i, U, P, TIMES>
 where
     U: 'i + ?Sized + Slice,
-    P: Precede<'i, U>,
+    P: Pattern<'i, U>,
 {
     type Captured = [Option<P::Captured>; TIMES];
-    type Internal = <Repeat<'i, U, P, 0, TIMES> as Precede<'i, U>>::Internal;
+    type Internal = <Repeat<'i, U, P, 0, TIMES> as Pattern<'i, U>>::Internal;
 
     #[inline(always)]
     fn init(&self) -> Self::Internal {

@@ -1,5 +1,15 @@
 #[doc(hidden)]
 #[macro_export]
+macro_rules! len {
+    ($n:expr, $p:expr) => {
+        $crate::combine::lens::lens::<_, _, { $n }>($p)
+    };
+}
+
+//------------------------------------------------------------------------------
+
+#[doc(hidden)]
+#[macro_export]
 macro_rules! rep {
     ($n:tt, $p:expr) => {
         $crate::combine::repeat::repeat_exact::<_, _, { $n }>($p)

@@ -37,7 +37,7 @@ where
     fn extract_com(&self, slice: &'i U, entry: Self::Internal) -> Self::Captured;
 }
 
-impl<'i, U, C> Precede<'i, U> for Compound<'i, U, C>
+impl<'i, U, C> Pattern<'i, U> for Compound<'i, U, C>
 where
     U: 'i + ?Sized + Slice,
     C: Compoundable<'i, U>,
@@ -60,20 +60,20 @@ where
 }
 
 macro_rules! impl_compoundable_for_tuple {
-    ( $Alt:ident, $( $LabN:lifetime ~ $GenN:ident ~ $VarN:ident ~ $IdxN:tt )+ ) => { $crate::common::paste! {
-        impl<'i, U: 'i + ?Sized + Slice, $($GenN: Precede<'i, U>),+> Compoundable<'i, U> for ($($GenN,)+) {
+    ( $Len:literal, $( $LabN:lifetime ~ $GenN:ident ~ $VarN:ident ~ $IdxN:tt )+ ) => { $crate::common::paste! {
+        impl<'i, U: 'i + ?Sized + Slice, $($GenN: Pattern<'i, U>),+> Compoundable<'i, U> for ($($GenN,)+) {
             type Captured = &'i U;
-            type Internal = (usize, $Alt<$($GenN::Internal),+>);
+            type Internal = (usize, [<InnerAlt $Len>]<$($GenN::Internal),+>);
 
             #[inline(always)]
             fn init_com(&self) -> Self::Internal {
-                (0, $Alt::Var1(self.0.init()))
+                (0, [<InnerAlt $Len>]::Var1(self.0.init()))
             }
 
             #[inline(always)]
             #[allow(irrefutable_let_patterns)]
             fn precede_com(&self, slice: &'i U, entry: &mut Self::Internal, eof: bool) -> PrecedeResult {
-                use $Alt::*;
+                use [<InnerAlt $Len>]::*;
                 let (offset, states) = entry;
 
                 resume_precede! {
@@ -117,7 +117,7 @@ macro_rules! impl_compoundable_for_tuples {
            $Lens1K:literal ~ $LabK:lifetime ~ $OrdK:literal ~ $IdxK:tt
         $( $Lens1M:literal ~ $LabM:lifetime ~ $OrdM:literal ~ $IdxM:tt )*
     ) => { $crate::common::paste! {
-        impl_compoundable_for_tuple!( [<Alt $Lens1K>], $($LabN ~ [<P $OrdN>] ~ [<Var $OrdN>] ~ $IdxN)+ );
+        impl_compoundable_for_tuple!( $Lens1K, $($LabN ~ [<P $OrdN>] ~ [<Var $OrdN>] ~ $IdxN)+ );
 
         impl_compoundable_for_tuples! { @
             $($Lens1N ~ $LabN ~ $OrdN ~ $IdxN)+

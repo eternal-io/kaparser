@@ -4,7 +4,7 @@ use super::*;
 pub const fn reiter<'i, U, P, R>(range: R, body: P) -> Reiterate<'i, U, P, R>
 where
     U: 'i + ?Sized + Slice,
-    P: Precede<'i, U>,
+    P: Pattern<'i, U>,
     R: URangeBounds,
 {
     Reiterate {
@@ -18,7 +18,7 @@ where
 pub const fn reiter_with<'i, U, P, R, St, F>(range: R, fold: F, body: P) -> ReiterateWith<'i, U, P, R, St, F>
 where
     U: 'i + ?Sized + Slice,
-    P: Precede<'i, U>,
+    P: Pattern<'i, U>,
     R: URangeBounds,
     St: Default + Clone,
     F: Fn(&mut St, P::Captured),
@@ -36,7 +36,7 @@ where
 pub struct Reiterate<'i, U, P, R>
 where
     U: 'i + ?Sized + Slice,
-    P: Precede<'i, U>,
+    P: Pattern<'i, U>,
     R: URangeBounds,
 {
     body: P,
@@ -44,10 +44,10 @@ where
     phantom: PhantomData<&'i U>,
 }
 
-impl<'i, U, P, R> Precede<'i, U> for Reiterate<'i, U, P, R>
+impl<'i, U, P, R> Pattern<'i, U> for Reiterate<'i, U, P, R>
 where
     U: 'i + ?Sized + Slice,
-    P: Precede<'i, U>,
+    P: Pattern<'i, U>,
     R: URangeBounds,
 {
     type Captured = &'i U;
@@ -93,7 +93,7 @@ where
 pub struct ReiterateWith<'i, U, P, R, St, F>
 where
     U: 'i + ?Sized + Slice,
-    P: Precede<'i, U>,
+    P: Pattern<'i, U>,
     R: URangeBounds,
     St: Default + Clone,
     F: Fn(&mut St, P::Captured),
@@ -104,10 +104,10 @@ where
     phantom: PhantomData<(&'i U, St)>,
 }
 
-impl<'i, U, P, R, St, F> Precede<'i, U> for ReiterateWith<'i, U, P, R, St, F>
+impl<'i, U, P, R, St, F> Pattern<'i, U> for ReiterateWith<'i, U, P, R, St, F>
 where
     U: 'i + ?Sized + Slice,
-    P: Precede<'i, U>,
+    P: Pattern<'i, U>,
     R: URangeBounds,
     St: 'static + Default + Clone,
     F: Fn(&mut St, P::Captured),

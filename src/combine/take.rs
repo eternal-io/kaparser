@@ -2,8 +2,9 @@ use super::*;
 use core::ops::RangeFrom;
 
 #[inline(always)]
-pub const fn take<T, P, R>(range: R, predicate: P) -> Take<T, P, R>
+pub const fn take<'i, T, P, R>(range: R, predicate: P) -> Take<'i, T, P, R>
 where
+    T: 'i + PartialEq,
     P: Predicate<T>,
     R: URangeBounds,
 {
@@ -16,17 +17,18 @@ where
 
 //------------------------------------------------------------------------------
 
-pub struct Take<T, P, R>
+pub struct Take<'i, T, P, R>
 where
+    T: 'i + PartialEq,
     P: Predicate<T>,
     R: URangeBounds,
 {
     range: R,
     predicate: P,
-    phantom: PhantomData<T>,
+    phantom: PhantomData<&'i T>,
 }
 
-impl<'i, P, R> Precede<'i, str> for Take<char, P, R>
+impl<'i, P, R> Pattern<'i, str> for Take<'i, char, P, R>
 where
     P: Predicate<char>,
     R: URangeBounds,
@@ -70,14 +72,14 @@ where
     }
 }
 
-impl<'i, T, P, R> Precede<'i, [T]> for Take<T, P, R>
+impl<'i, T, P, R> Pattern<'i, [T]> for Take<'i, T, P, R>
 where
     T: 'i + PartialEq,
     P: Predicate<T>,
     R: URangeBounds,
 {
     type Captured = &'i [T];
-    type Internal = (usize, usize);
+    type Internal = (usize, usize); // TODO: 对于 [T] 只要一个 usize 就好了！
 
     #[inline(always)]
     fn init(&self) -> Self::Internal {
@@ -117,7 +119,7 @@ where
 
 //------------------------------------------------------------------------------
 
-impl<'i, P> Precede<'i, str> for RangeFrom<P>
+impl<'i, P> Pattern<'i, str> for RangeFrom<P>
 where
     P: Predicate<char>,
 {
@@ -152,7 +154,7 @@ where
     }
 }
 
-impl<'i, T, P> Precede<'i, [T]> for RangeFrom<P>
+impl<'i, T, P> Pattern<'i, [T]> for RangeFrom<P>
 where
     T: 'i + PartialEq,
     P: Predicate<T>,
