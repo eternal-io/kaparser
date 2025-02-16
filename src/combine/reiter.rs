@@ -15,7 +15,7 @@ where
 }
 
 #[inline(always)]
-pub const fn reiter_with<'i, U, P, R, St, F>(range: R, fold: F, body: P) -> ReiterateWith<'i, U, P, R, St, F>
+pub const fn reiter_fold<'i, U, P, R, St, F>(range: R, f: F, body: P) -> ReiterateFold<'i, U, P, R, St, F>
 where
     U: 'i + ?Sized + Slice,
     P: Pattern<'i, U>,
@@ -23,10 +23,10 @@ where
     St: Default + Clone,
     F: Fn(&mut St, P::Captured),
 {
-    ReiterateWith {
+    ReiterateFold {
         body,
         range,
-        fold,
+        fold: f,
         phantom: PhantomData,
     }
 }
@@ -90,7 +90,7 @@ where
 
 //------------------------------------------------------------------------------
 
-pub struct ReiterateWith<'i, U, P, R, St, F>
+pub struct ReiterateFold<'i, U, P, R, St, F>
 where
     U: 'i + ?Sized + Slice,
     P: Pattern<'i, U>,
@@ -104,7 +104,7 @@ where
     phantom: PhantomData<(&'i U, St)>,
 }
 
-impl<'i, U, P, R, St, F> Pattern<'i, U> for ReiterateWith<'i, U, P, R, St, F>
+impl<'i, U, P, R, St, F> Pattern<'i, U> for ReiterateFold<'i, U, P, R, St, F>
 where
     U: 'i + ?Sized + Slice,
     P: Pattern<'i, U>,

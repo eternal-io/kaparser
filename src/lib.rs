@@ -25,7 +25,7 @@ pub mod anything {
     //! [`combine::def`]: crate::combine::def
     //! [`combine::bin`]: crate::combine::bin
     #[doc(hidden)]
-    pub use crate::{combine::*, parser::*};
+    pub use crate::{combine::*, common::*, parser::*, pattern::*, predicate::*};
     #[doc(hidden)]
-    pub use ::core::ops::{Range, RangeFrom, RangeFull, RangeInclusive, RangeTo, RangeToInclusive};
+    pub use core::ops::{Range, RangeFrom, RangeFull, RangeInclusive, RangeTo, RangeToInclusive};
 }

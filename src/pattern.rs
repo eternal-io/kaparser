@@ -25,8 +25,6 @@ where
     ///
     /// 只在 [`precede`](Precede::precede) 返回 `Ok(Accepted(_))` 时才保证一定能够返回正确结果，
     /// 否则，可能是无意义的结果，甚至 panic。
-    ///
-    /// TODO: 修改函数签名和调用约定，允许重复调用
     fn extract(&self, slice: &'i U, entry: Self::Internal) -> Self::Captured;
 }
 

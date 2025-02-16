@@ -1,8 +1,5 @@
 use crate::{common::*, pattern::*, predicate::*};
-use ::core::{
-    marker::PhantomData,
-    mem::{self, MaybeUninit},
-};
+use core::{marker::PhantomData, mem::MaybeUninit};
 
 macro_rules! import {
     ($($vis:vis mod $name:ident;)*) => { $(
@@ -16,9 +13,9 @@ macro_rules! import {
 import! {
     pub mod alt;
     pub mod com;
-    pub mod convert;
     pub mod cut;
     pub mod lens;
+    pub mod map;
     pub mod not;
     pub mod opt;
     pub mod reiter;
