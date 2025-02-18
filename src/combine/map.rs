@@ -1,3 +1,5 @@
+//! Infallible conversion.
+
 use super::*;
 
 #[inline(always)]

@@ -1,6 +1,8 @@
 use super::*;
 use core::ops::RangeFrom;
 
+// TODO: 把 RangeFrom 的行为改成 take(1..) ！！！
+
 #[inline(always)]
 pub const fn take<'i, T, P, R>(range: R, predicate: P) -> Take<'i, T, P, R>
 where
