@@ -32,7 +32,7 @@ where
 
     fn init_com(&self) -> Self::Internal;
 
-    fn precede_com(&self, slice: &'i U, entry: &mut Self::Internal, eof: bool) -> PrecedeResult;
+    fn precede_com(&self, slice: &U, entry: &mut Self::Internal, eof: bool) -> Option<(Transfer, usize)>;
 
     fn extract_com(&self, slice: &'i U, entry: Self::Internal) -> Self::Captured;
 }
@@ -50,7 +50,7 @@ where
         self.com.init_com()
     }
     #[inline(always)]
-    fn precede(&self, slice: &'i U, entry: &mut Self::Internal, eof: bool) -> PrecedeResult {
+    fn precede(&self, slice: &U, entry: &mut Self::Internal, eof: bool) -> Option<(Transfer, usize)> {
         self.com.precede_com(slice, entry, eof)
     }
     #[inline(always)]
@@ -72,7 +72,7 @@ macro_rules! impl_compoundable_for_tuple {
 
             #[inline(always)]
             #[allow(irrefutable_let_patterns)]
-            fn precede_com(&self, slice: &'i U, entry: &mut Self::Internal, eof: bool) -> PrecedeResult {
+            fn precede_com(&self, slice: &U, entry: &mut Self::Internal, eof: bool) -> Option<(Transfer, usize)> {
                 use $Alt::*;
                 let (offset, states) = entry;
 
@@ -86,13 +86,13 @@ macro_rules! impl_compoundable_for_tuple {
                             *offset += len;
                             match t {
                                 Transfer::Accepted => (),
-                                t => return Ok((t, *offset)),
+                                t => return Some((t, *offset)),
                             }
                         }
                     )+ }
                 }
 
-                Ok((Transfer::Accepted, *offset))
+                Some((Transfer::Accepted, *offset))
             }
 
             #[inline(always)]

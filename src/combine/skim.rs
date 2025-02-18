@@ -33,7 +33,7 @@ where
         0
     }
     #[inline(always)]
-    fn precede(&self, slice: &'i str, entry: &mut Self::Internal, eof: bool) -> PrecedeResult {
+    fn precede(&self, slice: &str, entry: &mut Self::Internal, eof: bool) -> Option<(Transfer, usize)> {
         match slice
             .split_at(*entry)
             .1
@@ -42,11 +42,11 @@ where
         {
             Some((off, _)) => {
                 *entry += off;
-                Ok((Transfer::Accepted, *entry))
+                Some((Transfer::Accepted, *entry))
             }
             None => {
                 *entry = slice.len();
-                eof.then_some((Transfer::Accepted, *entry)).ok_or(None)
+                eof.then_some((Transfer::Accepted, *entry))
             }
         }
     }
@@ -70,7 +70,7 @@ where
         0
     }
     #[inline(always)]
-    fn precede(&self, slice: &'i [T], entry: &mut Self::Internal, eof: bool) -> PrecedeResult {
+    fn precede(&self, slice: &[T], entry: &mut Self::Internal, eof: bool) -> Option<(Transfer, usize)> {
         match slice
             .split_at(*entry)
             .1
@@ -80,11 +80,11 @@ where
         {
             Some((off, _)) => {
                 *entry += off;
-                Ok((Transfer::Accepted, *entry))
+                Some((Transfer::Accepted, *entry))
             }
             None => {
                 *entry = slice.len();
-                eof.then_some((Transfer::Accepted, *entry)).ok_or(None)
+                eof.then_some((Transfer::Accepted, *entry))
             }
         }
     }
@@ -109,17 +109,17 @@ where
         (0, self.end.init())
     }
     #[inline(always)]
-    fn precede(&self, slice: &'i str, entry: &mut Self::Internal, eof: bool) -> PrecedeResult {
+    fn precede(&self, slice: &str, entry: &mut Self::Internal, eof: bool) -> Option<(Transfer, usize)> {
         let (off, state) = entry;
         for ch in slice.split_at(*off).1.chars() {
             let (t, len) = self.end.precede(slice.split_at(*off).1, state, eof)?;
             match t {
                 Transfer::Rejected => (),
-                t => return Ok((t, len)),
+                t => return Some((t, len)),
             }
             *off += ch.len_utf8();
         }
-        eof.then_some((Transfer::Rejected, *off)).ok_or(None)
+        eof.then_some((Transfer::Rejected, *off))
     }
     #[inline(always)]
     fn extract(&self, slice: &'i str, entry: Self::Internal) -> Self::Captured {
@@ -142,17 +142,17 @@ where
         (0, self.end.init())
     }
     #[inline(always)]
-    fn precede(&self, slice: &'i [T], entry: &mut Self::Internal, eof: bool) -> PrecedeResult {
+    fn precede(&self, slice: &[T], entry: &mut Self::Internal, eof: bool) -> Option<(Transfer, usize)> {
         let (off, state) = entry;
         while *off < slice.len() {
             let (t, len) = self.end.precede(slice.split_at(*off).1, state, eof)?;
             match t {
                 Transfer::Rejected => (),
-                t => return Ok((t, len)),
+                t => return Some((t, len)),
             }
             *off += 1;
         }
-        eof.then_some((Transfer::Rejected, *off)).ok_or(None)
+        eof.then_some((Transfer::Rejected, *off))
     }
     #[inline(always)]
     fn extract(&self, slice: &'i [T], entry: Self::Internal) -> Self::Captured {

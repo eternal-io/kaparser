@@ -19,7 +19,6 @@ import! {
     pub mod map;
     pub mod not;
     pub mod opt;
-    pub mod reiter;
     pub mod repeat;
     pub mod seq;
     pub mod skim;

@@ -32,7 +32,7 @@ where
 
     fn init_alt(&self) -> Self::Internal;
 
-    fn precede_alt(&self, slice: &'i U, entry: &mut Self::Internal, eof: bool) -> PrecedeResult;
+    fn precede_alt(&self, slice: &U, entry: &mut Self::Internal, eof: bool) -> Option<(Transfer, usize)>;
 
     fn extract_alt(&self, slice: &'i U, entry: Self::Internal) -> Self::Captured;
 }
@@ -50,7 +50,7 @@ where
         self.alt.init_alt()
     }
     #[inline(always)]
-    fn precede(&self, slice: &'i U, entry: &mut Self::Internal, eof: bool) -> PrecedeResult {
+    fn precede(&self, slice: &U, entry: &mut Self::Internal, eof: bool) -> Option<(Transfer, usize)> {
         self.alt.precede_alt(slice, entry, eof)
     }
     #[inline(always)]
@@ -72,7 +72,7 @@ macro_rules! impl_alternatable_for_tuple {
 
             #[inline(always)]
             #[allow(irrefutable_let_patterns)]
-            fn precede_alt(&self, slice: &'i U, entry: &mut Self::Internal, eof: bool) -> PrecedeResult {
+            fn precede_alt(&self, slice: &U, entry: &mut Self::Internal, eof: bool) -> Option<(Transfer, usize)> {
                 use $Alt::*;
 
                 resume_precede! {
@@ -84,13 +84,13 @@ macro_rules! impl_alternatable_for_tuple {
                             let (t, len) = self.$IdxN.precede(slice, state, eof)?;
                             match t {
                                 Transfer::Rejected => (),
-                                t => return Ok((t, len)),
+                                t => return Some((t, len)),
                             }
                         }
                     )+ }
                 }
 
-                Ok((Transfer::Rejected, 0))
+                Some((Transfer::Rejected, 0))
             }
 
             #[inline(always)]

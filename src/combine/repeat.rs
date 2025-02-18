@@ -80,7 +80,7 @@ where
     }
 
     #[inline(always)]
-    fn precede(&self, slice: &'i U, entry: &mut Self::Internal, eof: bool) -> PrecedeResult {
+    fn precede(&self, slice: &U, entry: &mut Self::Internal, eof: bool) -> Option<(Transfer, usize)> {
         let (checkpoint, at_least, may_more) = entry;
         let mut resuming = *checkpoint;
         let mut offset = 0usize;
@@ -102,12 +102,12 @@ where
                     Transfer::Accepted => (),
 
                     Transfer::Rejected => match necessary {
-                        true => return Ok((t, offset)),
+                        true => return Some((t, offset)),
                         false => break,
                     },
                     Transfer::Halt => {
                         cold_path();
-                        return Ok((t, offset));
+                        return Some((t, offset));
                     }
                 }
 
@@ -115,7 +115,7 @@ where
             }
         }
 
-        Ok((Transfer::Accepted, offset))
+        Some((Transfer::Accepted, offset))
     }
 
     #[inline(always)]
@@ -173,7 +173,7 @@ where
         self.body.init()
     }
     #[inline(always)]
-    fn precede(&self, slice: &'i U, entry: &mut Self::Internal, eof: bool) -> PrecedeResult {
+    fn precede(&self, slice: &U, entry: &mut Self::Internal, eof: bool) -> Option<(Transfer, usize)> {
         self.body.precede(slice, entry, eof)
     }
     #[inline(always)]
@@ -205,7 +205,7 @@ where
         self.body.init()
     }
     #[inline(always)]
-    fn precede(&self, slice: &'i U, entry: &mut Self::Internal, eof: bool) -> PrecedeResult {
+    fn precede(&self, slice: &U, entry: &mut Self::Internal, eof: bool) -> Option<(Transfer, usize)> {
         self.body.precede(slice, entry, eof)
     }
     #[inline(always)]

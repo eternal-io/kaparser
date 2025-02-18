@@ -36,14 +36,14 @@ where
         Some(self.opt.init())
     }
     #[inline(always)]
-    fn precede(&self, slice: &'i U, entry: &mut Self::Internal, eof: bool) -> PrecedeResult {
+    fn precede(&self, slice: &U, entry: &mut Self::Internal, eof: bool) -> Option<(Transfer, usize)> {
         let (t, len) = self.opt.precede(slice, entry.as_mut().unwrap(), eof)?;
         match t {
             Transfer::Rejected => {
                 drop(entry.take());
-                Ok((Transfer::Accepted, 0))
+                Some((Transfer::Accepted, 0))
             }
-            t => Ok((t, len)),
+            t => Some((t, len)),
         }
     }
     #[inline(always)]

@@ -6,7 +6,6 @@ pub use crate::{
         lens::{len, lens},
         map::map,
         not::not,
-        reiter::{reiter, reiter_fold},
         repeat::rep,
         seq::seq,
         skim::{till, until},

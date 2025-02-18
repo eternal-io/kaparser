@@ -38,8 +38,9 @@ where
     #[inline(always)]
     fn init(&self) -> Self::Internal {}
     #[inline(always)]
-    fn precede(&self, slice: &'i [T], entry: &mut Self::Internal, eof: bool) -> PrecedeResult {
+    fn precede(&self, slice: &[T], entry: &mut Self::Internal, eof: bool) -> Option<(Transfer, usize)> {
         let _ = entry;
+        // TODO: unused EOF!!!
         slice
             .get(..LEN)
             .and_then(|frag| {
@@ -47,10 +48,6 @@ where
                     .all(|value| self.predicate.predicate(value))
                     .then_some((Transfer::Accepted, LEN))
             })
-            .ok_or(
-                eof.then(|| Some((LEN - slice.len()).try_into().unwrap()))
-                    .unwrap_or(None),
-            )
     }
     #[inline(always)]
     fn extract(&self, slice: &'i [T], entry: Self::Internal) -> Self::Captured {

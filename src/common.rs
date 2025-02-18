@@ -32,6 +32,14 @@ pub enum Transfer {
 
 impl Transfer {
     #[inline(always)]
+    pub const fn is_accepted(self) -> bool {
+        match self {
+            Transfer::Accepted => true,
+            Transfer::Rejected | Transfer::Halt => false,
+        }
+    }
+
+    #[inline(always)]
     pub const fn perhaps(res: Result<usize, usize>) -> (Self, usize) {
         match res {
             Ok(len) => (Self::Accepted, len),

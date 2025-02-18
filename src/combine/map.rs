@@ -43,7 +43,7 @@ where
         self.body.init()
     }
     #[inline(always)]
-    fn precede(&self, slice: &'i U, entry: &mut Self::Internal, eof: bool) -> PrecedeResult {
+    fn precede(&self, slice: &U, entry: &mut Self::Internal, eof: bool) -> Option<(Transfer, usize)> {
         self.body.precede(slice, entry, eof)
     }
     #[inline(always)]

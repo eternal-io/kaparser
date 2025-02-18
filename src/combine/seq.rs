@@ -32,7 +32,7 @@ where
 
     fn init_seq(&self) -> Self::Internal;
 
-    fn precede_seq(&self, slice: &'i U, entry: &mut Self::Internal, eof: bool) -> PrecedeResult;
+    fn precede_seq(&self, slice: &U, entry: &mut Self::Internal, eof: bool) -> Option<(Transfer, usize)>;
 
     fn extract_seq(&self, slice: &'i U, entry: Self::Internal) -> Self::Captured;
 }
@@ -50,7 +50,7 @@ where
         self.seq.init_seq()
     }
     #[inline(always)]
-    fn precede(&self, slice: &'i U, entry: &mut Self::Internal, eof: bool) -> PrecedeResult {
+    fn precede(&self, slice: &U, entry: &mut Self::Internal, eof: bool) -> Option<(Transfer, usize)> {
         self.seq.precede_seq(slice, entry, eof)
     }
     #[inline(always)]
@@ -71,7 +71,7 @@ macro_rules! impl_sequencable_for_tuple {
             }
 
             #[inline(always)]
-            fn precede_seq(&self, slice: &'i U, entry: &mut Self::Internal, eof: bool) -> PrecedeResult {
+            fn precede_seq(&self, slice: &U, entry: &mut Self::Internal, eof: bool) -> Option<(Transfer, usize)> {
                 use [<Check $Len>]::*;
                 let (checkpoint, states) = entry;
                 let mut offset = 0usize;
@@ -90,13 +90,13 @@ macro_rules! impl_sequencable_for_tuple {
                             offset = *off + len;
                             match t {
                                 Transfer::Accepted => (),
-                                t => return Ok((t, offset)),
+                                t => return Some((t, offset)),
                             }
                         }
                     )+ }
                 }
 
-                Ok((Transfer::Accepted, offset))
+                Some((Transfer::Accepted, offset))
             }
 
             #[inline(always)]

@@ -1,6 +1,5 @@
 use crate::{common::*, pattern::*};
 use core::{marker::PhantomData, mem, str::from_utf8_unchecked};
-use std::vec::Vec;
 
 pub mod error;
 
@@ -73,14 +72,10 @@ impl<R: ::std::io::Read> Read for R {
 /// Uninhabited generic placeholder.
 pub enum Sliced {}
 
-pub struct Parser<'src, U, R>
+pub struct Parser<'src, U, R>(Source<'src, U, R>)
 where
     U: ?Sized + Slice,
-    R: Read,
-{
-    src: Source<'src, U, R>,
-    consumed: usize,
-}
+    R: Read;
 
 enum Source<'src, U, R>
 where
@@ -89,23 +84,29 @@ where
 {
     Sliced {
         slice: &'src U,
+        consumed: usize,
         phantom: PhantomData<R>,
     },
 
     #[cfg(feature = "std")]
+    /// This can only be constructed by [`Parser::from_reader_in_str`], where `U = str`.
     ReadStr {
         rdr: R,
         eof: bool,
         buf: ::std::vec::Vec<u8>,
         pending: u8,
+        consumed: usize,
         discarded: usize,
     },
 
     #[cfg(feature = "std")]
+    /// This can only be constructed by [`Parser::from_reader_in_bytes`], where `U = [u8]`,
+    /// otherwise UB when calling [`Parser::content`].
     ReadBytes {
         rdr: R,
         eof: bool,
         buf: ::std::vec::Vec<u8>,
+        consumed: usize,
         discarded: usize,
     },
 }
@@ -151,182 +152,203 @@ impl<U: ?Sized + Slice, R: Read> Parser<'_, U, R> {
 
 impl<R: Read> Parser<'_, str, R> {
     pub fn parse<'i, P: Pattern<'i, str>>(&'i mut self, pat: P) -> ParseResult<P::Captured> {
-        let mut first_time = false;
-        let mut entry = pat.init();
-        loop {
-            let (slice, eof) = self.src.pull(first_time)?;
-            match pat.precede(slice, &mut entry, eof) {
-                Ok((t, len)) => {
-                    if let Transfer::Accepted = t {
-                        debug_assert!(slice.is_char_boundary(len), "implementation error: invalid bump");
-                        self.consumed += len;
-
-                        return Ok(pat.extract(slice, entry));
-                    } else {
-                        return Error::raise(ErrorKind::Mismatched);
-                    }
-                }
-
-                Err(_) => todo!(),
-            }
-
-            first_time = true;
-        }
+        self.0.parse(pat)
     }
 }
 
 impl<R: Read> Source<'_, str, R> {
-    #[allow(unsafe_code)]
-    fn pull<'i>(&'i mut self, first_time: bool) -> ParseResult<(&'i str, bool)> {
-        match first_time {
-            true => self.rearrange_buffer(),
-            false => self.reserve_buffer(),
-        }
+    #[inline(always)]
+    fn parse<'i, P: Pattern<'i, str>>(&'i mut self, pat: P) -> ParseResult<P::Captured> {
+        let mut entry = pat.init();
+        let mut first_time = true;
+        let len = loop {
+            let (slice, eof) = self.pull(first_time)?;
+            match pat.precede(slice, &mut entry, eof) {
+                None => match eof {
+                    true => panic!("implementation error: pull after EOF"),
+                    false => first_time = false,
+                },
+                Some((t, len)) => match t.is_accepted() {
+                    true => break len,
+                    false => return Error::raise(ErrorKind::Mismatched),
+                },
+            }
+        };
 
-        todo!()
-        //         match self {
-        //             Parser::Sliced {
-        //                 slice, off_consumed, ..
-        //             } => return Ok((slice.split_at(*off_consumed).1, true)),
-        //
-        //             #[cfg(feature = "std")]
-        //             Parser::ReadBytes { .. } => unreachable!(),
-        //
-        //             #[cfg(feature = "std")]
-        //             Parser::ReadStr {
-        //                 rdr,
-        //                 eof,
-        //                 buf,
-        //                 pending,
-        //                 off_consumed,
-        //                 ..
-        //             } => {
-        //                 loop {
-        //                     let len_avail = buf.len();
-        //                     let len_delta = rdr.read(unsafe { mem::transmute(buf.spare_capacity_mut()) })?;
-        //                     unsafe { buf.set_len(len_avail + len_delta) };
-        //
-        //                     *eof = len_delta == 0;
-        //
-        //                     if *eof {
-        //                         if *pending != 0 {
-        //                             return Error::raise(ErrorKind::InvalidUtf8);
-        //                         }
-        //                     } else if let Err(e) = simdutf8::compat::from_utf8(&buf[len_avail - *pending as usize..]) {
-        //                         if e.error_len().is_some() {
-        //                             return Error::raise(ErrorKind::InvalidUtf8); // IDEA: lossy mode?
-        //                         } else {
-        //                             match e.valid_up_to() {
-        //                                 0 => continue,
-        //                                 n => *pending = (*pending as usize + len_delta - n) as u8,
-        //                             }
-        //                         }
-        //                     } else {
-        //                         *pending = 0
-        //                     }
-        //
-        //                     break;
-        //                 }
-        //
-        //                 return unsafe {
-        //                     Ok((
-        //                         from_utf8_unchecked(&buf[*off_consumed..buf.len() - *pending as usize]),
-        //                         *eof,
-        //                     ))
-        //                 };
-        //             }
-        //         }
+        Ok(pat.extract(self.content_then_bump(len), entry))
+    }
+
+    #[inline(always)]
+    #[allow(unsafe_code)]
+    fn pull(&mut self, first_time: bool) -> ParseResult<(&str, bool)> {
+        match self {
+            Source::Sliced { slice, consumed, .. } => Ok((slice.split_at(*consumed).1, true)),
+
+            #[cfg(feature = "std")]
+            Source::ReadStr {
+                rdr,
+                eof,
+                buf,
+                pending,
+                consumed,
+                discarded,
+                ..
+            } => {
+                match first_time {
+                    true => Self::buf_first_time(buf, consumed, discarded),
+                    false => Self::buf_subsequent(buf),
+                }
+
+                if buf.len() < buf.capacity() {
+                    loop {
+                        let len_avail = buf.len();
+                        let len_delta = rdr.read(unsafe { mem::transmute(buf.spare_capacity_mut()) })?;
+                        unsafe { buf.set_len(len_avail + len_delta) };
+
+                        *eof = len_delta == 0;
+
+                        if *eof {
+                            if *pending != 0 {
+                                return Error::raise(ErrorKind::InvalidUtf8);
+                            }
+                        } else if let Err(e) = simdutf8::compat::from_utf8(&buf[len_avail - *pending as usize..]) {
+                            if e.error_len().is_some() {
+                                return Error::raise(ErrorKind::InvalidUtf8); // IDEA: lossy mode?
+                            } else {
+                                match e.valid_up_to() {
+                                    0 => continue,
+                                    n => *pending = (*pending as usize + len_delta - n) as u8,
+                                }
+                            }
+                        } else {
+                            *pending = 0
+                        }
+
+                        break;
+                    }
+                }
+
+                Ok((
+                    unsafe { from_utf8_unchecked(&buf[*consumed..buf.len() - *pending as usize]) },
+                    *eof,
+                ))
+            }
+
+            #[cfg(feature = "std")]
+            Source::ReadBytes { .. } => unreachable!(),
+        }
+    }
+
+    #[inline(always)]
+    #[allow(unsafe_code)]
+    fn content_then_bump<'i>(&'i mut self, n: usize) -> &'i str {
+        match self {
+            Source::Sliced { slice, consumed, .. } => {
+                let left = slice[*consumed..]
+                    .split_at_checked(n)
+                    .expect("implementation error: invalid bump")
+                    .0;
+                *consumed += n;
+                left
+            }
+
+            #[cfg(feature = "std")]
+            Source::ReadStr { buf, consumed, .. } => {
+                let left = unsafe {
+                    from_utf8_unchecked(&buf[*consumed..])
+                        .split_at_checked(n)
+                        .expect("implementation error: invalid bump")
+                        .0
+                };
+                *consumed += n;
+                left
+            }
+
+            #[cfg(feature = "std")]
+            Source::ReadBytes { .. } => unreachable!(),
+        }
     }
 }
 
 //------------------------------------------------------------------------------
 
 impl<T: PartialEq, R: Read> Parser<'_, [T], R> {
-    pub fn parse<'i>(&'i mut self, pat: impl Pattern<'i, [T]>) {}
+    pub fn parse<'i, P: Pattern<'i, str>>(&'i mut self, pat: P) -> ParseResult<P::Captured> {
+        todo!()
+    }
+}
+
+impl<T: PartialEq, R: Read> Source<'_, [T], R> {
+    fn parse<'i, P: Pattern<'i, str>>(&'i mut self, pat: P) -> ParseResult<P::Captured> {
+        todo!()
+    }
+
+    #[inline(always)]
+    #[allow(unsafe_code)]
+    fn content<'i>(&'i self) -> &'i [T] {
+        match &self {
+            Source::Sliced { slice, .. } => slice,
+
+            #[cfg(feature = "std")]
+            Source::ReadStr { .. } => unreachable!(),
+
+            #[cfg(feature = "std")]
+            Source::ReadBytes { buf, consumed, .. } => unsafe {
+                // SAFETY: See variant doc.
+                mem::transmute(&buf[*consumed..])
+            },
+        }
+    }
 }
 
 //------------------------------------------------------------------------------
 
+impl<U: ?Sized + Slice, R: Read> Parser<'_, U, R> {}
+
 impl<U: ?Sized + Slice, R: Read> Source<'_, U, R> {
     const INIT_CAP: usize = 32 * 1024;
 
-    fn consumed(&self) -> usize {
-        todo!()
-        //         match self {
-        //             Parser::Sliced { off_consumed, .. } => *off_consumed,
-        //
-        //             #[cfg(feature = "std")]
-        //             Parser::ReadStr {
-        //                 off_consumed,
-        //                 did_consumed,
-        //                 ..
-        //             }
-        //             | Parser::ReadBytes {
-        //                 off_consumed,
-        //                 did_consumed,
-        //                 ..
-        //             } => *did_consumed + *off_consumed,
-        //         }
+    pub fn offset(&self) -> usize {
+        match self {
+            Source::Sliced { consumed, .. } => *consumed,
+
+            #[cfg(feature = "std")]
+            Source::ReadStr {
+                consumed, discarded, ..
+            }
+            | Source::ReadBytes {
+                consumed, discarded, ..
+            } => discarded + *consumed,
+        }
     }
 
-    fn exhausted(&self) -> bool {
-        todo!()
-        //         match self {
-        //             Parser::Sliced {
-        //                 slice, off_consumed, ..
-        //             } => *off_consumed == slice.len(),
-        //
-        //             #[cfg(feature = "std")]
-        //             Parser::ReadStr {
-        //                 eof, buf, off_consumed, ..
-        //             }
-        //             | Parser::ReadBytes {
-        //                 eof, buf, off_consumed, ..
-        //             } => *eof && *off_consumed == buf.len(),
-        //         }
+    pub fn exhausted(&self) -> bool {
+        match self {
+            Source::Sliced { slice, consumed, .. } => *consumed == slice.len(),
+
+            #[cfg(feature = "std")]
+            Source::ReadStr { eof, buf, consumed, .. } | Source::ReadBytes { eof, consumed, buf, .. } => {
+                *eof && *consumed == buf.len()
+            }
+        }
     }
 
     #[inline(always)]
-    fn rearrange_buffer(&mut self) {
-        todo!()
-        //         match self {
-        //             Parser::Sliced { .. } => (),
-        //
-        //             #[cfg(feature = "std")]
-        //             Parser::ReadStr {
-        //                 buf,
-        //                 off_consumed,
-        //                 did_consumed,
-        //                 ..
-        //             }
-        //             | Parser::ReadBytes {
-        //                 buf,
-        //                 off_consumed,
-        //                 did_consumed,
-        //                 ..
-        //             } => {
-        //                 if unlikely(*off_consumed > p78(buf.capacity())) {
-        //                     buf.drain(..*off_consumed);
-        //                     *did_consumed += *off_consumed;
-        //                     *off_consumed = 0
-        //                 }
-        //             }
-        //         }
+    #[cfg(feature = "std")]
+    fn buf_first_time(buf: &mut ::std::vec::Vec<u8>, consumed: &mut usize, discarded: &mut usize) {
+        if unlikely(*consumed > p78(buf.len())) {
+            buf.drain(..*consumed);
+            *discarded += *consumed;
+            *consumed = 0;
+        }
     }
 
     #[inline(always)]
-    fn reserve_buffer(&mut self) {
-        todo!()
-        //         match self {
-        //             Parser::Sliced { .. } => (),
-        //
-        //             #[cfg(feature = "std")]
-        //             Parser::ReadStr { buf, off_consumed, .. } | Parser::ReadBytes { buf, off_consumed, .. } => {
-        //                 if unlikely(*off_consumed > p87(buf.capacity())) {
-        //                     buf.reserve((buf.capacity() / 2).next_power_of_two());
-        //                 }
-        //             }
-        //         }
+    #[cfg(feature = "std")]
+    fn buf_subsequent(buf: &mut ::std::vec::Vec<u8>) {
+        if unlikely(buf.len() > p88(buf.capacity())) {
+            buf.reserve_exact((buf.capacity() / 4).next_power_of_two());
+        }
     }
 }
 
@@ -334,24 +356,21 @@ const fn p78(n: usize) -> usize {
     n / 2 + n / 4 + n / 32
 }
 
-const fn p87(n: usize) -> usize {
+const fn p88(n: usize) -> usize {
     n - n / 8
 }
 
 #[cfg(all(test, feature = "std"))]
 mod tests {
     use super::*;
-    use std::string::String;
+    use std::prelude::rust_2021::*;
 
     fn random(mut x: u32) -> u32 {
-        x = x.wrapping_add(0x16a09e66);
-        x ^= x >> 17;
-        x = x.wrapping_mul(0x1bb67ae8);
-        x ^= x >> 17;
-        x = x.wrapping_mul(0x23c6ef37);
-        x ^= x >> 17;
-        x = x.wrapping_mul(0x2a54ff53);
-        x ^= x >> 17;
+        x ^= x >> 16;
+        x = x.wrapping_mul(0x21f0aaad);
+        x ^= x >> 15;
+        x = x.wrapping_mul(0xd35a2d97);
+        x ^= x >> 16;
         x
     }
 
@@ -365,17 +384,31 @@ mod tests {
 
     #[test]
     fn test_pull_str() {
-        todo!()
-        // for i in 0..10 {
-        //     let buf = random_string(i * 1123);
-        //     let mut par = Parser::from_reader_in_str(buf.as_bytes());
-        //     loop {
-        //         let (s, eof) = par.pull(true).unwrap();
-        //         assert!(simdutf8::basic::from_utf8(s.as_bytes()).is_ok());
-        //         if eof {
-        //             break;
-        //         }
-        //     }
-        // }
+        let buf = random_string(1123);
+        let mut src = Source::ReadStr {
+            rdr: buf.as_bytes(),
+            eof: false,
+            buf: Vec::with_capacity(8 * 1024),
+            pending: 0,
+            consumed: 0,
+            discarded: 0,
+        };
+
+        let mut ctr = 0;
+        loop {
+            ctr += 1;
+            let (s, eof) = src.pull(true).unwrap();
+            let len = (random(ctr) as usize % s.len()..)
+                .find(|n| s.is_char_boundary(*n))
+                .unwrap();
+
+            simdutf8::compat::from_utf8(src.content_then_bump(len).as_bytes()).unwrap();
+
+            if eof {
+                break;
+            }
+        }
+
+        std::println!("{}", ctr);
     }
 }
