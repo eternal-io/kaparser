@@ -40,7 +40,7 @@ where
 
     #[inline(always)]
     fn init(&self) -> Self::Internal {
-        (0, 1)
+        (0, 0)
     }
     #[inline(always)]
     fn precede(&self, slice: &str, entry: &mut Self::Internal, eof: bool) -> Option<(Transfer, usize)> {
@@ -54,7 +54,7 @@ where
             .last()
         {
             *offset += off + ch.len_utf8();
-            *times += i;
+            *times += i + 1;
         }
 
         Some(match eof {
@@ -81,41 +81,39 @@ where
     R: URangeBounds,
 {
     type Captured = &'i [T];
-    type Internal = (usize, usize); // TODO: 对于 [T] 只要一个 usize 就好了！
+    type Internal = usize;
 
     #[inline(always)]
     fn init(&self) -> Self::Internal {
-        (0, 1)
+        0
     }
     #[inline(always)]
     fn precede(&self, slice: &[T], entry: &mut Self::Internal, eof: bool) -> Option<(Transfer, usize)> {
-        let (offset, times) = entry;
         if let Some((i, _)) = slice
-            .split_at(*offset)
+            .split_at(*entry)
             .1
             .iter()
             .enumerate()
-            .take_while(|(i, value)| self.range.unfulfilled(*times + *i) && self.predicate.predicate(value))
+            .take_while(|(i, value)| self.range.unfulfilled(*entry + *i) && self.predicate.predicate(value))
             .last()
         {
-            *offset += i + 1;
-            *times += i;
+            *entry += i + 1;
         }
 
         Some(match eof {
-            true => match self.range.contains(*times) {
-                true => (Transfer::Accepted, *offset),
-                false => (Transfer::Rejected, *offset),
+            true => match self.range.contains(*entry) {
+                true => (Transfer::Accepted, *entry),
+                false => (Transfer::Rejected, *entry),
             },
-            false => match self.range.unfulfilled(*times) {
+            false => match self.range.unfulfilled(*entry) {
                 true => return None,
-                false => (Transfer::Accepted, *offset),
+                false => (Transfer::Accepted, *entry),
             },
         })
     }
     #[inline(always)]
     fn extract(&self, slice: &'i [T], entry: Self::Internal) -> Self::Captured {
-        &slice[..entry.0]
+        &slice[..entry]
     }
 }
 

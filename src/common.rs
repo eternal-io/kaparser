@@ -112,7 +112,7 @@ mod urange_bounds {
 
     impl URangeBounds for usize {
         fn contains(&self, times: usize) -> bool { times == *self }
-        fn unfulfilled(&self, times: usize) -> bool { times <= *self }
+        fn unfulfilled(&self, times: usize) -> bool { times < *self }
     }
     impl URangeBounds for RangeFull {
         fn contains(&self, _t: usize) -> bool { true }
@@ -124,19 +124,19 @@ mod urange_bounds {
     }
     impl URangeBounds for Range<usize> {
         fn contains(&self, times: usize) -> bool { self.contains(&times) }
-        fn unfulfilled(&self, times: usize) -> bool { times < self.end }
+        fn unfulfilled(&self, times: usize) -> bool { times + 1 < self.end }
     }
     impl URangeBounds for RangeTo<usize> {
         fn contains(&self, times: usize) -> bool { self.contains(&times) }
-        fn unfulfilled(&self, times: usize) -> bool { times < self.end }
+        fn unfulfilled(&self, times: usize) -> bool { times + 1 < self.end }
     }
     impl URangeBounds for RangeInclusive<usize> {
         fn contains(&self, times: usize) -> bool { self.contains(&times) }
-        fn unfulfilled(&self, times: usize) -> bool { times <= *self.end() }
+        fn unfulfilled(&self, times: usize) -> bool { times < *self.end() }
     }
     impl URangeBounds for RangeToInclusive<usize> {
         fn contains(&self, times: usize) -> bool { self.contains(&times) }
-        fn unfulfilled(&self, times: usize) -> bool { times <= self.end }
+        fn unfulfilled(&self, times: usize) -> bool { times < self.end }
     }
 }
 

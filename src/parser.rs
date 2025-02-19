@@ -237,19 +237,19 @@ impl<U: ?Sized + Slice, R: Read> Parser<'_, U, R> {
 //------------------------------------------------------------------------------
 
 impl<R: Read> Parser<'_, str, R> {
-    pub fn proceed_str<'i, P: Pattern<'i, str>>(&'i mut self, pattern: P) -> ParseResult<P::Captured> {
-        self.0.proceed_str(pattern)
+    pub fn proceed_str<'i, P: Pattern<'i, str>>(&'i mut self, pat: P) -> ParseResult<P::Captured> {
+        self.0.proceed_str(pat)
     }
 }
 
 impl<R: Read> Source<'_, str, R> {
     #[inline(always)]
-    fn proceed_str<'i, P: Pattern<'i, str>>(&'i mut self, pattern: P) -> ParseResult<P::Captured> {
-        let mut entry = pattern.init();
+    fn proceed_str<'i, P: Pattern<'i, str>>(&'i mut self, pat: P) -> ParseResult<P::Captured> {
+        let mut entry = pat.init();
         let mut first_time = true;
         let len = loop {
             let (slice, eof) = self.pull_str(first_time)?;
-            match pattern.precede(slice, &mut entry, eof) {
+            match pat.precede(slice, &mut entry, eof) {
                 None => match eof {
                     true => panic!("implementation error: pull after EOF"),
                     false => first_time = false,
@@ -261,7 +261,7 @@ impl<R: Read> Source<'_, str, R> {
             }
         };
 
-        Ok(pattern.extract(self.bump_str(len), entry))
+        Ok(pat.extract(self.bump_str(len), entry))
     }
 
     #[inline(always)]
@@ -364,19 +364,19 @@ impl<R: Read> Source<'_, str, R> {
 //------------------------------------------------------------------------------
 
 impl<T: PartialEq, R: Read> Parser<'_, [T], R> {
-    pub fn proceed<'i, P: Pattern<'i, [T]>>(&'i mut self, pattern: P) -> ParseResult<P::Captured> {
-        self.0.proceed(pattern)
+    pub fn proceed<'i, P: Pattern<'i, [T]>>(&'i mut self, pat: P) -> ParseResult<P::Captured> {
+        self.0.proceed(pat)
     }
 }
 
 impl<T: PartialEq, R: Read> Source<'_, [T], R> {
     #[inline(always)]
-    fn proceed<'i, P: Pattern<'i, [T]>>(&'i mut self, pattern: P) -> ParseResult<P::Captured> {
-        let mut entry = pattern.init();
+    fn proceed<'i, P: Pattern<'i, [T]>>(&'i mut self, pat: P) -> ParseResult<P::Captured> {
+        let mut entry = pat.init();
         let mut first_time = true;
         let len = loop {
             let (slice, eof) = self.pull(first_time)?;
-            match pattern.precede(slice, &mut entry, eof) {
+            match pat.precede(slice, &mut entry, eof) {
                 None => match eof {
                     true => panic!("implementation error: pull after EOF"),
                     false => first_time = false,
@@ -388,7 +388,7 @@ impl<T: PartialEq, R: Read> Source<'_, [T], R> {
             }
         };
 
-        Ok(pattern.extract(self.bump(len), entry))
+        Ok(pat.extract(self.bump(len), entry))
     }
 
     #[inline(always)]
