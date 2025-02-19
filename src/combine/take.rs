@@ -142,11 +142,11 @@ where
         {
             Some((off, _)) => {
                 *entry += off;
-                Some((Transfer::Accepted, *entry))
+                Some(Transfer::perhaps((*entry > 0).then_some(*entry).ok_or(0)))
             }
             None => {
                 *entry = slice.len();
-                eof.then_some((Transfer::Accepted, *entry))
+                eof.then_some(Transfer::perhaps((*entry > 0).then_some(*entry).ok_or(0)))
             }
         }
     }
@@ -179,11 +179,11 @@ where
         {
             Some((off, _)) => {
                 *entry += off;
-                Some((Transfer::Accepted, *entry))
+                Some(Transfer::perhaps((*entry > 0).then_some(*entry).ok_or(0)))
             }
             None => {
                 *entry = slice.len();
-                eof.then_some((Transfer::Accepted, *entry))
+                eof.then_some(Transfer::perhaps((*entry > 0).then_some(*entry).ok_or(0)))
             }
         }
     }

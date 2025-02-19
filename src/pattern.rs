@@ -1,6 +1,5 @@
 #![allow(clippy::let_unit_value)]
 use crate::{common::*, predicate::*};
-use core::num::NonZeroUsize;
 
 #[doc(inline)]
 pub use crate::token_set;

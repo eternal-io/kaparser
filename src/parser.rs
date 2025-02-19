@@ -1,5 +1,10 @@
 use crate::{common::*, pattern::*};
-use core::{marker::PhantomData, mem, str::from_utf8_unchecked};
+use core::marker::PhantomData;
+#[cfg(feature = "std")]
+use core::{
+    mem::{self, MaybeUninit},
+    str::from_utf8_unchecked,
+};
 
 pub mod error;
 
@@ -11,9 +16,9 @@ where
 {
     type Captured;
 
-    fn parse_all(&self, slice: &'i U) -> Result<Self::Captured, usize>;
+    fn full_match(&self, slice: &'i U) -> Result<Self::Captured, usize>;
 
-    fn parse(&self, slice: &'i U) -> Result<(Self::Captured, usize), usize>;
+    fn parse_next(&self, slice: &mut &'i U) -> Result<Self::Captured, usize>;
 }
 
 impl<'i, U, P> SimpleParser<'i, U> for P
@@ -24,22 +29,25 @@ where
     type Captured = P::Captured;
 
     #[inline(always)]
-    fn parse_all(&self, slice: &'i U) -> Result<Self::Captured, usize> {
-        self.parse(slice).and_then(|(cap, len)| match len == slice.len() {
+    fn full_match(&self, slice: &'i U) -> Result<Self::Captured, usize> {
+        let mut rest = slice;
+        self.parse_next(&mut rest).and_then(|cap| match rest.len() == 0 {
             true => Ok(cap),
-            false => Err(slice.len() - len),
+            false => Err(slice.len() - rest.len()),
         })
     }
 
     #[inline(always)]
-    fn parse(&self, slice: &'i U) -> Result<(Self::Captured, usize), usize> {
+    fn parse_next(&self, slice: &mut &'i U) -> Result<Self::Captured, usize> {
         let mut state = self.init();
         let (t, len) = self
             .precede(slice, &mut state, true)
             .expect("implementation error: pull after EOF");
 
         if let Transfer::Accepted = t {
-            Ok((self.extract(slice, state), len))
+            let (left, right) = slice.split_at(len);
+            *slice = right;
+            Ok(self.extract(left, state))
         } else {
             Err(len)
         }
@@ -101,7 +109,7 @@ where
 
     #[cfg(feature = "std")]
     /// This can only be constructed by [`Parser::from_reader_in_bytes`], where `U = [u8]`,
-    /// otherwise UB when calling [`Parser::content`].
+    /// otherwise UB when calling [`Source::pull`] and [`Source::bump`].
     ReadBytes {
         rdr: R,
         eof: bool,
@@ -116,54 +124,132 @@ where
 impl<'src> Parser<'src, str, Sliced> {
     #[allow(clippy::should_implement_trait)]
     pub fn from_str(s: &'src str) -> Self {
-        todo!()
+        Self(Source::Sliced {
+            slice: s,
+            consumed: 0,
+            phantom: PhantomData,
+        })
     }
 
     pub fn from_bstr(bytes: &'src [u8]) -> Option<Self> {
-        todo!()
+        Some(Self(Source::Sliced {
+            slice: simdutf8::basic::from_utf8(bytes).ok()?,
+            consumed: 0,
+            phantom: PhantomData,
+        }))
     }
 }
 
+#[cfg(feature = "std")]
 impl<R: Read> Parser<'_, str, R> {
     pub fn from_reader_in_str(reader: R) -> Self {
-        todo!()
+        Self(Source::ReadStr {
+            rdr: reader,
+            eof: false,
+            buf: ::std::vec::Vec::with_capacity(0x8000),
+            pending: 0,
+            consumed: 0,
+            discarded: 0,
+        })
+    }
+
+    pub fn from_reader_in_str_with_capacity(reader: R, capacity: usize) -> Self {
+        Self(Source::ReadStr {
+            rdr: reader,
+            eof: false,
+            buf: ::std::vec::Vec::with_capacity(capacity),
+            pending: 0,
+            consumed: 0,
+            discarded: 0,
+        })
     }
 }
 
+#[cfg(feature = "std")]
 impl<R: Read> Parser<'_, [u8], R> {
     pub fn from_reader_in_bytes(reader: R) -> Self {
-        todo!()
+        Self(Source::ReadBytes {
+            rdr: reader,
+            eof: false,
+            buf: ::std::vec::Vec::with_capacity(0x8000),
+            consumed: 0,
+            discarded: 0,
+        })
+    }
+
+    pub fn from_reader_in_bytes_with_capacity(reader: R, capacity: usize) -> Self {
+        Self(Source::ReadBytes {
+            rdr: reader,
+            eof: false,
+            buf: ::std::vec::Vec::with_capacity(capacity),
+            consumed: 0,
+            discarded: 0,
+        })
     }
 }
 
 impl<'src, T: PartialEq> Parser<'src, [T], Sliced> {
     pub fn from_slice(slice: &'src [T]) -> Self {
-        todo!()
+        Self(Source::Sliced {
+            slice,
+            consumed: 0,
+            phantom: PhantomData,
+        })
     }
 }
 
 impl<U: ?Sized + Slice, R: Read> Parser<'_, U, R> {
+    pub fn offset(&self) -> usize {
+        match &self.0 {
+            Source::Sliced { consumed, .. } => *consumed,
+
+            #[cfg(feature = "std")]
+            Source::ReadStr {
+                consumed, discarded, ..
+            }
+            | Source::ReadBytes {
+                consumed, discarded, ..
+            } => discarded + *consumed,
+        }
+    }
+
+    pub fn exhausted(&self) -> bool {
+        match &self.0 {
+            Source::Sliced { slice, consumed, .. } => *consumed == slice.len(),
+
+            #[cfg(feature = "std")]
+            Source::ReadStr { eof, buf, consumed, .. } | Source::ReadBytes { eof, consumed, buf, .. } => {
+                *eof && *consumed == buf.len()
+            }
+        }
+    }
+
     pub fn into_reader(self) -> Result<R, Self> {
-        todo!()
+        match self.0 {
+            Source::Sliced { .. } => Err(self),
+
+            #[cfg(feature = "std")]
+            Source::ReadStr { rdr, .. } | Source::ReadBytes { rdr, .. } => Ok(rdr),
+        }
     }
 }
 
 //------------------------------------------------------------------------------
 
 impl<R: Read> Parser<'_, str, R> {
-    pub fn parse<'i, P: Pattern<'i, str>>(&'i mut self, pat: P) -> ParseResult<P::Captured> {
-        self.0.parse(pat)
+    pub fn proceed_str<'i, P: Pattern<'i, str>>(&'i mut self, pattern: P) -> ParseResult<P::Captured> {
+        self.0.proceed_str(pattern)
     }
 }
 
 impl<R: Read> Source<'_, str, R> {
     #[inline(always)]
-    fn parse<'i, P: Pattern<'i, str>>(&'i mut self, pat: P) -> ParseResult<P::Captured> {
-        let mut entry = pat.init();
+    fn proceed_str<'i, P: Pattern<'i, str>>(&'i mut self, pattern: P) -> ParseResult<P::Captured> {
+        let mut entry = pattern.init();
         let mut first_time = true;
         let len = loop {
-            let (slice, eof) = self.pull(first_time)?;
-            match pat.precede(slice, &mut entry, eof) {
+            let (slice, eof) = self.pull_str(first_time)?;
+            match pattern.precede(slice, &mut entry, eof) {
                 None => match eof {
                     true => panic!("implementation error: pull after EOF"),
                     false => first_time = false,
@@ -175,14 +261,17 @@ impl<R: Read> Source<'_, str, R> {
             }
         };
 
-        Ok(pat.extract(self.content_then_bump(len), entry))
+        Ok(pattern.extract(self.bump_str(len), entry))
     }
 
     #[inline(always)]
     #[allow(unsafe_code)]
-    fn pull(&mut self, first_time: bool) -> ParseResult<(&str, bool)> {
+    fn pull_str(&mut self, first_time: bool) -> ParseResult<(&str, bool)> {
         match self {
-            Source::Sliced { slice, consumed, .. } => Ok((slice.split_at(*consumed).1, true)),
+            Source::Sliced { slice, consumed, .. } => {
+                let _ = first_time;
+                Ok((slice.split_at(*consumed).1, true))
+            }
 
             #[cfg(feature = "std")]
             Source::ReadStr {
@@ -202,7 +291,9 @@ impl<R: Read> Source<'_, str, R> {
                 if buf.len() < buf.capacity() {
                     loop {
                         let len_avail = buf.len();
-                        let len_delta = rdr.read(unsafe { mem::transmute(buf.spare_capacity_mut()) })?;
+                        let len_delta = rdr.read(unsafe {
+                            mem::transmute::<&mut [MaybeUninit<u8>], &mut [u8]>(buf.spare_capacity_mut())
+                        })?;
                         unsafe { buf.set_len(len_avail + len_delta) };
 
                         *eof = len_delta == 0;
@@ -241,7 +332,7 @@ impl<R: Read> Source<'_, str, R> {
 
     #[inline(always)]
     #[allow(unsafe_code)]
-    fn content_then_bump<'i>(&'i mut self, n: usize) -> &'i str {
+    fn bump_str(&mut self, n: usize) -> &str {
         match self {
             Source::Sliced { slice, consumed, .. } => {
                 let left = slice[*consumed..]
@@ -273,70 +364,122 @@ impl<R: Read> Source<'_, str, R> {
 //------------------------------------------------------------------------------
 
 impl<T: PartialEq, R: Read> Parser<'_, [T], R> {
-    pub fn parse<'i, P: Pattern<'i, str>>(&'i mut self, pat: P) -> ParseResult<P::Captured> {
-        todo!()
+    pub fn proceed<'i, P: Pattern<'i, [T]>>(&'i mut self, pattern: P) -> ParseResult<P::Captured> {
+        self.0.proceed(pattern)
     }
 }
 
 impl<T: PartialEq, R: Read> Source<'_, [T], R> {
-    fn parse<'i, P: Pattern<'i, str>>(&'i mut self, pat: P) -> ParseResult<P::Captured> {
-        todo!()
+    #[inline(always)]
+    fn proceed<'i, P: Pattern<'i, [T]>>(&'i mut self, pattern: P) -> ParseResult<P::Captured> {
+        let mut entry = pattern.init();
+        let mut first_time = true;
+        let len = loop {
+            let (slice, eof) = self.pull(first_time)?;
+            match pattern.precede(slice, &mut entry, eof) {
+                None => match eof {
+                    true => panic!("implementation error: pull after EOF"),
+                    false => first_time = false,
+                },
+                Some((t, len)) => match t.is_accepted() {
+                    true => break len,
+                    false => return Error::raise(ErrorKind::Mismatched),
+                },
+            }
+        };
+
+        Ok(pattern.extract(self.bump(len), entry))
     }
 
     #[inline(always)]
     #[allow(unsafe_code)]
-    fn content<'i>(&'i self) -> &'i [T] {
-        match &self {
-            Source::Sliced { slice, .. } => slice,
+    fn pull(&mut self, first_time: bool) -> ParseResult<(&[T], bool)> {
+        match self {
+            Source::Sliced { slice, consumed, .. } => {
+                let _ = first_time;
+                Ok((slice.split_at(*consumed).1, true))
+            }
 
             #[cfg(feature = "std")]
             Source::ReadStr { .. } => unreachable!(),
 
             #[cfg(feature = "std")]
-            Source::ReadBytes { buf, consumed, .. } => unsafe {
-                // SAFETY: See variant doc.
-                mem::transmute(&buf[*consumed..])
-            },
+            Source::ReadBytes {
+                rdr,
+                eof,
+                buf,
+                consumed,
+                discarded,
+            } => {
+                match first_time {
+                    true => Self::buf_first_time(buf, consumed, discarded),
+                    false => Self::buf_subsequent(buf),
+                }
+
+                if buf.len() < buf.capacity() {
+                    let len_avail = buf.len();
+                    let len_delta = rdr.read(unsafe {
+                        mem::transmute::<&mut [MaybeUninit<u8>], &mut [u8]>(buf.spare_capacity_mut())
+                    })?;
+                    unsafe { buf.set_len(len_avail + len_delta) };
+
+                    *eof = len_delta == 0;
+                }
+
+                Ok((
+                    // Safety: See variant doc.
+                    unsafe { mem::transmute::<&[u8], &[T]>(&buf[*consumed..]) },
+                    *eof,
+                ))
+            }
+        }
+    }
+
+    #[inline(always)]
+    #[allow(unsafe_code)]
+    fn bump(&mut self, n: usize) -> &[T] {
+        match self {
+            Source::Sliced { slice, consumed, .. } => {
+                let left = slice[*consumed..]
+                    .split_at_checked(n)
+                    .expect("implementation error: invalid bump")
+                    .0;
+                *consumed += n;
+                left
+            }
+
+            #[cfg(feature = "std")]
+            Source::ReadStr { .. } => unreachable!(),
+
+            #[cfg(feature = "std")]
+            Source::ReadBytes { buf, consumed, .. } => {
+                let left = unsafe {
+                    // Safety: See variant doc.
+                    mem::transmute::<&[u8], &[T]>(
+                        buf[*consumed..]
+                            .split_at_checked(n)
+                            .expect("implementation error: invalid bump")
+                            .0,
+                    )
+                };
+                *consumed += n;
+                left
+            }
         }
     }
 }
 
 //------------------------------------------------------------------------------
 
-impl<U: ?Sized + Slice, R: Read> Parser<'_, U, R> {}
-
+#[cfg(feature = "std")]
 impl<U: ?Sized + Slice, R: Read> Source<'_, U, R> {
-    const INIT_CAP: usize = 32 * 1024;
-
-    pub fn offset(&self) -> usize {
-        match self {
-            Source::Sliced { consumed, .. } => *consumed,
-
-            #[cfg(feature = "std")]
-            Source::ReadStr {
-                consumed, discarded, ..
-            }
-            | Source::ReadBytes {
-                consumed, discarded, ..
-            } => discarded + *consumed,
-        }
-    }
-
-    pub fn exhausted(&self) -> bool {
-        match self {
-            Source::Sliced { slice, consumed, .. } => *consumed == slice.len(),
-
-            #[cfg(feature = "std")]
-            Source::ReadStr { eof, buf, consumed, .. } | Source::ReadBytes { eof, consumed, buf, .. } => {
-                *eof && *consumed == buf.len()
-            }
-        }
-    }
-
     #[inline(always)]
-    #[cfg(feature = "std")]
     fn buf_first_time(buf: &mut ::std::vec::Vec<u8>, consumed: &mut usize, discarded: &mut usize) {
-        if unlikely(*consumed > p78(buf.len())) {
+        const fn p75(n: usize) -> usize {
+            n / 2 + n / 4
+        }
+        // Should be `>`, keep branch prediction when `buf.len() == 0`.
+        if unlikely(*consumed > p75(buf.len())) {
             buf.drain(..*consumed);
             *discarded += *consumed;
             *consumed = 0;
@@ -344,25 +487,51 @@ impl<U: ?Sized + Slice, R: Read> Source<'_, U, R> {
     }
 
     #[inline(always)]
-    #[cfg(feature = "std")]
     fn buf_subsequent(buf: &mut ::std::vec::Vec<u8>) {
-        if unlikely(buf.len() > p88(buf.capacity())) {
-            buf.reserve_exact((buf.capacity() / 4).next_power_of_two());
+        const fn p88(n: usize) -> usize {
+            n - n / 8
+        }
+        // Must be `>=`, otherwise infinite loop when `buf.len() == 0`.
+        if unlikely(buf.len() >= p88(buf.capacity())) {
+            buf.reserve_exact(buf.capacity() / 4 | 0x2000);
         }
     }
 }
 
-const fn p78(n: usize) -> usize {
-    n / 2 + n / 4 + n / 32
+#[cfg(all(test, feature = "std"))]
+impl<U: ?Sized + Slice, R: Read> Source<'_, U, R> {
+    fn inspect(&self) {
+        match self {
+            Source::Sliced { .. } => (),
+
+            Source::ReadStr {
+                buf,
+                consumed,
+                discarded,
+                ..
+            }
+            | Source::ReadBytes {
+                buf,
+                consumed,
+                discarded,
+                ..
+            } => println!(
+                "{:>8} ({:4.2} consumed) | CAP: {:>8} | DISCARD: {:>8}",
+                buf.len(),
+                *consumed as f32 / buf.len() as f32,
+                buf.capacity(),
+                discarded
+            ),
+        }
+    }
 }
 
-const fn p88(n: usize) -> usize {
-    n - n / 8
-}
+//==================================================================================================
 
 #[cfg(all(test, feature = "std"))]
 mod tests {
     use super::*;
+    use crate::anything::*;
     use std::prelude::rust_2021::*;
 
     fn random(mut x: u32) -> u32 {
@@ -375,8 +544,8 @@ mod tests {
     }
 
     fn random_string(seed: u32) -> String {
-        let mut buf = String::with_capacity(1024 * 1024 * 4);
-        for i in 0..1024 * 1024u32 {
+        let mut buf = String::with_capacity(0x100_000 * 4);
+        for i in 0..0x100_000 {
             buf.push(char::from_u32(random(i ^ seed) % 0x110000).unwrap_or('\u{fffd}'));
         }
         buf
@@ -388,27 +557,75 @@ mod tests {
         let mut src = Source::ReadStr {
             rdr: buf.as_bytes(),
             eof: false,
-            buf: Vec::with_capacity(8 * 1024),
+            buf: Vec::with_capacity(0x8000),
             pending: 0,
             consumed: 0,
             discarded: 0,
         };
 
         let mut ctr = 0;
+        src.inspect();
         loop {
             ctr += 1;
-            let (s, eof) = src.pull(true).unwrap();
+            let (s, eof) = src.pull_str(true).unwrap();
             let len = (random(ctr) as usize % s.len()..)
                 .find(|n| s.is_char_boundary(*n))
                 .unwrap();
 
-            simdutf8::compat::from_utf8(src.content_then_bump(len).as_bytes()).unwrap();
+            simdutf8::compat::from_utf8(src.bump_str(len).as_bytes()).unwrap();
 
+            src.inspect();
             if eof {
                 break;
             }
         }
 
-        std::println!("{}", ctr);
+        println!("{}", ctr);
+    }
+
+    #[test]
+    fn test_proceed_str() {
+        let buf = random_string(42);
+        let mut par = Parser::from_reader_in_str(buf.as_bytes());
+        let mut ctr = 0;
+        let mut len = 0;
+
+        par.0.inspect();
+        loop {
+            ctr += 1;
+
+            match par.proceed_str(opt(is_ascii..)) {
+                Ok(cap) => {
+                    if let Some(s) = cap {
+                        len += s.len();
+                    }
+                }
+                Err(e) => match e.kind {
+                    ErrorKind::Mismatched => (),
+                    _ => panic!("{:?}", e),
+                },
+            }
+
+            match par.proceed_str(opt(not(is_ascii)..)) {
+                Ok(cap) => {
+                    if let Some(s) = cap {
+                        len += s.len();
+                    }
+                }
+                Err(e) => match e.kind {
+                    ErrorKind::Mismatched => (),
+                    _ => panic!("{:?}", e),
+                },
+            }
+
+            par.0.inspect();
+            if par.exhausted() {
+                break;
+            }
+        }
+
+        println!("{}", ctr);
+
+        assert_eq!(len, buf.len());
     }
 }

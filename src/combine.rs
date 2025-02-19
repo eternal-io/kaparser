@@ -14,7 +14,6 @@ import! {
     pub mod alt;
     pub mod com;
     pub mod cut;
-    pub mod joined;
     pub mod lens;
     pub mod map;
     pub mod not;

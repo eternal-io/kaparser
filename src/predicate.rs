@@ -188,6 +188,7 @@ gen_ascii_predicates! {
     r"alphabetic `[A-Za-z]`"                is_alpha(ch) => ch.is_ascii_alphabetic(),
     r"alphanumeric `[0-9A-Za-z]`"           is_alnum(ch) => ch.is_ascii_alphanumeric(),
 
+    #[doc(alias = "is_digit")]
     r"decimal digit `[0-9]`"                is_dec(ch) => ch.is_ascii_digit(),
     r"hexadecimal digit `[0-9A-Fa-f]`"      is_hex(ch) => ch.is_ascii_hexdigit(),
     r"octal digit `[0-7]`"                  is_oct(ch) => matches!(ch, '0'..='7'),
