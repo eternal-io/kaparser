@@ -40,9 +40,9 @@ where
             .char_indices()
             .find(|(_, ch)| self.end.predicate(ch))
         {
-            Some((off, _)) => {
+            Some((off, ch)) => {
                 *entry += off;
-                Some((Transfer::Accepted, *entry))
+                Some((Transfer::Accepted, *entry + ch.len_utf8()))
             }
             None => {
                 *entry = slice.len();
@@ -59,10 +59,10 @@ where
 
 impl<'i, T, P> Pattern<'i, [T]> for RangeTo<P>
 where
-    T: 'i + PartialEq,
+    T: 'i + Copy + PartialEq,
     P: Predicate<T>,
 {
-    type Captured = (&'i [T], Option<&'i T>);
+    type Captured = (&'i [T], Option<T>);
     type Internal = usize;
 
     #[inline(always)]
@@ -80,7 +80,7 @@ where
         {
             Some((off, _)) => {
                 *entry += off;
-                Some((Transfer::Accepted, *entry))
+                Some((Transfer::Accepted, *entry + 1))
             }
             None => {
                 *entry = slice.len();
@@ -91,7 +91,7 @@ where
     #[inline(always)]
     fn extract(&self, slice: &'i [T], entry: Self::Internal) -> Self::Captured {
         let (left, right) = slice.split_at(entry);
-        (left, right.iter().next())
+        (left, right.iter().next().cloned())
     }
 }
 
@@ -160,4 +160,29 @@ where
         let (left, right) = slice.split_at(off);
         (left, self.end.extract(right, state))
     }
+}
+
+//------------------------------------------------------------------------------
+
+#[cfg(test)]
+mod tests {
+    use crate::prelude::*;
+
+    #[test]
+    fn till() {
+        assert_eq!({ ..'!' }.full_match("").unwrap(), ("", None));
+        assert_eq!({ ..'!' }.full_match("Foo").unwrap(), ("Foo", None));
+        assert_eq!({ ..'!' }.full_match("Bar!").unwrap(), ("Bar", Some('!')));
+        assert_eq!({ ..'!' }.full_match("Bar!Baz").unwrap_err(), 4);
+        assert_eq!({ ..'!' }.parse("Bar!Baz").unwrap(), (("Bar", Some('!')), 4));
+
+        assert_eq!({ ..0 }.full_match(b"").unwrap(), (b"".as_ref(), None));
+        assert_eq!({ ..0 }.full_match(b"Foo").unwrap(), (b"Foo".as_ref(), None));
+        assert_eq!({ ..0 }.full_match(b"Bar\0").unwrap(), (b"Bar".as_ref(), Some(0)));
+        assert_eq!({ ..0 }.full_match(b"Bar\0Baz").unwrap_err(), 4);
+        assert_eq!({ ..0 }.parse(b"Bar\0Baz").unwrap(), ((b"Bar".as_ref(), Some(0)), 4));
+    }
+
+    #[test]
+    fn until() {}
 }

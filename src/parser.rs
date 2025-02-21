@@ -18,7 +18,7 @@ where
 
     fn full_match(&self, slice: &'i U) -> Result<Self::Captured, usize>;
 
-    fn parse_next(&self, slice: &mut &'i U) -> Result<Self::Captured, usize>;
+    fn parse(&self, slice: &'i U) -> Result<(Self::Captured, usize), usize>;
 }
 
 impl<'i, U, P> SimpleParser<'i, U> for P
@@ -30,24 +30,21 @@ where
 
     #[inline(always)]
     fn full_match(&self, slice: &'i U) -> Result<Self::Captured, usize> {
-        let mut rest = slice;
-        self.parse_next(&mut rest).and_then(|cap| match rest.len() == 0 {
+        self.parse(slice).and_then(|(cap, len)| match len == slice.len() {
             true => Ok(cap),
-            false => Err(slice.len() - rest.len()),
+            false => Err(len),
         })
     }
 
     #[inline(always)]
-    fn parse_next(&self, slice: &mut &'i U) -> Result<Self::Captured, usize> {
+    fn parse(&self, slice: &'i U) -> Result<(Self::Captured, usize), usize> {
         let mut state = self.init();
         let (t, len) = self
             .precede(slice, &mut state, true)
-            .expect("implementation error: pull after EOF");
+            .expect("implementation: pull after EOF");
 
         if let Transfer::Accepted = t {
-            let (left, right) = slice.split_at(len);
-            *slice = right;
-            Ok(self.extract(left, state))
+            Ok((self.extract(slice.split_at(len).0, state), len))
         } else {
             Err(len)
         }
@@ -119,7 +116,7 @@ where
     },
 }
 
-//------------------------------------------------------------------------------
+//==================================================================================================
 
 impl<'src> Parser<'src, str, Sliced> {
     #[allow(clippy::should_implement_trait)]
@@ -234,24 +231,17 @@ impl<U: ?Sized + Slice, R: Read> Parser<'_, U, R> {
     }
 }
 
-//------------------------------------------------------------------------------
+//==================================================================================================
 
 impl<R: Read> Parser<'_, str, R> {
-    pub fn proceed_str<'i, P: Pattern<'i, str>>(&'i mut self, pat: P) -> ParseResult<P::Captured> {
-        self.0.proceed_str(pat)
-    }
-}
-
-impl<R: Read> Source<'_, str, R> {
-    #[inline(always)]
-    fn proceed_str<'i, P: Pattern<'i, str>>(&'i mut self, pat: P) -> ParseResult<P::Captured> {
+    pub fn next_str<'i, P: Pattern<'i, str>>(&'i mut self, pat: P) -> ParseResult<P::Captured> {
         let mut entry = pat.init();
         let mut first_time = true;
         let len = loop {
-            let (slice, eof) = self.pull_str(first_time)?;
+            let (slice, eof) = self.0.pull_str(first_time)?;
             match pat.precede(slice, &mut entry, eof) {
                 None => match eof {
-                    true => panic!("implementation error: pull after EOF"),
+                    true => panic!("implementation: pull after EOF"),
                     false => first_time = false,
                 },
                 Some((t, len)) => match t.is_accepted() {
@@ -261,9 +251,31 @@ impl<R: Read> Source<'_, str, R> {
             }
         };
 
-        Ok(pat.extract(self.bump_str(len), entry))
+        Ok(pat.extract(self.0.bump_str(len), entry))
     }
 
+    pub fn peek_str<'i, P: Pattern<'i, str>>(&'i mut self, pat: P) -> ParseResult<P::Captured> {
+        let mut entry = pat.init();
+        let mut first_time = true;
+        let len = loop {
+            let (slice, eof) = self.0.pull_str(first_time)?;
+            match pat.precede(slice, &mut entry, eof) {
+                None => match eof {
+                    true => panic!("implementation: pull after EOF"),
+                    false => first_time = false,
+                },
+                Some((t, len)) => match t.is_accepted() {
+                    true => break len,
+                    false => return Error::raise(ErrorKind::Mismatched),
+                },
+            }
+        };
+
+        Ok(pat.extract(self.0.slice_str(len), entry))
+    }
+}
+
+impl<R: Read> Source<'_, str, R> {
     #[inline(always)]
     #[allow(unsafe_code)]
     fn pull_str(&mut self, first_time: bool) -> ParseResult<(&str, bool)> {
@@ -272,6 +284,9 @@ impl<R: Read> Source<'_, str, R> {
                 let _ = first_time;
                 Ok((slice.split_at(*consumed).1, true))
             }
+
+            #[cfg(feature = "std")]
+            Source::ReadBytes { .. } => unreachable!(),
 
             #[cfg(feature = "std")]
             Source::ReadStr {
@@ -324,9 +339,6 @@ impl<R: Read> Source<'_, str, R> {
                     *eof,
                 ))
             }
-
-            #[cfg(feature = "std")]
-            Source::ReadBytes { .. } => unreachable!(),
         }
     }
 
@@ -337,48 +349,66 @@ impl<R: Read> Source<'_, str, R> {
             Source::Sliced { slice, consumed, .. } => {
                 let left = slice[*consumed..]
                     .split_at_checked(n)
-                    .expect("implementation error: invalid bump")
+                    .expect("implementation: invalid bump")
                     .0;
                 *consumed += n;
                 left
             }
 
             #[cfg(feature = "std")]
+            Source::ReadBytes { .. } => unreachable!(),
+
+            #[cfg(feature = "std")]
             Source::ReadStr { buf, consumed, .. } => {
                 let left = unsafe {
                     from_utf8_unchecked(&buf[*consumed..])
                         .split_at_checked(n)
-                        .expect("implementation error: invalid bump")
+                        .expect("implementation: invalid bump")
                         .0
                 };
                 *consumed += n;
                 left
             }
+        }
+    }
+
+    #[inline(always)]
+    #[allow(unsafe_code)]
+    fn slice_str(&self, n: usize) -> &str {
+        match self {
+            Source::Sliced { slice, consumed, .. } => {
+                slice[*consumed..]
+                    .split_at_checked(n)
+                    .expect("implementation: invalid slice")
+                    .0
+            }
 
             #[cfg(feature = "std")]
             Source::ReadBytes { .. } => unreachable!(),
+
+            #[cfg(feature = "std")]
+            Source::ReadStr { buf, consumed, .. } => unsafe {
+                from_utf8_unchecked(&buf[*consumed..])
+                    .split_at_checked(n)
+                    .expect("implementation: invalid slice")
+                    .0
+            },
         }
     }
 }
 
-//------------------------------------------------------------------------------
+//==================================================================================================
 
 impl<T: PartialEq, R: Read> Parser<'_, [T], R> {
-    pub fn proceed<'i, P: Pattern<'i, [T]>>(&'i mut self, pat: P) -> ParseResult<P::Captured> {
-        self.0.proceed(pat)
-    }
-}
-
-impl<T: PartialEq, R: Read> Source<'_, [T], R> {
-    #[inline(always)]
-    fn proceed<'i, P: Pattern<'i, [T]>>(&'i mut self, pat: P) -> ParseResult<P::Captured> {
+    #[allow(clippy::should_implement_trait)]
+    pub fn next<'i, P: Pattern<'i, [T]>>(&'i mut self, pat: P) -> ParseResult<P::Captured> {
         let mut entry = pat.init();
         let mut first_time = true;
         let len = loop {
-            let (slice, eof) = self.pull(first_time)?;
+            let (slice, eof) = self.0.pull(first_time)?;
             match pat.precede(slice, &mut entry, eof) {
                 None => match eof {
-                    true => panic!("implementation error: pull after EOF"),
+                    true => panic!("implementation: pull after EOF"),
                     false => first_time = false,
                 },
                 Some((t, len)) => match t.is_accepted() {
@@ -388,9 +418,31 @@ impl<T: PartialEq, R: Read> Source<'_, [T], R> {
             }
         };
 
-        Ok(pat.extract(self.bump(len), entry))
+        Ok(pat.extract(self.0.bump(len), entry))
     }
 
+    pub fn peek<'i, P: Pattern<'i, [T]>>(&'i mut self, pat: P) -> ParseResult<P::Captured> {
+        let mut entry = pat.init();
+        let mut first_time = true;
+        let len = loop {
+            let (slice, eof) = self.0.pull(first_time)?;
+            match pat.precede(slice, &mut entry, eof) {
+                None => match eof {
+                    true => panic!("implementation: pull after EOF"),
+                    false => first_time = false,
+                },
+                Some((t, len)) => match t.is_accepted() {
+                    true => break len,
+                    false => return Error::raise(ErrorKind::Mismatched),
+                },
+            }
+        };
+
+        Ok(pat.extract(self.0.slice(len), entry))
+    }
+}
+
+impl<T: PartialEq, R: Read> Source<'_, [T], R> {
     #[inline(always)]
     #[allow(unsafe_code)]
     fn pull(&mut self, first_time: bool) -> ParseResult<(&[T], bool)> {
@@ -442,7 +494,7 @@ impl<T: PartialEq, R: Read> Source<'_, [T], R> {
             Source::Sliced { slice, consumed, .. } => {
                 let left = slice[*consumed..]
                     .split_at_checked(n)
-                    .expect("implementation error: invalid bump")
+                    .expect("implementation: invalid bump")
                     .0;
                 *consumed += n;
                 left
@@ -458,7 +510,7 @@ impl<T: PartialEq, R: Read> Source<'_, [T], R> {
                     mem::transmute::<&[u8], &[T]>(
                         buf[*consumed..]
                             .split_at_checked(n)
-                            .expect("implementation error: invalid bump")
+                            .expect("implementation: invalid bump")
                             .0,
                     )
                 };
@@ -467,9 +519,36 @@ impl<T: PartialEq, R: Read> Source<'_, [T], R> {
             }
         }
     }
+
+    #[inline(always)]
+    #[allow(unsafe_code)]
+    fn slice(&self, n: usize) -> &[T] {
+        match self {
+            Source::Sliced { slice, consumed, .. } => {
+                slice[*consumed..]
+                    .split_at_checked(n)
+                    .expect("implementation: invalid slice")
+                    .0
+            }
+
+            #[cfg(feature = "std")]
+            Source::ReadStr { .. } => unreachable!(),
+
+            #[cfg(feature = "std")]
+            Source::ReadBytes { buf, consumed, .. } => unsafe {
+                // Safety: See variant doc.
+                mem::transmute::<&[u8], &[T]>(
+                    buf[*consumed..]
+                        .split_at_checked(n)
+                        .expect("implementation: invalid slice")
+                        .0,
+                )
+            },
+        }
+    }
 }
 
-//------------------------------------------------------------------------------
+//==================================================================================================
 
 #[cfg(feature = "std")]
 impl<U: ?Sized + Slice, R: Read> Source<'_, U, R> {
@@ -493,7 +572,7 @@ impl<U: ?Sized + Slice, R: Read> Source<'_, U, R> {
         }
         // Must be `>=`, otherwise infinite loop when `buf.len() == 0`.
         if unlikely(buf.len() >= p88(buf.capacity())) {
-            buf.reserve_exact(buf.capacity() / 4 | 0x2000);
+            buf.reserve_exact((buf.capacity() / 4) | 0x2000);
         }
     }
 }
@@ -531,7 +610,7 @@ impl<U: ?Sized + Slice, R: Read> Source<'_, U, R> {
 #[cfg(all(test, feature = "std"))]
 mod tests {
     use super::*;
-    use crate::anything::*;
+    use crate::prelude::*;
     use std::prelude::rust_2021::*;
 
     fn random(mut x: u32) -> u32 {
@@ -584,7 +663,7 @@ mod tests {
     }
 
     #[test]
-    fn test_proceed_str() {
+    fn test_parse_str() {
         let buf = random_string(42);
         let mut par = Parser::from_reader_in_str(buf.as_bytes());
         let mut ctr = 0;
@@ -594,7 +673,7 @@ mod tests {
         loop {
             ctr += 1;
 
-            match par.proceed_str(opt(is_ascii..)) {
+            match par.next_str(opt(is_ascii..)) {
                 Ok(cap) => {
                     if let Some(s) = cap {
                         len += s.len();
@@ -606,7 +685,7 @@ mod tests {
                 },
             }
 
-            match par.proceed_str(opt(not(is_ascii)..)) {
+            match par.next_str(opt(not(is_ascii)..)) {
                 Ok(cap) => {
                     if let Some(s) = cap {
                         len += s.len();
@@ -627,5 +706,16 @@ mod tests {
         println!("{}", ctr);
 
         assert_eq!(len, buf.len());
+    }
+
+    #[test]
+    fn test_parse_bytes() {
+        let bytes = b"asdf\0";
+        let mut par = Parser::from_reader_in_bytes_with_capacity(bytes.as_ref(), 2);
+
+        assert_eq!(par.peek(not(0)..).unwrap(), b"asdf");
+        assert_eq!(par.next(not(0)..).unwrap(), b"asdf");
+        assert_eq!(par.next([0]).unwrap(), 0);
+        assert!(par.exhausted());
     }
 }

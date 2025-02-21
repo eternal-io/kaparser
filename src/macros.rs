@@ -29,7 +29,7 @@ macro_rules! rep {
     };
 
     ($n:tt.., $p:expr) => {
-        compile_error!("consider use `reiter` or `reiter_fold`")
+        compile_error!("not supported yet")
     };
 }
 

@@ -40,6 +40,11 @@ impl Transfer {
     }
 
     #[inline(always)]
+    pub const fn is_rejected(self) -> bool {
+        !self.is_accepted()
+    }
+
+    #[inline(always)]
     pub const fn perhaps(res: Result<usize, usize>) -> (Self, usize) {
         match res {
             Ok(len) => (Self::Accepted, len),
@@ -271,7 +276,6 @@ macro_rules! gen_alternates {
            $Lens1K:literal ~ $GenK:ident ~ $OrdK:tt
         $( $Lens1M:literal ~ $GenM:ident ~ $OrdM:tt )*
     ) => { $crate::common::paste! {
-        #[doc(hidden)]
         #[derive(Debug, Clone)]
         pub enum [<Alt $Lens1K>]<$($GenN),+> { $(
            #[doc = "Variant " $OrdN " of " $Lens1K "."]

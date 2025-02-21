@@ -80,10 +80,10 @@ where
 
 impl<'i, T, P> Pattern<'i, [T]> for [P; 1]
 where
-    T: 'i + PartialEq,
+    T: 'i + Copy + PartialEq,
     P: Predicate<T>,
 {
-    type Captured = &'i T;
+    type Captured = T;
     type Internal = ();
 
     #[inline(always)]
@@ -101,6 +101,6 @@ where
     #[inline(always)]
     fn extract(&self, slice: &'i [T], entry: Self::Internal) -> Self::Captured {
         let _ = entry;
-        slice.first().unwrap()
+        *slice.first().unwrap()
     }
 }

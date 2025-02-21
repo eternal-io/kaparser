@@ -1,3 +1,4 @@
+#![doc = include_str!("../docs/combinators.md")]
 use crate::{common::*, pattern::*, predicate::*};
 use core::{marker::PhantomData, mem::MaybeUninit};
 
@@ -13,15 +14,19 @@ macro_rules! import {
 import! {
     pub mod alt;
     pub mod com;
-    pub mod cut;
-    pub mod lens;
-    pub mod map;
-    pub mod not;
-    pub mod opt;
-    pub mod repeat;
     pub mod seq;
-    pub mod skim;
+
     pub mod take;
+    pub mod lens;
+    pub mod repeat;
+
+    pub mod skim;
+
+    pub mod opt;
+    pub mod convert;
+    pub mod control;
+
+    pub mod not;
 }
 
 import! {
