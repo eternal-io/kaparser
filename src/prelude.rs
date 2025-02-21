@@ -4,6 +4,7 @@ pub use crate::{
     combine::{alt::alt, com::com, seq::seq},
     combine::{bin, def},
     combine::{
+        control::{cond, verify},
         convert::{complex, map},
         opt::opt,
     },

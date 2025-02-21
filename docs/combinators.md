@@ -30,7 +30,7 @@ List of combinators.
 | [`cond`](cond()) | `P::Captured` | TODO! |
 | [`verify`](verify()) | `P::Captured` | TODO! |
 
-However, there is no way to have combinator like `verify_map`, because these two happen at different stages.
+However, there is no way to have combinator like `filter_map`, because `verify` and `map` happen at different stages.
 
 ## Basic patterns
 

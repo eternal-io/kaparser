@@ -14,6 +14,8 @@ where
     }
 }
 
+#[inline(always)]
+#[doc(alias = "and_then")]
 pub const fn complex<'i, U, P, Q>(body: P, then: Q) -> Complex<'i, U, P, Q>
 where
     U: 'i + ?Sized + Slice,
@@ -93,7 +95,7 @@ where
     fn precede(&self, slice: &U, entry: &mut Self::Internal, eof: bool) -> Option<(Transfer, usize)> {
         if let Alt2::Var1(state) = entry {
             let (t, len) = self.body.precede(slice, state, eof)?;
-            if t.is_rejected() {
+            if !t.is_accepted() {
                 return Some((t, len));
             }
 

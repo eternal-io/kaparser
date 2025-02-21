@@ -611,7 +611,7 @@ impl<U: ?Sized + Slice, R: Read> Source<'_, U, R> {
 mod tests {
     use super::*;
     use crate::prelude::*;
-    use std::prelude::rust_2021::*;
+    use std::prelude::rust_2024::*;
 
     fn random(mut x: u32) -> u32 {
         x ^= x >> 16;

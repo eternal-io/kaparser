@@ -13,6 +13,21 @@ where
     }
 }
 
+#[inline(always)]
+#[doc(alias = "filter")]
+pub const fn verify<'i: 'j, 'j, U, P, F>(f: F, body: P) -> Verify<'i, 'j, U, P, F>
+where
+    U: 'i + ?Sized + Slice,
+    P: Pattern<'j, U>,
+    F: Fn(P::Captured) -> Transfer,
+{
+    Verify {
+        body,
+        verify: f,
+        phantom: PhantomData,
+    }
+}
+
 //------------------------------------------------------------------------------
 
 pub struct Conditional<'i, U, P>
@@ -55,21 +70,21 @@ where
 
 //------------------------------------------------------------------------------
 
-pub struct Verify<'i, U, P, F>
+pub struct Verify<'i: 'j, 'j, U, P, F>
 where
     U: 'i + ?Sized + Slice,
-    P: Pattern<'i, U>,
+    P: Pattern<'j, U>,
     F: Fn(P::Captured) -> Transfer,
 {
     body: P,
     verify: F,
-    phantom: PhantomData<&'i U>,
+    phantom: PhantomData<(&'i U, &'j ())>,
 }
 
-impl<'i, U, P, F> Pattern<'i, U> for Verify<'i, U, P, F>
+impl<'i: 'j, 'j, U, P, F> Pattern<'i, U> for Verify<'i, 'j, U, P, F>
 where
     U: 'i + ?Sized + Slice,
-    P: Pattern<'i, U>,
+    P: Pattern<'j, U>,
     F: Fn(P::Captured) -> Transfer,
 {
     type Captured = P::Captured;
@@ -80,14 +95,23 @@ where
         self.body.init()
     }
     #[inline(always)]
+    #[allow(unsafe_code)]
     fn precede(&self, slice: &U, entry: &mut Self::Internal, eof: bool) -> Option<(Transfer, usize)> {
-        // let (t, len) = self.body.precede(slice, entry, eof)?;
-        // if t.is_rejected() {
-        //     return Some((t, len));
-        // }
-        // let cap = self.body.extract(slice, entry.clone());
-        // Some(((self.verify)(cap), len))
-        todo!()
+        let (t, len) = self.body.precede(slice, entry, eof)?;
+        if !t.is_accepted() {
+            return Some((t, len));
+        }
+
+        let t = (self.verify)(self.body.extract(
+            unsafe {
+                // Safety: Extend lifetime. (TODO: Need more claim.)
+                // Guaranteed not to bring dangling references, because `&U` is already outlives `'j`.
+                // It can be solved by additional lifetime annotation in original trait, but will bring too much noise.
+                ::core::mem::transmute::<&U, &U>(slice)
+            },
+            entry.clone(),
+        ));
+        if !t.is_accepted() { Some((t, 0)) } else { Some((t, len)) }
     }
     #[inline(always)]
     fn extract(&self, slice: &'i U, entry: Self::Internal) -> Self::Captured {

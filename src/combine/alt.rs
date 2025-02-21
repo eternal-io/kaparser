@@ -83,7 +83,7 @@ macro_rules! impl_alternatable_for_tuple {
                             let $VarN(state) = entry else { unreachable!() };
                             let (t, len) = self.$IdxN.precede(slice, state, eof)?;
                             match t {
-                                Transfer::Rejected => (),
+                                Transfer::Rejected => (), // TODO: Halt!!!
                                 t => return Some((t, len)),
                             }
                         }

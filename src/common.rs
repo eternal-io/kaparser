@@ -40,11 +40,6 @@ impl Transfer {
     }
 
     #[inline(always)]
-    pub const fn is_rejected(self) -> bool {
-        !self.is_accepted()
-    }
-
-    #[inline(always)]
     pub const fn perhaps(res: Result<usize, usize>) -> (Self, usize) {
         match res {
             Ok(len) => (Self::Accepted, len),
