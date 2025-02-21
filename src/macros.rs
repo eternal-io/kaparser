@@ -14,18 +14,18 @@ macro_rules! rep {
     ($n:tt, $p:expr) => {
         $crate::combine::repeat::repeat_exact::<_, _, { $n }>($p)
     };
-    ($n:tt..=$x:tt, $p:expr) => {
-        $crate::combine::repeat::repeat::<_, _, { $n }, { $x - $n }>($p)
+    ($n:tt..=$m:tt, $p:expr) => {
+        $crate::combine::repeat::repeat::<_, _, { $n }, { $m - $n }>($p)
     };
-    (..=$x:tt, $p:expr) => {
-        $crate::combine::repeat::repeat_at_most::<_, _, { $x }>($p)
+    (..=$m:tt, $p:expr) => {
+        $crate::combine::repeat::repeat_at_most::<_, _, { $m }>($p)
     };
 
-    ($n:tt..$x:tt, $p:expr) => {
-        compile_error!("use `n..=x` instead")
+    ($n:tt..$m:tt, $p:expr) => {
+        compile_error!("use `n..=m` instead")
     };
-    (..$x:tt, $p:expr) => {
-        compile_error!("use `..=x` instead")
+    (..$m:tt, $p:expr) => {
+        compile_error!("use `..=m` instead")
     };
 
     ($n:tt.., $p:expr) => {

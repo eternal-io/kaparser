@@ -104,9 +104,8 @@ where
 
         let t = (self.verify)(self.body.extract(
             unsafe {
-                // Safety: Extend lifetime. (TODO: Need more claim.)
-                // Guaranteed not to bring dangling references, because `&U` is already outlives `'j`.
-                // It can be solved by additional lifetime annotation in original trait, but will bring too much noise.
+                // Safety: Extend lifetime. (TODO: Need more clarification.)
+                // Guaranteed not to bring dangling references, because `&U` is already outlives `'j` (`'i: 'j`).
                 ::core::mem::transmute::<&U, &U>(slice)
             },
             entry.clone(),
