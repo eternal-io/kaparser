@@ -102,15 +102,17 @@ where
             return Some((t, len));
         }
 
-        let t = (self.verify)(self.body.extract(
-            unsafe {
-                // Safety: Extend lifetime. (TODO: Need more clarification.)
-                // Guaranteed not to bring dangling references, because `&U` is already outlives `'j` (`'i: 'j`).
-                ::core::mem::transmute::<&U, &U>(slice)
-            },
-            entry.clone(),
-        ));
-        if !t.is_accepted() { Some((t, 0)) } else { Some((t, len)) }
+        Some((
+            (self.verify)(self.body.extract(
+                unsafe {
+                    // Safety: Extend lifetime. (TODO: Need more clarification.)
+                    // Guaranteed not to bring dangling references, because `&U` is already outlives `'j` (`'i: 'j`).
+                    ::core::mem::transmute::<&U, &U>(slice)
+                },
+                entry.clone(),
+            )),
+            len,
+        ))
     }
     #[inline(always)]
     fn extract(&self, slice: &'i U, entry: Self::Internal) -> Self::Captured {
