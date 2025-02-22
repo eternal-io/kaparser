@@ -110,16 +110,20 @@ where
     }
     #[inline(always)]
     fn precede(&self, slice: &str, entry: &mut Self::Internal, eof: bool) -> Option<(Transfer, usize)> {
-        let (off, state) = entry;
-        for ch in slice.split_at(*off).1.chars() {
-            let (t, len) = self.end.precede(slice.split_at(*off).1, state, eof)?;
+        let (offset, state) = entry;
+        for ch in slice.split_at(*offset).1.chars() {
+            let mut st = self.end.init();
+            let (t, len) = self.end.precede(slice.split_at(*offset).1, &mut st, eof)?;
             match t {
                 Transfer::Rejected => (),
-                t => return Some((t, len)),
+                t => {
+                    *state = st;
+                    return Some((t, *offset + len));
+                }
             }
-            *off += ch.len_utf8();
+            *offset += ch.len_utf8();
         }
-        eof.then_some((Transfer::Rejected, *off))
+        eof.then_some((Transfer::Halt, *offset))
     }
     #[inline(always)]
     fn extract(&self, slice: &'i str, entry: Self::Internal) -> Self::Captured {
@@ -143,16 +147,20 @@ where
     }
     #[inline(always)]
     fn precede(&self, slice: &[T], entry: &mut Self::Internal, eof: bool) -> Option<(Transfer, usize)> {
-        let (off, state) = entry;
-        while *off < slice.len() {
-            let (t, len) = self.end.precede(slice.split_at(*off).1, state, eof)?;
+        let (offset, state) = entry;
+        while *offset < slice.len() {
+            let mut st = self.end.init();
+            let (t, len) = self.end.precede(slice.split_at(*offset).1, &mut st, eof)?;
             match t {
                 Transfer::Rejected => (),
-                t => return Some((t, len)),
+                t => {
+                    *state = st;
+                    return Some((t, *offset + len));
+                }
             }
-            *off += 1;
+            *offset += 1;
         }
-        eof.then_some((Transfer::Rejected, *off))
+        eof.then_some((Transfer::Halt, *offset))
     }
     #[inline(always)]
     fn extract(&self, slice: &'i [T], entry: Self::Internal) -> Self::Captured {
@@ -170,11 +178,11 @@ mod tests {
 
     #[test]
     fn till() {
-        assert_eq!({ ..'!' }.full_match("").unwrap(), ("", None));
-        assert_eq!({ ..'!' }.full_match("Foo").unwrap(), ("Foo", None));
-        assert_eq!({ ..'!' }.full_match("Bar!").unwrap(), ("Bar", Some('!')));
-        assert_eq!({ ..'!' }.full_match("Bar!Baz").unwrap_err(), 4);
-        assert_eq!({ ..'!' }.parse("Bar!Baz").unwrap(), (("Bar", Some('!')), 4));
+        assert_eq!({ ..'🔥' }.full_match("").unwrap(), ("", None));
+        assert_eq!({ ..'🔥' }.full_match("Foo").unwrap(), ("Foo", None));
+        assert_eq!({ ..'🔥' }.full_match("Bar🔥").unwrap(), ("Bar", Some('🔥')));
+        assert_eq!({ ..'🔥' }.full_match("Bar🔥Baz").unwrap_err(), 7);
+        assert_eq!({ ..'🔥' }.parse("Bar🔥Baz").unwrap(), (("Bar", Some('🔥')), 7));
 
         assert_eq!({ ..0 }.full_match(b"").unwrap(), (b"".as_ref(), None));
         assert_eq!({ ..0 }.full_match(b"Foo").unwrap(), (b"Foo".as_ref(), None));
@@ -184,5 +192,18 @@ mod tests {
     }
 
     #[test]
-    fn until() {}
+    fn until() {
+        assert_eq!({ ..="🚧" }.full_match("🚧").unwrap(), ("", "🚧"));
+        assert_eq!({ ..="🚧" }.full_match("FooBar🚧").unwrap(), ("FooBar", "🚧"));
+        assert_eq!({ ..=[0] }.full_match(b"Quinn\0").unwrap(), (b"Quinn".as_ref(), 0));
+
+        // The following is feature.
+        assert_eq!({ ..="" }.parse("").unwrap_err(), 0);
+        assert_eq!({ ..="" }.parse("❓").unwrap(), (("", ""), 0));
+        assert_eq!({ ..=[].as_ref() }.parse(b"").unwrap_err(), 0);
+        assert_eq!(
+            { ..=[].as_ref() }.parse(b"??").unwrap(),
+            ((b"".as_ref(), b"".as_ref()), 0)
+        );
+    }
 }

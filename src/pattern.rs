@@ -36,15 +36,13 @@ where
     fn init(&self) -> Self::Internal {}
 
     #[inline(always)]
-    fn precede(&self, slice: &U, entry: &mut Self::Internal, eof: bool) -> Option<(Transfer, usize)> {
-        let _ = eof; // TODO: EOF must use!!!
-        let _ = entry;
-        (slice.len() >= self.len()).then(|| Transfer::perhaps(slice.starts_with(self).then_some(self.len()).ok_or(0)))
+    fn precede(&self, slice: &U, _ntry: &mut Self::Internal, eof: bool) -> Option<(Transfer, usize)> {
+        (eof || slice.len() >= self.len())
+            .then(|| Transfer::perhaps(slice.starts_with(self).then_some(self.len()).ok_or(0)))
     }
 
     #[inline(always)]
-    fn extract(&self, slice: &'i U, entry: Self::Internal) -> Self::Captured {
-        let _ = entry;
+    fn extract(&self, slice: &'i U, _ntry: Self::Internal) -> Self::Captured {
         slice.split_at(self.len()).0
     }
 }
@@ -62,9 +60,7 @@ where
     fn init(&self) -> Self::Internal {}
 
     #[inline(always)]
-    fn precede(&self, slice: &str, entry: &mut Self::Internal, eof: bool) -> Option<(Transfer, usize)> {
-        let _ = eof;
-        let _ = entry;
+    fn precede(&self, slice: &str, _ntry: &mut Self::Internal, _of: bool) -> Option<(Transfer, usize)> {
         slice
             .chars()
             .next()
@@ -72,8 +68,7 @@ where
     }
 
     #[inline(always)]
-    fn extract(&self, slice: &'i str, entry: Self::Internal) -> Self::Captured {
-        let _ = entry;
+    fn extract(&self, slice: &'i str, _ntry: Self::Internal) -> Self::Captured {
         slice.chars().next().unwrap()
     }
 }
@@ -90,17 +85,14 @@ where
     fn init(&self) -> Self::Internal {}
 
     #[inline(always)]
-    fn precede(&self, slice: &[T], entry: &mut Self::Internal, eof: bool) -> Option<(Transfer, usize)> {
-        let _ = eof;
-        let _ = entry;
+    fn precede(&self, slice: &[T], _ntry: &mut Self::Internal, _of: bool) -> Option<(Transfer, usize)> {
         slice
             .first()
             .map(|value| Transfer::perhaps(self[0].predicate(value).then_some(1).ok_or(0)))
     }
 
     #[inline(always)]
-    fn extract(&self, slice: &'i [T], entry: Self::Internal) -> Self::Captured {
-        let _ = entry;
+    fn extract(&self, slice: &'i [T], _ntry: Self::Internal) -> Self::Captured {
         *slice.first().unwrap()
     }
 }
