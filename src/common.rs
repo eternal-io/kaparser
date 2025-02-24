@@ -58,6 +58,64 @@ impl Transfer {
 
 //------------------------------------------------------------------------------
 
+pub trait Slice2: Copy + Sized {
+    type Item: Copy + PartialEq;
+
+    fn len(&self) -> usize;
+    fn split_at(&self, mid: usize) -> (Self, Self);
+    fn starts_with(&self, prefix: Self) -> bool;
+    fn iter_indices(&self) -> impl Iterator<Item = (usize, Self::Item)>;
+
+    fn is_empty(&self) -> bool {
+        self.len() == 0
+    }
+}
+
+impl<'i> Slice2 for &'i str {
+    type Item = char;
+
+    #[inline(always)]
+    fn len(&self) -> usize {
+        (*self).len()
+    }
+    #[inline(always)]
+    fn split_at(&self, mid: usize) -> (Self, Self) {
+        (*self).split_at(mid)
+    }
+    #[inline(always)]
+    fn starts_with(&self, prefix: Self) -> bool {
+        (*self).starts_with(prefix)
+    }
+    #[inline(always)]
+    fn iter_indices(&self) -> impl Iterator<Item = (usize, Self::Item)> {
+        self.char_indices()
+    }
+}
+
+impl<'i, T> Slice2 for &'i [T]
+where
+    T: Copy + PartialEq,
+{
+    type Item = T;
+
+    #[inline(always)]
+    fn len(&self) -> usize {
+        (*self).len()
+    }
+    #[inline(always)]
+    fn split_at(&self, mid: usize) -> (Self, Self) {
+        (*self).split_at(mid)
+    }
+    #[inline(always)]
+    fn starts_with(&self, prefix: Self) -> bool {
+        (*self).starts_with(prefix)
+    }
+    #[inline(always)]
+    fn iter_indices(&self) -> impl Iterator<Item = (usize, Self::Item)> {
+        self.iter().copied().enumerate()
+    }
+}
+
 pub trait Slice {
     fn len(&self) -> usize;
     fn split_at(&self, mid: usize) -> (&Self, &Self);

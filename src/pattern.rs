@@ -4,6 +4,40 @@ use crate::{common::*, predicate::*};
 #[doc(inline)]
 pub use crate::token_set;
 
+pub trait Pattern2<U>
+where
+    U: Slice2,
+{
+    type Captured;
+    type Internal: 'static + Clone;
+
+    fn init2(&self) -> Self::Internal;
+    fn precede2(&self, slice: U, entry: &mut Self::Internal, eof: bool) -> Option<(Transfer, usize)>;
+    fn extract2(&self, slice: U, entry: Self::Internal) -> Self::Captured;
+}
+
+impl<U> Pattern2<U> for &U
+where
+    U: Slice2,
+{
+    type Captured = ();
+    type Internal = ();
+
+    fn init2(&self) -> Self::Internal {
+        todo!()
+    }
+
+    fn precede2(&self, slice: U, entry: &mut Self::Internal, eof: bool) -> Option<(Transfer, usize)> {
+        todo!()
+    }
+
+    fn extract2(&self, slice: U, entry: Self::Internal) -> Self::Captured {
+        todo!()
+    }
+}
+
+//==================================================================================================
+
 /// Match a set of slices of items (`&str`, `&[u8]`, `&[T]`, [custom](crate::token_set)).
 pub trait Pattern<'i, U>
 where
@@ -15,13 +49,8 @@ where
     /// `[T; N]` doesn't implement `Default`, so we have to initialize it manually.
     fn init(&self) -> Self::Internal;
 
-    /// 一旦返回了 `Some(_)`，则不再具有可重入性。
     fn precede(&self, slice: &U, entry: &mut Self::Internal, eof: bool) -> Option<(Transfer, usize)>;
 
-    /// # Panics
-    ///
-    /// 只在 [`precede`](Precede::precede) 返回 `Some(Accepted(_))` 时才保证一定能够返回正确结果，
-    /// 否则，可能是无意义的结果，甚至 panic。
     fn extract(&self, slice: &'i U, entry: Self::Internal) -> Self::Captured;
 }
 

@@ -12,6 +12,7 @@ mod macros;
 pub mod common;
 pub mod combine;
 pub mod parser;
+pub mod parser2;
 pub mod pattern;
 pub mod predicate;
 pub mod prelude;
