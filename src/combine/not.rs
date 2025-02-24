@@ -11,7 +11,7 @@ pub struct Not<T, P: Predicate<T>>(P, PhantomData<T>);
 
 impl<T, P: Predicate<T>> Predicate<T> for Not<T, P> {
     #[inline(always)]
-    fn predicate(&self, value: &T) -> bool {
-        !self.0.predicate(value)
+    fn predicate(&self, item: &T) -> bool {
+        !self.0.predicate(item)
     }
 }

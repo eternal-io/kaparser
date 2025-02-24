@@ -2,58 +2,58 @@ use core::ops::{Range, RangeFrom, RangeFull, RangeInclusive, RangeTo, RangeToInc
 
 /// Match a set of items (`char`, `u8`, `T`).
 pub trait Predicate<T>: Sized {
-    fn predicate(&self, value: &T) -> bool;
+    fn predicate(&self, item: &T) -> bool;
 }
 
 impl<T, F: Fn(&T) -> bool> Predicate<T> for F {
     #[inline(always)]
-    fn predicate(&self, value: &T) -> bool {
-        self(value)
+    fn predicate(&self, item: &T) -> bool {
+        self(item)
     }
 }
 impl<T: PartialOrd> Predicate<T> for Range<T> {
     #[inline(always)]
-    fn predicate(&self, value: &T) -> bool {
-        self.contains(value)
+    fn predicate(&self, item: &T) -> bool {
+        self.contains(item)
     }
 }
 impl<T: PartialOrd> Predicate<T> for RangeInclusive<T> {
     #[inline(always)]
-    fn predicate(&self, value: &T) -> bool {
-        self.contains(value)
+    fn predicate(&self, item: &T) -> bool {
+        self.contains(item)
     }
 }
 
 impl<T: PartialOrd> Predicate<T> for RangeFrom<T> {
     #[inline(always)]
-    fn predicate(&self, value: &T) -> bool {
-        self.contains(value)
+    fn predicate(&self, item: &T) -> bool {
+        self.contains(item)
     }
 }
 impl<T: PartialOrd> Predicate<T> for RangeTo<T> {
     #[inline(always)]
-    fn predicate(&self, value: &T) -> bool {
-        self.contains(value)
+    fn predicate(&self, item: &T) -> bool {
+        self.contains(item)
     }
 }
 impl<T: PartialOrd> Predicate<T> for RangeToInclusive<T> {
     #[inline(always)]
-    fn predicate(&self, value: &T) -> bool {
-        self.contains(value)
+    fn predicate(&self, item: &T) -> bool {
+        self.contains(item)
     }
 }
 
 impl<T> Predicate<T> for RangeFull {
     #[inline(always)]
-    fn predicate(&self, value: &T) -> bool {
-        let _ = value;
+    fn predicate(&self, item: &T) -> bool {
+        let _ = item;
         true
     }
 }
 impl<T> Predicate<T> for () {
     #[inline(always)]
-    fn predicate(&self, value: &T) -> bool {
-        let _ = value;
+    fn predicate(&self, item: &T) -> bool {
+        let _ = item;
         false
     }
 }
@@ -64,8 +64,8 @@ macro_rules! impl_predicate_for_primitives {
     ( $($ty:ty),+$(,)? ) => { $(
         impl Predicate<$ty> for $ty {
             #[inline(always)]
-            fn predicate(&self, value: &$ty) -> bool {
-                *self == *value
+            fn predicate(&self, item: &$ty) -> bool {
+                *self == *item
             }
         }
     )+ };
@@ -84,18 +84,18 @@ macro_rules! impl_predicate_for_tuple {
     ( $( $OrdN:ident ~ $IdxN:tt )+ ) => {
         impl<T, $($OrdN: Predicate<T>),+> Predicate<T> for ($($OrdN,)+) {
             #[inline(always)]
-            fn predicate(&self, value: &T) -> bool {
-                impl_predicate_for_tuple!( @ self value $($IdxN),+ )
+            fn predicate(&self, item: &T) -> bool {
+                impl_predicate_for_tuple!( @ self item $($IdxN),+ )
             }
         }
     };
 
-    ( @ $self:ident $value:ident $IdxA:tt ) => {
-        $self.$IdxA.predicate($value)
+    ( @ $self:ident $item:ident $IdxA:tt ) => {
+        $self.$IdxA.predicate($item)
     };
 
-    ( @ $self:ident $value:ident $IdxA:tt, $($IdxN:tt),* ) => {
-        $self.$IdxA.predicate($value) || impl_predicate_for_tuple!( @ $self $value $($IdxN),* )
+    ( @ $self:ident $item:ident $IdxA:tt, $($IdxN:tt),* ) => {
+        $self.$IdxA.predicate($item) || impl_predicate_for_tuple!( @ $self $item $($IdxN),* )
     };
 }
 
