@@ -1,4 +1,3 @@
-#![allow(clippy::let_unit_value)]
 use crate::{common::*, predicate::*};
 
 #[doc(inline)]
@@ -12,33 +11,65 @@ where
     type Internal: 'static + Clone;
 
     fn init2(&self) -> Self::Internal;
+
     fn precede2(&self, slice: U, entry: &mut Self::Internal, eof: bool) -> Option<(Transfer, usize)>;
+
     fn extract2(&self, slice: U, entry: Self::Internal) -> Self::Captured;
 }
 
-impl<U> Pattern2<U> for &U
+impl<U> Pattern2<U> for U
 where
     U: Slice2,
 {
-    type Captured = ();
+    type Captured = U;
     type Internal = ();
 
-    fn init2(&self) -> Self::Internal {
-        todo!()
+    #[inline(always)]
+    fn init2(&self) -> Self::Internal {}
+
+    #[inline(always)]
+    fn precede2(&self, slice: U, _ntry: &mut Self::Internal, eof: bool) -> Option<(Transfer, usize)> {
+        (eof || slice.len() >= self.len())
+            .then(|| Transfer::perhaps(slice.starts_with(*self).then_some(self.len()).ok_or(0)))
     }
 
-    fn precede2(&self, slice: U, entry: &mut Self::Internal, eof: bool) -> Option<(Transfer, usize)> {
-        todo!()
+    #[inline(always)]
+    fn extract2(&self, slice: U, _ntry: Self::Internal) -> Self::Captured {
+        slice.split_at(self.len()).0
+    }
+}
+
+impl<U, P> Pattern2<U> for [P; 1]
+where
+    U: Slice2,
+    P: Predicate2<U::Item>,
+{
+    type Captured = U::Item;
+    type Internal = ();
+
+    #[inline(always)]
+    fn init2(&self) -> Self::Internal {}
+
+    #[inline(always)]
+    fn precede2(&self, slice: U, _ntry: &mut Self::Internal, _of: bool) -> Option<(Transfer, usize)> {
+        Some(
+            slice
+                .first()
+                .filter(|&item| self[0].predicate(item))
+                .map(|item| (Transfer::Accepted, slice.len_of(item)))
+                .unwrap_or((Transfer::Rejected, 0)),
+        )
     }
 
-    fn extract2(&self, slice: U, entry: Self::Internal) -> Self::Captured {
-        todo!()
+    #[inline(always)]
+    fn extract2(&self, slice: U, _ntry: Self::Internal) -> Self::Captured {
+        slice.first().unwrap()
     }
 }
 
 //==================================================================================================
 
-/// Match a set of slices of items (`&str`, `&[u8]`, `&[T]`, [custom](crate::token_set)).
+/// Match a set of slices of items (`&str`, `&[u8]`, `&[T]`, [custom](token_set)).
 pub trait Pattern<'i, U>
 where
     U: 'i + ?Sized + Slice,

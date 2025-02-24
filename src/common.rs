@@ -62,16 +62,21 @@ pub trait Slice2: Copy + Sized {
     type Item: Copy + PartialEq;
 
     fn len(&self) -> usize;
-    fn split_at(&self, mid: usize) -> (Self, Self);
+    fn len_of(&self, item: Self::Item) -> usize;
     fn starts_with(&self, prefix: Self) -> bool;
-    fn iter_indices(&self) -> impl Iterator<Item = (usize, Self::Item)>;
-
     fn is_empty(&self) -> bool {
         self.len() == 0
     }
+
+    fn split_at(self, mid: usize) -> (Self, Self);
+    fn iter(self) -> impl Iterator<Item = Self::Item>;
+    fn iter_indices(self) -> impl Iterator<Item = (usize, Self::Item)>;
+    fn first(self) -> Option<Self::Item> {
+        self.iter().next()
+    }
 }
 
-impl<'i> Slice2 for &'i str {
+impl Slice2 for &str {
     type Item = char;
 
     #[inline(always)]
@@ -79,20 +84,29 @@ impl<'i> Slice2 for &'i str {
         (*self).len()
     }
     #[inline(always)]
-    fn split_at(&self, mid: usize) -> (Self, Self) {
-        (*self).split_at(mid)
+    fn len_of(&self, item: Self::Item) -> usize {
+        item.len_utf8()
     }
     #[inline(always)]
     fn starts_with(&self, prefix: Self) -> bool {
         (*self).starts_with(prefix)
     }
+
     #[inline(always)]
-    fn iter_indices(&self) -> impl Iterator<Item = (usize, Self::Item)> {
+    fn split_at(self, mid: usize) -> (Self, Self) {
+        (*self).split_at(mid)
+    }
+    #[inline(always)]
+    fn iter(self) -> impl Iterator<Item = Self::Item> {
+        self.chars()
+    }
+    #[inline(always)]
+    fn iter_indices(self) -> impl Iterator<Item = (usize, Self::Item)> {
         self.char_indices()
     }
 }
 
-impl<'i, T> Slice2 for &'i [T]
+impl<T> Slice2 for &[T]
 where
     T: Copy + PartialEq,
 {
@@ -103,16 +117,25 @@ where
         (*self).len()
     }
     #[inline(always)]
-    fn split_at(&self, mid: usize) -> (Self, Self) {
-        (*self).split_at(mid)
+    fn len_of(&self, _tem: Self::Item) -> usize {
+        1
     }
     #[inline(always)]
     fn starts_with(&self, prefix: Self) -> bool {
         (*self).starts_with(prefix)
     }
+
     #[inline(always)]
-    fn iter_indices(&self) -> impl Iterator<Item = (usize, Self::Item)> {
-        self.iter().copied().enumerate()
+    fn split_at(self, mid: usize) -> (Self, Self) {
+        (*self).split_at(mid)
+    }
+    #[inline(always)]
+    fn iter(self) -> impl Iterator<Item = Self::Item> {
+        (*self).iter().copied()
+    }
+    #[inline(always)]
+    fn iter_indices(self) -> impl Iterator<Item = (usize, Self::Item)> {
+        (*self).iter().copied().enumerate()
     }
 }
 

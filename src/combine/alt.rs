@@ -1,10 +1,10 @@
 use super::*;
 
 #[inline(always)]
-pub const fn alt<'i, U, A>(alt: A) -> Alternate<'i, U, A>
+pub const fn alt<U, A>(alt: A) -> Alternate<U, A>
 where
-    U: 'i + ?Sized + Slice,
-    A: Alternatable<'i, U>,
+    U: Slice2,
+    A: Alternatable<U>,
 {
     Alternate {
         alt,
@@ -14,76 +14,76 @@ where
 
 //------------------------------------------------------------------------------
 
-pub struct Alternate<'i, U, A>
+pub struct Alternate<U, A>
 where
-    U: 'i + ?Sized + Slice,
-    A: Alternatable<'i, U>,
+    U: Slice2,
+    A: Alternatable<U>,
 {
     alt: A,
-    phantom: PhantomData<&'i U>,
+    phantom: PhantomData<U>,
 }
 
-pub trait Alternatable<'i, U>
+pub trait Alternatable<U>
 where
-    U: 'i + ?Sized + Slice,
+    U: Slice2,
 {
     type Captured;
     type Internal: 'static + Clone;
 
     fn init_alt(&self) -> Self::Internal;
 
-    fn precede_alt(&self, slice: &U, entry: &mut Self::Internal, eof: bool) -> Option<(Transfer, usize)>;
+    fn precede_alt(&self, slice: U, entry: &mut Self::Internal, eof: bool) -> Option<(Transfer, usize)>;
 
-    fn extract_alt(&self, slice: &'i U, entry: Self::Internal) -> Self::Captured;
+    fn extract_alt(&self, slice: U, entry: Self::Internal) -> Self::Captured;
 }
 
-impl<'i, U, A> Pattern<'i, U> for Alternate<'i, U, A>
+impl<U, A> Pattern2<U> for Alternate<U, A>
 where
-    U: 'i + ?Sized + Slice,
-    A: Alternatable<'i, U>,
+    U: Slice2,
+    A: Alternatable<U>,
 {
     type Captured = A::Captured;
     type Internal = A::Internal;
 
     #[inline(always)]
-    fn init(&self) -> Self::Internal {
+    fn init2(&self) -> Self::Internal {
         self.alt.init_alt()
     }
     #[inline(always)]
-    fn precede(&self, slice: &U, entry: &mut Self::Internal, eof: bool) -> Option<(Transfer, usize)> {
+    fn precede2(&self, slice: U, entry: &mut Self::Internal, eof: bool) -> Option<(Transfer, usize)> {
         self.alt.precede_alt(slice, entry, eof)
     }
     #[inline(always)]
-    fn extract(&self, slice: &'i U, entry: Self::Internal) -> Self::Captured {
+    fn extract2(&self, slice: U, entry: Self::Internal) -> Self::Captured {
         self.alt.extract_alt(slice, entry)
     }
 }
 
 macro_rules! impl_alternatable_for_tuple {
     ( $Alt:ident, $( $LabN:lifetime ~ $GenN:ident ~ $VarN:ident ~ $OrdN:literal ~ $IdxN:tt )+ ) => { $crate::common::paste! {
-        impl<'i, U: 'i + ?Sized + Slice, $($GenN: Pattern<'i, U>),+> Alternatable<'i, U> for ($($GenN,)+) {
+        impl<U: Slice2, $($GenN: Pattern2<U>),+> Alternatable<U> for ($($GenN,)+) {
             type Captured = $Alt<$($GenN::Captured),+>;
             type Internal = $Alt<$($GenN::Internal),+>;
 
             #[inline(always)]
             fn init_alt(&self) -> Self::Internal {
-                $Alt::Var1(self.0.init())
+                $Alt::Var1(self.0.init2())
             }
 
             #[inline(always)]
             #[allow(irrefutable_let_patterns)]
-            fn precede_alt(&self, slice: &U, entry: &mut Self::Internal, eof: bool) -> Option<(Transfer, usize)> {
+            fn precede_alt(&self, slice: U, entry: &mut Self::Internal, eof: bool) -> Option<(Transfer, usize)> {
                 use $Alt::*;
 
                 resume_precede! {
                     entry => { $(
                         $LabN: $VarN(_) => [{
-                            *entry = $VarN(self.$IdxN.init());
+                            *entry = $VarN(self.$IdxN.init2());
                         }] {
                             let $VarN(state) = entry else { unreachable!() };
-                            let (t, len) = self.$IdxN.precede(slice, state, eof)?;
+                            let (t, len) = self.$IdxN.precede2(slice, state, eof)?;
                             match t {
-                                Transfer::Rejected => (), // TODO: Halt!!!
+                                Transfer::Rejected => (),
                                 t => return Some((t, len)),
                             }
                         }
@@ -94,10 +94,10 @@ macro_rules! impl_alternatable_for_tuple {
             }
 
             #[inline(always)]
-            fn extract_alt(&self, slice: &'i U, entry: Self::Internal) -> Self::Captured {
+            fn extract_alt(&self, slice: U, entry: Self::Internal) -> Self::Captured {
                 use $Alt::*;
                 match entry { $(
-                    $VarN(state) => $VarN(self.$IdxN.extract(slice, state)),
+                    $VarN(state) => $VarN(self.$IdxN.extract2(slice, state)),
                 )+ }
             }
         }

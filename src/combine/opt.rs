@@ -1,10 +1,10 @@
 use super::*;
 
 #[inline(always)]
-pub const fn opt<'i, U, P>(opt: P) -> Optional<'i, U, P>
+pub const fn opt<U, P>(opt: P) -> Optional<U, P>
 where
-    U: 'i + ?Sized + Slice,
-    P: Pattern<'i, U>,
+    U: Slice2,
+    P: Pattern2<U>,
 {
     Optional {
         opt,
@@ -14,30 +14,30 @@ where
 
 //------------------------------------------------------------------------------
 
-pub struct Optional<'i, U, P>
+pub struct Optional<U, P>
 where
-    U: 'i + ?Sized + Slice,
-    P: Pattern<'i, U>,
+    U: Slice2,
+    P: Pattern2<U>,
 {
     opt: P,
-    phantom: PhantomData<&'i U>,
+    phantom: PhantomData<U>,
 }
 
-impl<'i, U, P> Pattern<'i, U> for Optional<'i, U, P>
+impl<U, P> Pattern2<U> for Optional<U, P>
 where
-    U: 'i + ?Sized + Slice,
-    P: Pattern<'i, U>,
+    U: Slice2,
+    P: Pattern2<U>,
 {
     type Captured = Option<P::Captured>;
     type Internal = Option<P::Internal>;
 
     #[inline(always)]
-    fn init(&self) -> Self::Internal {
-        Some(self.opt.init())
+    fn init2(&self) -> Self::Internal {
+        Some(self.opt.init2())
     }
     #[inline(always)]
-    fn precede(&self, slice: &U, entry: &mut Self::Internal, eof: bool) -> Option<(Transfer, usize)> {
-        let (t, len) = self.opt.precede(slice, entry.as_mut().unwrap(), eof)?;
+    fn precede2(&self, slice: U, entry: &mut Self::Internal, eof: bool) -> Option<(Transfer, usize)> {
+        let (t, len) = self.opt.precede2(slice, entry.as_mut().unwrap(), eof)?;
         match t {
             Transfer::Rejected => {
                 drop(entry.take());
@@ -47,7 +47,7 @@ where
         }
     }
     #[inline(always)]
-    fn extract(&self, slice: &'i U, entry: Self::Internal) -> Self::Captured {
-        entry.map(|state| self.opt.extract(slice, state))
+    fn extract2(&self, slice: U, entry: Self::Internal) -> Self::Captured {
+        entry.map(|state| self.opt.extract2(slice, state))
     }
 }

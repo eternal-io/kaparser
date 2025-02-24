@@ -1,3 +1,4 @@
+#![allow(clippy::type_complexity)]
 use crate::anything::*;
 
-pub const LINE_END: Compound<'_, str, (Optional<'_, str, &str>, &str)> = com((opt("\r"), "\n"));
+pub const LINE_END: Compound<&str, (Optional<&str, &str>, &str)> = com((opt("\r"), "\n"));

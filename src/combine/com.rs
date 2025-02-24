@@ -1,10 +1,10 @@
 use super::*;
 
 #[inline(always)]
-pub const fn com<'i, U, C>(com: C) -> Compound<'i, U, C>
+pub const fn com<U, C>(com: C) -> Compound<U, C>
 where
-    U: 'i + ?Sized + Slice,
-    C: Compoundable<'i, U>,
+    U: Slice2,
+    C: Compoundable<U>,
 {
     Compound {
         com,
@@ -14,75 +14,75 @@ where
 
 //------------------------------------------------------------------------------
 
-pub struct Compound<'i, U, C>
+pub struct Compound<U, C>
 where
-    U: 'i + ?Sized + Slice,
-    C: Compoundable<'i, U>,
+    U: Slice2,
+    C: Compoundable<U>,
 {
     com: C,
-    phantom: PhantomData<&'i U>,
+    phantom: PhantomData<U>,
 }
 
-pub trait Compoundable<'i, U>
+pub trait Compoundable<U>
 where
-    U: 'i + ?Sized + Slice,
+    U: Slice2,
 {
     type Captured;
     type Internal: 'static + Clone;
 
     fn init_com(&self) -> Self::Internal;
 
-    fn precede_com(&self, slice: &U, entry: &mut Self::Internal, eof: bool) -> Option<(Transfer, usize)>;
+    fn precede_com(&self, slice: U, entry: &mut Self::Internal, eof: bool) -> Option<(Transfer, usize)>;
 
-    fn extract_com(&self, slice: &'i U, entry: Self::Internal) -> Self::Captured;
+    fn extract_com(&self, slice: U, entry: Self::Internal) -> Self::Captured;
 }
 
-impl<'i, U, C> Pattern<'i, U> for Compound<'i, U, C>
+impl<U, C> Pattern2<U> for Compound<U, C>
 where
-    U: 'i + ?Sized + Slice,
-    C: Compoundable<'i, U>,
+    U: Slice2,
+    C: Compoundable<U>,
 {
     type Captured = C::Captured;
     type Internal = C::Internal;
 
     #[inline(always)]
-    fn init(&self) -> Self::Internal {
+    fn init2(&self) -> Self::Internal {
         self.com.init_com()
     }
     #[inline(always)]
-    fn precede(&self, slice: &U, entry: &mut Self::Internal, eof: bool) -> Option<(Transfer, usize)> {
+    fn precede2(&self, slice: U, entry: &mut Self::Internal, eof: bool) -> Option<(Transfer, usize)> {
         self.com.precede_com(slice, entry, eof)
     }
     #[inline(always)]
-    fn extract(&self, slice: &'i U, entry: Self::Internal) -> Self::Captured {
+    fn extract2(&self, slice: U, entry: Self::Internal) -> Self::Captured {
         self.com.extract_com(slice, entry)
     }
 }
 
 macro_rules! impl_compoundable_for_tuple {
     ( $Alt:ident, $( $LabN:lifetime ~ $GenN:ident ~ $VarN:ident ~ $IdxN:tt )+ ) => { $crate::common::paste! {
-        impl<'i, U: 'i + ?Sized + Slice, $($GenN: Pattern<'i, U>),+> Compoundable<'i, U> for ($($GenN,)+) {
-            type Captured = &'i U;
+        impl<U: Slice2, $($GenN: Pattern2<U>),+> Compoundable<U> for ($($GenN,)+) {
+            type Captured = U;
             type Internal = (usize, $Alt<$($GenN::Internal),+>);
 
             #[inline(always)]
             fn init_com(&self) -> Self::Internal {
-                (0, $Alt::Var1(self.0.init()))
+                (0, $Alt::Var1(self.0.init2()))
             }
 
             #[inline(always)]
             #[allow(irrefutable_let_patterns)]
-            fn precede_com(&self, slice: &U, entry: &mut Self::Internal, eof: bool) -> Option<(Transfer, usize)> {
+            fn precede_com(&self, slice: U, entry: &mut Self::Internal, eof: bool) -> Option<(Transfer, usize)> {
                 use $Alt::*;
                 let (offset, states) = entry;
 
                 resume_precede! {
                     states => { $(
                         $LabN: $VarN(_) => [{
-                            *states = $VarN(self.$IdxN.init());
+                            *states = $VarN(self.$IdxN.init2());
                         }] {
                             let $VarN(state) = states else { unreachable!() };
-                            let (t, len) = self.$IdxN.precede(slice.split_at(*offset).1, state, eof)?;
+                            let (t, len) = self.$IdxN.precede2(slice.split_at(*offset).1, state, eof)?;
                             *offset += len;
                             match t {
                                 Transfer::Accepted => (),
@@ -96,7 +96,7 @@ macro_rules! impl_compoundable_for_tuple {
             }
 
             #[inline(always)]
-            fn extract_com(&self, slice: &'i U, entry: Self::Internal) -> Self::Captured {
+            fn extract_com(&self, slice: U, entry: Self::Internal) -> Self::Captured {
                 slice.split_at(entry.0).0
             }
         }

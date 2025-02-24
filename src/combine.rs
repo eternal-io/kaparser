@@ -23,8 +23,7 @@ import! {
     pub mod skim;
 
     pub mod opt;
-    pub mod convert;
-    pub mod control;
+    pub mod ctrl;
 
     pub mod not;
 }

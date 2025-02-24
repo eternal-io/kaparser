@@ -1,77 +1,18 @@
 use super::*;
 
-#[inline(always)]
-pub const fn seq<'i, U, S>(seq: S) -> Sequence<'i, U, S>
-where
-    U: 'i + ?Sized + Slice,
-    S: Sequencable<'i, U>,
-{
-    Sequence {
-        seq,
-        phantom: PhantomData,
-    }
-}
-
-//------------------------------------------------------------------------------
-
-pub struct Sequence<'i, U, S>
-where
-    U: 'i + ?Sized + Slice,
-    S: Sequencable<'i, U>,
-{
-    seq: S,
-    phantom: PhantomData<&'i U>,
-}
-
-pub trait Sequencable<'i, U>
-where
-    U: 'i + ?Sized + Slice,
-{
-    type Captured;
-    type Internal: 'static + Clone;
-
-    fn init_seq(&self) -> Self::Internal;
-
-    fn precede_seq(&self, slice: &U, entry: &mut Self::Internal, eof: bool) -> Option<(Transfer, usize)>;
-
-    fn extract_seq(&self, slice: &'i U, entry: Self::Internal) -> Self::Captured;
-}
-
-impl<'i, U, S> Pattern<'i, U> for Sequence<'i, U, S>
-where
-    U: 'i + ?Sized + Slice,
-    S: Sequencable<'i, U>,
-{
-    type Captured = S::Captured;
-    type Internal = S::Internal;
-
-    #[inline(always)]
-    fn init(&self) -> Self::Internal {
-        self.seq.init_seq()
-    }
-    #[inline(always)]
-    fn precede(&self, slice: &U, entry: &mut Self::Internal, eof: bool) -> Option<(Transfer, usize)> {
-        self.seq.precede_seq(slice, entry, eof)
-    }
-    #[inline(always)]
-    fn extract(&self, slice: &'i U, entry: Self::Internal) -> Self::Captured {
-        self.seq.extract_seq(slice, entry)
-    }
-}
-
 macro_rules! impl_sequencable_for_tuple {
     ( $Len:literal, $( $LabN:lifetime ~ $GenN:ident ~ $ValN:ident ~ $OrdN:literal ~ $IdxN:tt )+ ) => { $crate::common::paste! {
-        impl<'i, U: 'i + ?Sized + Slice, $($GenN: Pattern<'i, U>),+> Sequencable<'i, U> for ($($GenN,)+) {
+        impl<U: Slice2, $($GenN: Pattern2<U>),+> Pattern2<U> for ($($GenN,)+) {
             type Captured = ($($GenN::Captured,)+);
             type Internal = ([<Check $Len>], ($((usize, $GenN::Internal),)+));
 
             #[inline(always)]
-            fn init_seq(&self) -> Self::Internal {
-                ([<Check $Len>]::Point1, ($((0, self.$IdxN.init()),)+))
+            fn init2(&self) -> Self::Internal {
+                ([<Check $Len>]::Point1, ($((0, self.$IdxN.init2()),)+))
             }
 
             #[inline(always)]
-            fn precede_seq(&self, slice: &U, entry: &mut Self::Internal, eof: bool) -> Option<(Transfer, usize)> {
+            fn precede2(&self, slice: U, entry: &mut Self::Internal, eof: bool) -> Option<(Transfer, usize)> {
                 use [<Check $Len>]::*;
                 let (checkpoint, states) = entry;
                 let mut offset = 0usize;
@@ -86,7 +27,7 @@ macro_rules! impl_sequencable_for_tuple {
                                 *off = offset;
                             }
 
-                            let (t, len) = self.$IdxN.precede(slice.split_at(*off).1, state, eof)?;
+                            let (t, len) = self.$IdxN.precede2(slice.split_at(*off).1, state, eof)?;
                             offset = *off + len;
                             match t {
                                 Transfer::Accepted => (),
@@ -100,10 +41,10 @@ macro_rules! impl_sequencable_for_tuple {
             }
 
             #[inline(always)]
-            fn extract_seq(&self, slice: &'i U, entry: Self::Internal) -> Self::Captured {
+            fn extract2(&self, slice: U, entry: Self::Internal) -> Self::Captured {
                 $(
                     let $ValN = entry.1.$IdxN;
-                    let $ValN = self.$IdxN.extract(slice.split_at($ValN.0).1, $ValN.1);
+                    let $ValN = self.$IdxN.extract2(slice.split_at($ValN.0).1, $ValN.1);
                 )+
                 ($($ValN,)+)
             }

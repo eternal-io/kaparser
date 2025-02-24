@@ -1,6 +1,11 @@
 use core::ops::{Range, RangeFrom, RangeFull, RangeInclusive, RangeTo, RangeToInclusive};
 
 /// Match a set of items (`char`, `u8`, `T`).
+pub trait Predicate2<T>: Sized {
+    fn predicate(&self, value: T) -> bool;
+}
+
+/// Match a set of items (`char`, `u8`, `T`).
 pub trait Predicate<T>: Sized {
     fn predicate(&self, value: &T) -> bool;
 }

@@ -1,10 +1,14 @@
-use crate::{common::*, parser::error::*, pattern::*};
+use crate::{common::*, pattern::*};
 use core::marker::PhantomData;
 #[cfg(feature = "std")]
 use core::{
     mem::{self, MaybeUninit},
     str::from_utf8_unchecked,
 };
+
+pub mod error;
+
+use error::*;
 
 pub trait SimpleParser2<U>
 where
@@ -131,7 +135,7 @@ impl<'i> Parser2<&'i str, Sliced2> {
 }
 
 #[cfg(feature = "std")]
-impl<'i, R: Read2> Parser2<&'i str, R> {
+impl<R: Read2> Parser2<&str, R> {
     pub fn from_reader_in_str(reader: R) -> Self {
         Self(Source2::ReadStr {
             rdr: reader,
@@ -156,7 +160,7 @@ impl<'i, R: Read2> Parser2<&'i str, R> {
 }
 
 #[cfg(feature = "std")]
-impl<'i, R: Read2> Parser2<&'i [u8], R> {
+impl<R: Read2> Parser2<&[u8], R> {
     pub fn from_reader_in_bytes(reader: R) -> Self {
         Self(Source2::ReadBytes {
             rdr: reader,
@@ -278,8 +282,13 @@ impl<'i, R: Read2> Source2<&'i str, R> {
                     // Safety:
                     // 1. from_utf8_unchecked, because already verified by simdutf8.
                     // 2. Extend lifetime, because `&self` does not outlives `'i`.
-                    //    The returned value can only be used by [`Pattern::precede`]; [`Pattern::Internal`] must outlives `'static`.
-                    unsafe { mem::transmute::<&[u8], &'i str>(&buf[*consumed..buf.len() - *pending as usize]) },
+                    //   - The returned value can only be used by [`Pattern::precede`];
+                    //   - The associated [`Pattern::Internal`] must outlives `'static`.
+                    unsafe {
+                        mem::transmute::<&str, &'i str>(from_utf8_unchecked(
+                            &buf[*consumed..buf.len() - *pending as usize],
+                        ))
+                    },
                     *eof,
                 ))
             }

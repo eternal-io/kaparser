@@ -5,9 +5,9 @@ use super::*;
 pub use crate::len;
 
 #[inline(always)]
-pub const fn lens<'i, T, P, const LEN: usize>(predicate: P) -> Lens<'i, T, P, LEN>
+pub const fn lens<T, P, const LEN: usize>(predicate: P) -> Lens<T, P, LEN>
 where
-    T: 'i + Copy + PartialEq,
+    T: Copy + PartialEq,
     P: Predicate<T>,
 {
     Lens {
@@ -18,39 +18,37 @@ where
 
 //------------------------------------------------------------------------------
 
-pub struct Lens<'i, T, P, const LEN: usize>
+pub struct Lens<T, P, const LEN: usize>
 where
-    T: 'i + Copy + PartialEq,
+    T: Copy + PartialEq,
     P: Predicate<T>,
 {
     predicate: P,
-    phantom: PhantomData<&'i T>,
+    phantom: PhantomData<T>,
 }
 
-impl<'i, T, P, const LEN: usize> Pattern<'i, [T]> for Lens<'i, T, P, LEN>
+impl<'i, T, P, const LEN: usize> Pattern2<&'i [T]> for Lens<T, P, LEN>
 where
-    T: 'i + Copy + PartialEq,
+    T: Copy + PartialEq,
     P: Predicate<T>,
 {
     type Captured = [T; LEN];
     type Internal = ();
 
     #[inline(always)]
-    fn init(&self) -> Self::Internal {}
+    fn init2(&self) -> Self::Internal {}
     #[inline(always)]
-    fn precede(&self, slice: &[T], entry: &mut Self::Internal, eof: bool) -> Option<(Transfer, usize)> {
+    fn precede2(&self, slice: &'i [T], entry: &mut Self::Internal, eof: bool) -> Option<(Transfer, usize)> {
         let _ = entry;
         // TODO: unused EOF!!!
-        slice
-            .get(..LEN)
-            .and_then(|frag| {
-                frag.iter()
-                    .all(|value| self.predicate.predicate(value))
-                    .then_some((Transfer::Accepted, LEN))
-            })
+        slice.get(..LEN).and_then(|frag| {
+            frag.iter()
+                .all(|value| self.predicate.predicate(value))
+                .then_some((Transfer::Accepted, LEN))
+        })
     }
     #[inline(always)]
-    fn extract(&self, slice: &'i [T], entry: Self::Internal) -> Self::Captured {
+    fn extract2(&self, slice: &'i [T], entry: Self::Internal) -> Self::Captured {
         let _ = entry;
         slice.split_at(LEN).0.try_into().expect("contract violation")
     }

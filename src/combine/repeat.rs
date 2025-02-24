@@ -4,12 +4,10 @@ use super::*;
 pub use crate::rep;
 
 #[inline(always)]
-pub const fn repeat<'i, U, P, const AT_LEAST: usize, const MAY_MORE: usize>(
-    body: P,
-) -> Repeat<'i, U, P, AT_LEAST, MAY_MORE>
+pub const fn repeat<U, P, const AT_LEAST: usize, const MAY_MORE: usize>(body: P) -> Repeat<U, P, AT_LEAST, MAY_MORE>
 where
-    U: 'i + ?Sized + Slice,
-    P: Pattern<'i, U>,
+    U: Slice2,
+    P: Pattern2<U>,
 {
     Repeat {
         body,
@@ -18,38 +16,38 @@ where
 }
 
 #[inline(always)]
-pub const fn repeat_exact<'i, U, P, const TIMES: usize>(body: P) -> RepeatExact<'i, U, P, TIMES>
+pub const fn repeat_exact<U, P, const TIMES: usize>(body: P) -> RepeatExact<U, P, TIMES>
 where
-    U: 'i + ?Sized + Slice,
-    P: Pattern<'i, U>,
+    U: Slice2,
+    P: Pattern2<U>,
 {
     RepeatExact { body: repeat(body) }
 }
 
 #[inline(always)]
-pub const fn repeat_at_most<'i, U, P, const TIMES: usize>(body: P) -> RepeatAtMost<'i, U, P, TIMES>
+pub const fn repeat_at_most<U, P, const TIMES: usize>(body: P) -> RepeatAtMost<U, P, TIMES>
 where
-    U: 'i + ?Sized + Slice,
-    P: Pattern<'i, U>,
+    U: Slice2,
+    P: Pattern2<U>,
 {
     RepeatAtMost { body: repeat(body) }
 }
 
 //------------------------------------------------------------------------------
 
-pub struct Repeat<'i, U, P, const AT_LEAST: usize, const MAY_MORE: usize>
+pub struct Repeat<U, P, const AT_LEAST: usize, const MAY_MORE: usize>
 where
-    U: 'i + ?Sized + Slice,
-    P: Pattern<'i, U>,
+    U: Slice2,
+    P: Pattern2<U>,
 {
     body: P,
-    phantom: PhantomData<&'i U>,
+    phantom: PhantomData<U>,
 }
 
-impl<'i, U, P, const AT_LEAST: usize, const MAY_MORE: usize> Pattern<'i, U> for Repeat<'i, U, P, AT_LEAST, MAY_MORE>
+impl<U, P, const AT_LEAST: usize, const MAY_MORE: usize> Pattern2<U> for Repeat<U, P, AT_LEAST, MAY_MORE>
 where
-    U: 'i + ?Sized + Slice,
-    P: Pattern<'i, U>,
+    U: Slice2,
+    P: Pattern2<U>,
 {
     type Captured = ([P::Captured; AT_LEAST], [Option<P::Captured>; MAY_MORE]);
     type Internal = (
@@ -60,10 +58,10 @@ where
 
     #[inline(always)]
     #[allow(unsafe_code)]
-    fn init(&self) -> Self::Internal {
+    fn init2(&self) -> Self::Internal {
         let mut at_least: MaybeUninit<[(usize, P::Internal); AT_LEAST]> = MaybeUninit::uninit();
         let mut may_more: MaybeUninit<[(usize, P::Internal); MAY_MORE]> = MaybeUninit::uninit();
-        let item = self.body.init();
+        let item = self.body.init2();
 
         for i in 0..AT_LEAST {
             unsafe {
@@ -80,7 +78,7 @@ where
     }
 
     #[inline(always)]
-    fn precede(&self, slice: &U, entry: &mut Self::Internal, eof: bool) -> Option<(Transfer, usize)> {
+    fn precede2(&self, slice: U, entry: &mut Self::Internal, eof: bool) -> Option<(Transfer, usize)> {
         let (checkpoint, at_least, may_more) = entry;
         let mut resuming = *checkpoint;
         let mut offset = 0usize;
@@ -96,7 +94,7 @@ where
                     *off = offset;
                 }
 
-                let (t, len) = self.body.precede(slice.split_at(*off).1, state, eof)?;
+                let (t, len) = self.body.precede2(slice.split_at(*off).1, state, eof)?;
                 offset = *off + len;
                 match t {
                     Transfer::Accepted => (),
@@ -120,14 +118,14 @@ where
 
     #[inline(always)]
     #[allow(unsafe_code)]
-    fn extract(&self, slice: &'i U, entry: Self::Internal) -> Self::Captured {
+    fn extract2(&self, slice: U, entry: Self::Internal) -> Self::Captured {
         let (mut checkpoint, at_least, may_more) = entry;
         let mut at_least_cap: MaybeUninit<[P::Captured; AT_LEAST]> = MaybeUninit::uninit();
         let mut may_more_cap: MaybeUninit<[Option<P::Captured>; MAY_MORE]> = MaybeUninit::uninit();
 
         for (i, (off, state)) in at_least.into_iter().enumerate() {
             checkpoint -= 1;
-            let cap = self.body.extract(slice.split_at(off).1, state);
+            let cap = self.body.extract2(slice.split_at(off).1, state);
             unsafe {
                 (&raw mut (*at_least_cap.as_mut_ptr())[i]).write(cap);
             }
@@ -135,7 +133,7 @@ where
         for (i, (off, state)) in may_more.into_iter().enumerate() {
             if checkpoint > 0 {
                 checkpoint -= 1;
-                let cap = self.body.extract(slice.split_at(off).1, state);
+                let cap = self.body.extract2(slice.split_at(off).1, state);
                 unsafe {
                     (&raw mut (*may_more_cap.as_mut_ptr())[i]).write(Some(cap));
                 }
@@ -152,64 +150,64 @@ where
 
 //------------------------------------------------------------------------------
 
-pub struct RepeatExact<'i, U, P, const TIMES: usize>
+pub struct RepeatExact<U, P, const TIMES: usize>
 where
-    U: 'i + ?Sized + Slice,
-    P: Pattern<'i, U>,
+    U: Slice2,
+    P: Pattern2<U>,
 {
-    body: Repeat<'i, U, P, TIMES, 0>,
+    body: Repeat<U, P, TIMES, 0>,
 }
 
-impl<'i, U, P, const TIMES: usize> Pattern<'i, U> for RepeatExact<'i, U, P, TIMES>
+impl<U, P, const TIMES: usize> Pattern2<U> for RepeatExact<U, P, TIMES>
 where
-    U: 'i + ?Sized + Slice,
-    P: Pattern<'i, U>,
+    U: Slice2,
+    P: Pattern2<U>,
 {
     type Captured = [P::Captured; TIMES];
-    type Internal = <Repeat<'i, U, P, TIMES, 0> as Pattern<'i, U>>::Internal;
+    type Internal = <Repeat<U, P, TIMES, 0> as Pattern2<U>>::Internal;
 
     #[inline(always)]
-    fn init(&self) -> Self::Internal {
-        self.body.init()
+    fn init2(&self) -> Self::Internal {
+        self.body.init2()
     }
     #[inline(always)]
-    fn precede(&self, slice: &U, entry: &mut Self::Internal, eof: bool) -> Option<(Transfer, usize)> {
-        self.body.precede(slice, entry, eof)
+    fn precede2(&self, slice: U, entry: &mut Self::Internal, eof: bool) -> Option<(Transfer, usize)> {
+        self.body.precede2(slice, entry, eof)
     }
     #[inline(always)]
-    fn extract(&self, slice: &'i U, entry: Self::Internal) -> Self::Captured {
-        self.body.extract(slice, entry).0
+    fn extract2(&self, slice: U, entry: Self::Internal) -> Self::Captured {
+        self.body.extract2(slice, entry).0
     }
 }
 
 //------------------------------------------------------------------------------
 
-pub struct RepeatAtMost<'i, U, P, const TIMES: usize>
+pub struct RepeatAtMost<U, P, const TIMES: usize>
 where
-    U: 'i + ?Sized + Slice,
-    P: Pattern<'i, U>,
+    U: Slice2,
+    P: Pattern2<U>,
 {
-    body: Repeat<'i, U, P, 0, TIMES>,
+    body: Repeat<U, P, 0, TIMES>,
 }
 
-impl<'i, U, P, const TIMES: usize> Pattern<'i, U> for RepeatAtMost<'i, U, P, TIMES>
+impl<U, P, const TIMES: usize> Pattern2<U> for RepeatAtMost<U, P, TIMES>
 where
-    U: 'i + ?Sized + Slice,
-    P: Pattern<'i, U>,
+    U: Slice2,
+    P: Pattern2<U>,
 {
     type Captured = [Option<P::Captured>; TIMES];
-    type Internal = <Repeat<'i, U, P, 0, TIMES> as Pattern<'i, U>>::Internal;
+    type Internal = <Repeat<U, P, 0, TIMES> as Pattern2<U>>::Internal;
 
     #[inline(always)]
-    fn init(&self) -> Self::Internal {
-        self.body.init()
+    fn init2(&self) -> Self::Internal {
+        self.body.init2()
     }
     #[inline(always)]
-    fn precede(&self, slice: &U, entry: &mut Self::Internal, eof: bool) -> Option<(Transfer, usize)> {
-        self.body.precede(slice, entry, eof)
+    fn precede2(&self, slice: U, entry: &mut Self::Internal, eof: bool) -> Option<(Transfer, usize)> {
+        self.body.precede2(slice, entry, eof)
     }
     #[inline(always)]
-    fn extract(&self, slice: &'i U, entry: Self::Internal) -> Self::Captured {
-        self.body.extract(slice, entry).1
+    fn extract2(&self, slice: U, entry: Self::Internal) -> Self::Captured {
+        self.body.extract2(slice, entry).1
     }
 }
