@@ -38,18 +38,18 @@ where
     #[inline(always)]
     fn init2(&self) -> Self::Internal {}
     #[inline(always)]
-    fn precede2(&self, slice: &'i [T], entry: &mut Self::Internal, eof: bool) -> Option<(Transfer, usize)> {
-        let _ = entry;
-        // TODO: unused EOF!!!
-        slice.get(..LEN).and_then(|frag| {
-            frag.iter()
-                .all(|value| self.predicate.predicate(value))
+    fn precede2(&self, slice: &'i [T], _ntry: &mut Self::Internal, eof: bool) -> Option<(Transfer, usize)> {
+        if slice.len() < LEN {
+            eof.then_some((Transfer::Rejected, slice.len()))
+        } else {
+            slice[..LEN]
+                .iter()
+                .all(|item| self.predicate.predicate(item))
                 .then_some((Transfer::Accepted, LEN))
-        })
+        }
     }
     #[inline(always)]
-    fn extract2(&self, slice: &'i [T], entry: Self::Internal) -> Self::Captured {
-        let _ = entry;
+    fn extract2(&self, slice: &'i [T], _ntry: Self::Internal) -> Self::Captured {
         slice.split_at(LEN).0.try_into().expect("contract violation")
     }
 }
