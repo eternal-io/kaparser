@@ -42,7 +42,7 @@ where
 impl<U, P> Pattern2<U> for [P; 1]
 where
     U: Slice2,
-    P: Predicate2<U::Item>,
+    P: Predicate<U::Item>,
 {
     type Captured = U::Item;
     type Internal = ();
@@ -55,7 +55,7 @@ where
         Some(
             slice
                 .first()
-                .filter(|&item| self[0].predicate(item))
+                .filter(|item| self[0].predicate(item))
                 .map(|item| (Transfer::Accepted, slice.len_of(item)))
                 .unwrap_or((Transfer::Rejected, 0)),
         )
