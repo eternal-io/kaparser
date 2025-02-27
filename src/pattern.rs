@@ -1,4 +1,4 @@
-use crate::{common::*, predicate::*};
+use crate::{common::*, error::*, predicate::*};
 
 #[doc(inline)]
 pub use crate::token_set;
@@ -12,7 +12,7 @@ where
 
     fn init2(&self) -> Self::Internal;
 
-    fn precede2(&self, slice: U, entry: &mut Self::Internal, eof: bool) -> Option<(Transfer, usize)>;
+    fn precede2<E: Situation>(&self, slice: U, entry: &mut Self::Internal, eof: bool) -> PrecedeResult<E>;
 
     fn extract2(&self, slice: U, entry: Self::Internal) -> Self::Captured;
 }
@@ -28,9 +28,12 @@ where
     fn init2(&self) -> Self::Internal {}
 
     #[inline(always)]
-    fn precede2(&self, slice: U, _ntry: &mut Self::Internal, eof: bool) -> Option<(Transfer, usize)> {
-        (eof || slice.len() >= self.len())
-            .then(|| Transfer::perhaps(slice.starts_with(*self).then_some(self.len()).ok_or(0)))
+    fn precede2<E: Situation>(&self, slice: U, _ntry: &mut Self::Internal, eof: bool) -> PrecedeResult<E> {
+        if eof || slice.len() >= self.len() {
+            slice.starts_with(self).then_some(self.len()).ok_or(E::reject_at(0))
+        } else {
+            E::raise_unfulfilled(Some((self.len() - slice.len()).try_into().unwrap()))
+        }
     }
 
     #[inline(always)]
@@ -51,7 +54,7 @@ where
     fn init2(&self) -> Self::Internal {}
 
     #[inline(always)]
-    fn precede2(&self, slice: U, _ntry: &mut Self::Internal, _of: bool) -> Option<(Transfer, usize)> {
+    fn precede2<E: Situation>(&self, slice: U, _ntry: &mut Self::Internal, _of: bool) -> PrecedeResult<E> {
         Some(
             slice
                 .first()

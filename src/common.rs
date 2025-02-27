@@ -32,7 +32,7 @@ pub enum Transfer {
 
 impl Transfer {
     #[inline(always)]
-    pub const fn is_accepted(self) -> bool {
+    pub const fn is_accepted(&self) -> bool {
         match self {
             Transfer::Accepted => true,
             Transfer::Rejected | Transfer::Halt => false,
@@ -63,7 +63,7 @@ pub trait Slice2: Copy + Sized {
 
     fn len(&self) -> usize;
     fn len_of(&self, item: Self::Item) -> usize;
-    fn starts_with(&self, prefix: Self) -> bool;
+    fn starts_with(&self, prefix: &Self) -> bool;
     fn is_empty(&self) -> bool {
         self.len() == 0
     }
@@ -88,8 +88,8 @@ impl Slice2 for &str {
         item.len_utf8()
     }
     #[inline(always)]
-    fn starts_with(&self, prefix: Self) -> bool {
-        (*self).starts_with(prefix)
+    fn starts_with(&self, prefix: &Self) -> bool {
+        (*self).starts_with(*prefix)
     }
 
     #[inline(always)]
@@ -121,8 +121,8 @@ where
         1
     }
     #[inline(always)]
-    fn starts_with(&self, prefix: Self) -> bool {
-        (*self).starts_with(prefix)
+    fn starts_with(&self, prefix: &Self) -> bool {
+        (*self).starts_with(*prefix)
     }
 
     #[inline(always)]

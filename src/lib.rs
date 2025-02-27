@@ -11,6 +11,7 @@ mod macros;
 #[macro_use]
 pub mod common;
 pub mod combine;
+pub mod error;
 pub mod parser2;
 pub mod pattern;
 pub mod predicate;

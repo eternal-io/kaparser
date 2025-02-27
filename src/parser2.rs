@@ -1,4 +1,4 @@
-use crate::{common::*, pattern::*};
+use crate::{common::*, error::*, pattern::*};
 use core::marker::PhantomData;
 #[cfg(feature = "std")]
 use core::{
@@ -6,59 +6,55 @@ use core::{
     str::from_utf8_unchecked,
 };
 
-pub mod error;
-
-use error::*;
-
 pub trait SimpleParser2<U>
 where
     U: Slice2,
 {
     type Captured;
 
-    fn full_match(&self, slice: U) -> Result<Self::Captured, usize>;
+    fn full_match<E: Situation>(&self, slice: U) -> SimpleResult<Self::Captured, E>;
 
-    fn parse(&self, slice: U) -> Result<(Self::Captured, usize), usize>;
+    fn parse<E: Situation>(&self, slice: &mut U) -> SimpleResult<Self::Captured, E>;
 }
 
-impl<U, P> SimpleParser2<U> for P
-where
-    U: Slice2,
-    P: Pattern2<U>,
-{
-    type Captured = P::Captured;
+// impl<U, P> SimpleParser2<U> for P
+// where
+//     U: Slice2,
+//     P: Pattern2<U>,
+// {
+//     type Captured = P::Captured;
 
-    #[inline(always)]
-    fn full_match(&self, slice: U) -> Result<Self::Captured, usize> {
-        self.parse(slice).and_then(|(cap, len)| match len == slice.len() {
-            true => Ok(cap),
-            false => Err(len),
-        })
-    }
+//     #[inline(always)]
+//     fn full_match(&self, slice: U) -> Result<Self::Captured, usize> {
+//         self.parse(slice).and_then(|(cap, len)| match len == slice.len() {
+//             true => Ok(cap),
+//             false => Err(len),
+//         })
+//     }
 
-    #[inline(always)]
-    fn parse(&self, slice: U) -> Result<(Self::Captured, usize), usize> {
-        let mut state = self.init2();
-        let (t, len) = self
-            .precede2(slice, &mut state, true)
-            .expect("implementation: pull after EOF");
+//     #[inline(always)]
+//     fn parse(&self, slice: U) -> Result<(Self::Captured, usize), usize> {
+//         let mut state = self.init2();
+//         let (t, len) = self
+//             .precede2(slice, &mut state, true)
+//             .expect("implementation: pull after EOF");
 
-        if let Transfer::Accepted = t {
-            Ok((self.extract2(slice.split_at(len).0, state), len))
-        } else {
-            Err(len)
-        }
-    }
-}
+//         if let Transfer::Accepted = t {
+//             Ok((self.extract2(slice.split_at(len).0, state), len))
+//         } else {
+//             Err(len)
+//         }
+//     }
+// }
 
 //==================================================================================================
 
 pub trait Read2 {
-    fn read(&mut self, buf: &mut [u8]) -> ParseResult<usize>;
+    fn read(&mut self, buf: &mut [u8]) -> ::std::io::Result<usize>;
 }
 
 impl Read2 for Sliced2 {
-    fn read(&mut self, buf: &mut [u8]) -> ParseResult<usize> {
+    fn read(&mut self, buf: &mut [u8]) -> ::std::io::Result<usize> {
         let _ = buf;
         unreachable!()
     }
@@ -67,8 +63,8 @@ impl Read2 for Sliced2 {
 #[cfg(feature = "std")]
 impl<R: ::std::io::Read> Read2 for R {
     #[inline(always)]
-    fn read(&mut self, buf: &mut [u8]) -> ParseResult<usize> {
-        Ok(self.read(buf)?)
+    fn read(&mut self, buf: &mut [u8]) -> ::std::io::Result<usize> {
+        self.read(buf)
     }
 }
 
@@ -198,19 +194,23 @@ where
 //==================================================================================================
 
 impl<'i, R: Read2> Parser2<&'i str, R> {
-    pub fn next_str<P: Pattern2<&'i str>>(&'i mut self, pat: P) -> ParseResult<P::Captured> {
+    pub fn next_str<P, E>(&'i mut self, pat: P) -> ParseResult<P::Captured, E>
+    where
+        P: Pattern2<&'i str>,
+        E: Situation,
+    {
         let mut entry = pat.init2();
         let mut first_time = true;
         let len = loop {
             let (slice, eof) = self.0.pull_str(first_time)?;
-            match pat.precede2(slice, &mut entry, eof) {
-                None => match eof {
-                    true => panic!("implementation: pull after EOF"),
-                    false => first_time = false,
-                },
-                Some((t, len)) => match t.is_accepted() {
-                    true => break len,
-                    false => return Error::raise(ErrorKind::Mismatched),
+            match pat.precede2::<E>(slice, &mut entry, eof) {
+                Ok(len) => break len,
+                Err(e) => match e.is_unfulfilled() {
+                    false => return Err(ParseError::Mismatched(e)),
+                    true => match eof {
+                        true => panic!("implementation: pull after EOF"),
+                        false => first_time = false,
+                    },
                 },
             }
         };
@@ -222,7 +222,10 @@ impl<'i, R: Read2> Parser2<&'i str, R> {
 impl<'i, R: Read2> Source2<&'i str, R> {
     #[inline(always)]
     #[allow(unsafe_code)]
-    fn pull_str(&mut self, first_time: bool) -> ParseResult<(&'i str, bool)> {
+    fn pull_str<E>(&mut self, first_time: bool) -> ParseResult<(&'i str, bool), E>
+    where
+        E: Situation,
+    {
         match self {
             Source2::Sliced { slice, consumed, .. } => {
                 let _ = first_time;
@@ -259,11 +262,11 @@ impl<'i, R: Read2> Source2<&'i str, R> {
 
                         if *eof {
                             if *pending != 0 {
-                                return Error::raise(ErrorKind::InvalidUtf8);
+                                return Err(ParseError::InvalidUtf8);
                             }
                         } else if let Err(e) = simdutf8::compat::from_utf8(&buf[len_avail - *pending as usize..]) {
                             if e.error_len().is_some() {
-                                return Error::raise(ErrorKind::InvalidUtf8); // IDEA: lossy mode?
+                                return Err(ParseError::InvalidUtf8); // IDEA: lossy mode?
                             } else {
                                 match e.valid_up_to() {
                                     0 => continue,
