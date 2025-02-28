@@ -2,7 +2,7 @@ use super::*;
 use core::ops::RangeFrom;
 
 #[inline(always)]
-pub const fn when<T, P>(start: P) -> RangeFrom<P>
+pub const fn take_one_more<T, P>(start: P) -> RangeFrom<P>
 where
     T: Copy + PartialEq,
     P: Predicate<T>,

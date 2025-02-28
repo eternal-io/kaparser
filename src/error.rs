@@ -19,17 +19,6 @@ pub trait Situation: Sized {
     fn is_halted(&self) -> bool;
 
     #[inline(always)]
-    fn and(self, parent: Self) -> Self {
-        let _ = parent;
-        self
-    }
-    #[inline(always)]
-    fn or(self, branch: Self) -> Self {
-        let _ = branch;
-        self
-    }
-
-    #[inline(always)]
     fn raise_unfulfilled<T>(delta: Option<NonZeroUsize>) -> Result<T, Self> {
         Err(Self::unfulfilled(delta))
     }

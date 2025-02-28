@@ -54,14 +54,17 @@ where
     fn init2(&self) -> Self::Internal {}
 
     #[inline(always)]
-    fn precede2<E: Situation>(&self, slice: U, _ntry: &mut Self::Internal, _of: bool) -> PrecedeResult<E> {
-        Some(
-            slice
-                .first()
-                .filter(|item| self[0].predicate(item))
-                .map(|item| (Transfer::Accepted, slice.len_of(item)))
-                .unwrap_or((Transfer::Rejected, 0)),
-        )
+    fn precede2<E: Situation>(&self, slice: U, _ntry: &mut Self::Internal, eof: bool) -> PrecedeResult<E> {
+        match slice.first() {
+            Some(item) => match self[0].predicate(&item) {
+                true => Ok(slice.len_of(item)),
+                false => E::raise_reject_at(0),
+            },
+            None => match eof {
+                true => E::raise_reject_at(0),
+                false => E::raise_unfulfilled(None),
+            },
+        }
     }
 
     #[inline(always)]

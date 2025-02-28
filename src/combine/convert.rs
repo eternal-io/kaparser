@@ -56,7 +56,7 @@ where
         self.body.init2()
     }
     #[inline(always)]
-    fn precede2(&self, slice: U, entry: &mut Self::Internal, eof: bool) -> Option<(Transfer, usize)> {
+    fn precede2<E: Situation>(&self, slice: U, entry: &mut Self::Internal, eof: bool) -> PrecedeResult<E> {
         self.body.precede2(slice, entry, eof)
     }
     #[inline(always)]
@@ -92,7 +92,7 @@ where
         Alt2::Var1(self.body.init2())
     }
     #[inline(always)]
-    fn precede2(&self, slice: U, entry: &mut Self::Internal, eof: bool) -> Option<(Transfer, usize)> {
+    fn precede2<E: Situation>(&self, slice: U, entry: &mut Self::Internal, eof: bool) -> PrecedeResult<E> {
         if let Alt2::Var1(state) = entry {
             let (t, len) = self.body.precede2(slice, state, eof)?;
             if !t.is_accepted() {

@@ -3,11 +3,11 @@ pub use crate::{
     combine::skim::{till, until},
     combine::{alt::alt, com::com},
     combine::{bin, def},
-    combine::{control::cond, opt::opt},
+    combine::{control::switch, opt::opt},
     combine::{
         lens::len,
         repeat::rep,
-        take::{take, when},
+        take::{take, take_one_more},
     },
     common::Transfer,
     error::*,
