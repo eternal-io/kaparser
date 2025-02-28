@@ -29,6 +29,8 @@ where
     }
 }
 
+// unwrap, unwrap_or, unwrap_or_else, unwrap_or_default
+
 //------------------------------------------------------------------------------
 
 pub struct Map<U, P, F, O>
@@ -93,22 +95,15 @@ where
     }
     #[inline(always)]
     fn precede2<E: Situation>(&self, slice: U, entry: &mut Self::Internal, eof: bool) -> PrecedeResult<E> {
-        if let Alt2::Var1(state) = entry {
-            let (t, len) = self.body.precede2(slice, state, eof)?;
-            if !t.is_accepted() {
-                return Some((t, len));
-            }
-
-            *entry = Alt2::Var2(self.then.init2());
-            let Alt2::Var2(state) = entry else { unreachable!() };
-            Some(
-                self.then
-                    .precede2(slice.split_at(len).0, state, true)
-                    .expect("implementation: pull after EOF"),
-            )
-        } else {
+        let Alt2::Var1(state) = entry else {
             panic!("contract violation")
-        }
+        };
+        let len = self.body.precede2(slice, state, eof)?;
+
+        *entry = Alt2::Var2(self.then.init2());
+
+        let Alt2::Var2(state) = entry else { unreachable!() };
+        self.then.precede2::<E>(slice.split_at(len).0, state, true)
     }
     #[inline(always)]
     fn extract2(&self, slice: U, entry: Self::Internal) -> Self::Captured {
@@ -116,5 +111,138 @@ where
             panic!("contract violation")
         };
         self.then.extract2(slice, state)
+    }
+}
+
+//------------------------------------------------------------------------------
+
+pub struct Unwrap<U, P>
+where
+    U: Slice2,
+    P: Pattern2<U>,
+{
+    body: P,
+    phantom: PhantomData<U>,
+}
+
+impl<U, P> Pattern2<U> for Unwrap<U, P>
+where
+    U: Slice2,
+    P: Pattern2<U>,
+{
+    type Captured = P::Captured;
+    type Internal = P::Internal;
+
+    #[inline(always)]
+    fn init2(&self) -> Self::Internal {
+        self.body.init2()
+    }
+    #[inline(always)]
+    fn precede2<E: Situation>(&self, slice: U, entry: &mut Self::Internal, eof: bool) -> PrecedeResult<E> {
+        Ok(self.body.precede2::<E>(slice, entry, eof).expect("unexpected input"))
+    }
+    #[inline(always)]
+    fn extract2(&self, slice: U, entry: Self::Internal) -> Self::Captured {
+        self.body.extract2(slice, entry)
+    }
+}
+
+//------------------------------------------------------------------------------
+
+pub struct UnwrapOr<U, P, C>
+where
+    U: Slice2,
+    P: Pattern2<U, Captured = C>,
+    C: Clone,
+{
+    body: P,
+    default: C,
+    phantom: PhantomData<U>,
+}
+
+impl<U, P, C> Pattern2<U> for UnwrapOr<U, P, C>
+where
+    U: Slice2,
+    P: Pattern2<U, Captured = C>,
+    C: Clone,
+{
+    type Captured = P::Captured;
+    type Internal = Option<P::Internal>;
+
+    #[inline(always)]
+    fn init2(&self) -> Self::Internal {
+        Some(self.body.init2())
+    }
+    #[inline(always)]
+    fn precede2<E: Situation>(&self, slice: U, entry: &mut Self::Internal, eof: bool) -> PrecedeResult<E> {
+        match entry {
+            None => Ok(0),
+            Some(state) => {
+                let res = self.body.precede2::<E>(slice, state, eof);
+                if let Err(ref e) = res {
+                    if !e.is_unfulfilled() {
+                        *entry = None;
+                    }
+                }
+                res
+            }
+        }
+    }
+    #[inline(always)]
+    fn extract2(&self, slice: U, entry: Self::Internal) -> Self::Captured {
+        match entry {
+            None => self.default.clone(),
+            Some(state) => self.body.extract2(slice, state),
+        }
+    }
+}
+
+//------------------------------------------------------------------------------
+
+pub struct UnwrapOrElse<U, P, F>
+where
+    U: Slice2,
+    P: Pattern2<U>,
+    F: Fn() -> P::Captured,
+{
+    body: P,
+    f: F,
+    phantom: PhantomData<U>,
+}
+
+impl<U, P, F> Pattern2<U> for UnwrapOrElse<U, P, F>
+where
+    U: Slice2,
+    P: Pattern2<U>,
+    F: Fn() -> P::Captured,
+{
+    type Captured = P::Captured;
+    type Internal = Option<P::Internal>;
+
+    #[inline(always)]
+    fn init2(&self) -> Self::Internal {
+        Some(self.body.init2())
+    }
+    #[inline(always)]
+    fn precede2<E: Situation>(&self, slice: U, entry: &mut Self::Internal, eof: bool) -> PrecedeResult<E> {
+        match entry {
+            None => Ok(0),
+            Some(state) => {
+                let res = self.body.precede2::<E>(slice, state, eof);
+                if let Err(ref e) = res {
+                    if !e.is_unfulfilled() {
+                        *entry = None;
+                    }
+                }
+                res
+            }
+        }
+    }
+    #[inline(always)]
+    fn extract2(&self, slice: U, entry: Self::Internal) -> Self::Captured {
+        match entry {
+            None => (self.f)(),
+            Some(state) => self.body.extract2(slice, state),
+        }
     }
 }

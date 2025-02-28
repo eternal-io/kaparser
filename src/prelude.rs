@@ -3,7 +3,7 @@ pub use crate::{
     combine::skim::{till, until},
     combine::{alt::alt, com::com},
     combine::{bin, def},
-    combine::{control::switch, opt::opt},
+    combine::{control::cond, opt::opt},
     combine::{
         lens::len,
         repeat::rep,

@@ -1,4 +1,4 @@
-use core::num::NonZeroUsize;
+use core::{fmt::Debug, num::NonZeroUsize};
 
 pub type PrecedeResult<E = SimpleError> = Result<usize, E>;
 
@@ -9,7 +9,7 @@ pub type SimpleResult<T, E = SimpleError> = Result<T, E>;
 #[derive(Debug)]
 pub enum SimpleError {}
 
-pub trait Situation: Sized {
+pub trait Situation: Sized + Debug {
     fn unfulfilled(delta: Option<NonZeroUsize>) -> Self;
     fn reject_at(delta: usize) -> Self;
     fn halt_at(delta: usize) -> Self;
@@ -30,6 +30,11 @@ pub trait Situation: Sized {
     fn raise_halt_at<T>(delta: usize) -> Result<T, Self> {
         Err(Self::halt_at(delta))
     }
+}
+
+pub trait DetailedSituation: Situation {
+    fn msg(self, msg: &str) -> Self;
+    fn expected(self, expected: &str) -> Self;
 }
 
 //------------------------------------------------------------------------------

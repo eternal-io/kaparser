@@ -194,7 +194,7 @@ where
 //==================================================================================================
 
 impl<'i, R: Read2> Parser2<&'i str, R> {
-    pub fn next_str<P, E>(&'i mut self, pat: P) -> ParseResult<P::Captured, E>
+    pub fn next_str<P, E>(&'i mut self, pat: &P) -> ParseResult<P::Captured, E>
     where
         P: Pattern2<&'i str>,
         E: Situation,

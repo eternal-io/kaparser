@@ -1,8 +1,7 @@
 use super::*;
 
 #[inline(always)]
-#[doc(alias = "cond")]
-pub const fn switch<U, P>(b: bool, body: P) -> Conditionate<U, P>
+pub const fn cond<U, P>(b: bool, body: P) -> Conditionate<U, P>
 where
     U: Slice2,
     P: Pattern2<U>,
@@ -15,7 +14,8 @@ where
 }
 
 #[inline(always)]
-pub const fn filter<U, P, F>(f: F, body: P) -> Filter<U, P, F>
+#[doc(alias = "filter")]
+pub const fn verify<U, P, F>(f: F, body: P) -> Filter<U, P, F>
 where
     U: Slice2,
     P: Pattern2<U>,
