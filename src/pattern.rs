@@ -29,10 +29,18 @@ where
 
     #[inline(always)]
     fn precede2<E: Situation>(&self, slice: U, _ntry: &mut Self::Internal, eof: bool) -> PrecedeResult<E> {
-        if eof || slice.len() >= self.len() {
-            slice.starts_with(self).then_some(self.len()).ok_or(E::reject_at(0))
+        if slice.len() < self.len() {
+            match eof {
+                true => E::raise_unfulfilled(Some((self.len() - slice.len()).try_into().unwrap())),
+                false => E::raise_reject_at(slice.len()),
+            }
         } else {
-            E::raise_unfulfilled(Some((self.len() - slice.len()).try_into().unwrap()))
+            for ((off, expected), item) in self.iter_indices().zip(slice.iter()) {
+                if item != expected {
+                    return E::raise_reject_at(off);
+                }
+            }
+            Ok(self.len())
         }
     }
 

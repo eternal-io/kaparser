@@ -38,18 +38,23 @@ where
     #[inline(always)]
     fn init2(&self) -> Self::Internal {}
     #[inline(always)]
-    fn precede2(&self, slice: &'i [T], _ntry: &mut Self::Internal, eof: bool) -> Option<(Transfer, usize)> {
+    fn precede2<E: Situation>(&self, slice: &'i [T], _ntry: &mut Self::Internal, eof: bool) -> PrecedeResult<E> {
         if slice.len() < LEN {
-            eof.then_some((Transfer::Rejected, slice.len()))
+            match eof {
+                true => E::raise_reject_at(slice.len()),
+                false => E::raise_unfulfilled(Some((LEN - slice.len()).try_into().unwrap())),
+            }
         } else {
-            slice[..LEN]
-                .iter()
-                .all(|item| self.predicate.predicate(item))
-                .then_some((Transfer::Accepted, LEN))
+            for (off, item) in slice[..LEN].iter_indices() {
+                if !self.predicate.predicate(&item) {
+                    return E::raise_reject_at(off);
+                }
+            }
+            Ok(LEN)
         }
     }
     #[inline(always)]
     fn extract2(&self, slice: &'i [T], _ntry: Self::Internal) -> Self::Captured {
-        slice.split_at(LEN).0.try_into().expect("contract violation")
+        slice.split_at(LEN).0.try_into().unwrap()
     }
 }

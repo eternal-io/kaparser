@@ -78,7 +78,7 @@ where
     }
 
     #[inline(always)]
-    fn precede2(&self, slice: U, entry: &mut Self::Internal, eof: bool) -> Option<(Transfer, usize)> {
+    fn precede2<E: Situation>(&self, slice: U, entry: &mut Self::Internal, eof: bool) -> PrecedeResult<E> {
         let (checkpoint, at_least, may_more) = entry;
         let mut resuming = *checkpoint;
         let mut offset = 0usize;
@@ -94,7 +94,7 @@ where
                     *off = offset;
                 }
 
-                let (t, len) = self.body.precede2(slice.split_at(*off).1, state, eof)?;
+                let (t, len) = self.body.precede2::<E>(slice.split_at(*off).1, state, eof)?;
                 offset = *off + len;
                 match t {
                     Transfer::Accepted => (),
@@ -171,8 +171,8 @@ where
         self.body.init2()
     }
     #[inline(always)]
-    fn precede2(&self, slice: U, entry: &mut Self::Internal, eof: bool) -> Option<(Transfer, usize)> {
-        self.body.precede2(slice, entry, eof)
+    fn precede2<E: Situation>(&self, slice: U, entry: &mut Self::Internal, eof: bool) -> PrecedeResult<E> {
+        self.body.precede2::<E>(slice, entry, eof)
     }
     #[inline(always)]
     fn extract2(&self, slice: U, entry: Self::Internal) -> Self::Captured {
@@ -203,8 +203,8 @@ where
         self.body.init2()
     }
     #[inline(always)]
-    fn precede2(&self, slice: U, entry: &mut Self::Internal, eof: bool) -> Option<(Transfer, usize)> {
-        self.body.precede2(slice, entry, eof)
+    fn precede2<E: Situation>(&self, slice: U, entry: &mut Self::Internal, eof: bool) -> PrecedeResult<E> {
+        self.body.precede2::<E>(slice, entry, eof)
     }
     #[inline(always)]
     fn extract2(&self, slice: U, entry: Self::Internal) -> Self::Captured {

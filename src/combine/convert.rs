@@ -29,7 +29,55 @@ where
     }
 }
 
-// unwrap, unwrap_or, unwrap_or_else, unwrap_or_default
+#[inline(always)]
+pub const fn unwrap<U, P>(body: P) -> Unwrap<U, P>
+where
+    U: Slice2,
+    P: Pattern2<U>,
+{
+    Unwrap {
+        body,
+        phantom: PhantomData,
+    }
+}
+#[inline(always)]
+pub const fn unwrap_or<U, P, C>(default: C, body: P) -> UnwrapOr<U, P, C>
+where
+    U: Slice2,
+    P: Pattern2<U, Captured = C>,
+    C: Clone,
+{
+    UnwrapOr {
+        body,
+        default,
+        phantom: PhantomData,
+    }
+}
+#[inline(always)]
+pub const fn unwrap_or_else<U, P, F>(f: F, body: P) -> UnwrapOrElse<U, P, F>
+where
+    U: Slice2,
+    P: Pattern2<U>,
+    F: Fn() -> P::Captured,
+{
+    UnwrapOrElse {
+        body,
+        f,
+        phantom: PhantomData,
+    }
+}
+#[inline(always)]
+pub const fn unwrap_or_default<U, P, D>(body: P) -> UnwrapOrDefault<U, P, D>
+where
+    U: Slice2,
+    P: Pattern2<U, Captured = D>,
+    D: Default,
+{
+    UnwrapOrDefault {
+        body,
+        phantom: PhantomData,
+    }
+}
 
 //------------------------------------------------------------------------------
 
@@ -178,7 +226,7 @@ where
         match entry {
             None => Ok(0),
             Some(state) => {
-                let res = self.body.precede2::<E>(slice, state, eof);
+                let res = self.body.precede2::<E>(slice, state, eof); // TODO: optimization?
                 if let Err(ref e) = res {
                     if !e.is_unfulfilled() {
                         *entry = None;
@@ -242,6 +290,55 @@ where
     fn extract2(&self, slice: U, entry: Self::Internal) -> Self::Captured {
         match entry {
             None => (self.f)(),
+            Some(state) => self.body.extract2(slice, state),
+        }
+    }
+}
+
+//------------------------------------------------------------------------------
+
+pub struct UnwrapOrDefault<U, P, D>
+where
+    U: Slice2,
+    P: Pattern2<U, Captured = D>,
+    D: Default,
+{
+    body: P,
+    phantom: PhantomData<U>,
+}
+
+impl<U, P, D> Pattern2<U> for UnwrapOrDefault<U, P, D>
+where
+    U: Slice2,
+    P: Pattern2<U, Captured = D>,
+    D: Default,
+{
+    type Captured = P::Captured;
+    type Internal = Option<P::Internal>;
+
+    #[inline(always)]
+    fn init2(&self) -> Self::Internal {
+        Some(self.body.init2())
+    }
+    #[inline(always)]
+    fn precede2<E: Situation>(&self, slice: U, entry: &mut Self::Internal, eof: bool) -> PrecedeResult<E> {
+        match entry {
+            None => Ok(0),
+            Some(state) => {
+                let res = self.body.precede2::<E>(slice, state, eof);
+                if let Err(ref e) = res {
+                    if !e.is_unfulfilled() {
+                        *entry = None;
+                    }
+                }
+                res
+            }
+        }
+    }
+    #[inline(always)]
+    fn extract2(&self, slice: U, entry: Self::Internal) -> Self::Captured {
+        match entry {
+            None => Default::default(),
             Some(state) => self.body.extract2(slice, state),
         }
     }

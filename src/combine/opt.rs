@@ -36,15 +36,15 @@ where
         Some(self.opt.init2())
     }
     #[inline(always)]
-    fn precede2(&self, slice: U, entry: &mut Self::Internal, eof: bool) -> Option<(Transfer, usize)> {
-        let (t, len) = self.opt.precede2(slice, entry.as_mut().unwrap(), eof)?;
-        match t {
-            Transfer::Rejected => {
-                drop(entry.take());
-                Some((Transfer::Accepted, 0))
+    fn precede2<E: Situation>(&self, slice: U, entry: &mut Self::Internal, eof: bool) -> PrecedeResult<E> {
+        let res = self.opt.precede2::<E>(slice, entry.as_mut().unwrap(), eof);
+        if let Err(ref e) = res {
+            if !e.is_unfulfilled() {
+                *entry = None;
+                return Ok(0);
             }
-            t => Some((t, len)),
         }
+        res
     }
     #[inline(always)]
     fn extract2(&self, slice: U, entry: Self::Internal) -> Self::Captured {
