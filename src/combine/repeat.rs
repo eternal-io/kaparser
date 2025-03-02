@@ -97,7 +97,7 @@ where
                 match self.body.precede2::<E>(slice.split_at(*off).1, state, eof) {
                     Ok(len) => offset = *off + len,
                     Err(e) => match e.is_rejected() {
-                        false => return Err(e),
+                        false => return Err(e), // FIXME: Error location.
                         true => match necessary {
                             true => return Err(e),
                             false => break,

@@ -1,14 +1,5 @@
 use core::{fmt::Debug, num::NonZeroUsize};
 
-pub type PrecedeResult<E = SimpleError> = Result<usize, E>;
-
-//------------------------------------------------------------------------------
-
-pub type SimpleResult<T, E = SimpleError> = Result<T, E>;
-
-#[derive(Debug)]
-pub enum SimpleError {}
-
 pub trait Situation: Sized + Debug {
     fn unfulfilled(delta: Option<NonZeroUsize>) -> Self;
     fn reject_at(delta: usize) -> Self;
@@ -17,6 +8,8 @@ pub trait Situation: Sized + Debug {
     fn is_unfulfilled(&self) -> bool;
     fn is_rejected(&self) -> bool;
     fn is_halted(&self) -> bool;
+
+    fn delta(&self) -> usize;
 
     #[inline(always)]
     fn raise_unfulfilled<T>(delta: Option<NonZeroUsize>) -> Result<T, Self> {
@@ -35,6 +28,58 @@ pub trait Situation: Sized + Debug {
 pub trait DetailedSituation: Situation {
     fn msg(self, msg: &str) -> Self;
     fn expected(self, expected: &str) -> Self;
+}
+
+//------------------------------------------------------------------------------
+
+pub type PrecedeResult<E = SimpleError> = Result<usize, E>;
+
+//------------------------------------------------------------------------------
+
+pub type SimpleResult<T, E = SimpleError> = Result<T, E>;
+
+#[derive(Debug, Clone, Copy)]
+pub enum SimpleError {
+    Unfulfilled(Option<NonZeroUsize>),
+    Rejected(usize),
+    Halted(usize),
+}
+
+impl Situation for SimpleError {
+    #[inline(always)]
+    fn unfulfilled(delta: Option<NonZeroUsize>) -> Self {
+        Self::Unfulfilled(delta)
+    }
+    #[inline(always)]
+    fn reject_at(delta: usize) -> Self {
+        Self::Rejected(delta)
+    }
+    #[inline(always)]
+    fn halt_at(delta: usize) -> Self {
+        Self::Halted(delta)
+    }
+
+    #[inline(always)]
+    fn is_unfulfilled(&self) -> bool {
+        matches!(self, Self::Unfulfilled(_))
+    }
+    #[inline(always)]
+    fn is_rejected(&self) -> bool {
+        matches!(self, Self::Rejected(_))
+    }
+    #[inline(always)]
+    fn is_halted(&self) -> bool {
+        matches!(self, Self::Halted(_))
+    }
+
+    #[inline(always)]
+    fn delta(&self) -> usize {
+        match *self {
+            Self::Unfulfilled(n) => n.map(usize::from).unwrap_or(0),
+            Self::Rejected(n) => n,
+            Self::Halted(n) => n,
+        }
+    }
 }
 
 //------------------------------------------------------------------------------

@@ -17,35 +17,41 @@ where
     fn parse<E: Situation>(&self, slice: &mut U) -> SimpleResult<Self::Captured, E>;
 }
 
-// impl<U, P> SimpleParser2<U> for P
-// where
-//     U: Slice2,
-//     P: Pattern2<U>,
-// {
-//     type Captured = P::Captured;
+impl<U, P> SimpleParser2<U> for P
+where
+    U: Slice2,
+    P: Pattern2<U>,
+{
+    type Captured = P::Captured;
 
-//     #[inline(always)]
-//     fn full_match(&self, slice: U) -> Result<Self::Captured, usize> {
-//         self.parse(slice).and_then(|(cap, len)| match len == slice.len() {
-//             true => Ok(cap),
-//             false => Err(len),
-//         })
-//     }
+    #[inline(always)]
+    fn full_match<E: Situation>(&self, slice: U) -> SimpleResult<Self::Captured, E> {
+        let mut s2 = slice;
+        let cap = self.parse(&mut s2)?;
+        match s2.len() {
+            0 => Ok(cap),
+            n => E::raise_reject_at(slice.len() - n),
+        }
+    }
 
-//     #[inline(always)]
-//     fn parse(&self, slice: U) -> Result<(Self::Captured, usize), usize> {
-//         let mut state = self.init2();
-//         let (t, len) = self
-//             .precede2(slice, &mut state, true)
-//             .expect("implementation: pull after EOF");
-
-//         if let Transfer::Accepted = t {
-//             Ok((self.extract2(slice.split_at(len).0, state), len))
-//         } else {
-//             Err(len)
-//         }
-//     }
-// }
+    #[inline(always)]
+    fn parse<E: Situation>(&self, slice: &mut U) -> SimpleResult<Self::Captured, E> {
+        let mut state = self.init2();
+        match self.precede2::<E>(*slice, &mut state, true) {
+            Ok(len) => {
+                let (left, right) = slice.split_at(len);
+                *slice = right;
+                Ok(self.extract2(left, state))
+            }
+            Err(e) => {
+                if e.is_unfulfilled() {
+                    panic!("implementation: pull after EOF")
+                }
+                Err(e)
+            }
+        }
+    }
+}
 
 //==================================================================================================
 
