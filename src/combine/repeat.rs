@@ -94,26 +94,22 @@ where
                     *off = offset;
                 }
 
-                let (t, len) = self.body.precede2::<E>(slice.split_at(*off).1, state, eof)?;
-                offset = *off + len;
-                match t {
-                    Transfer::Accepted => (),
-
-                    Transfer::Rejected => match necessary {
-                        true => return Some((t, offset)),
-                        false => break,
+                match self.body.precede2::<E>(slice.split_at(*off).1, state, eof) {
+                    Ok(len) => offset = *off + len,
+                    Err(e) => match e.is_rejected() {
+                        false => return Err(e),
+                        true => match necessary {
+                            true => return Err(e),
+                            false => break,
+                        },
                     },
-                    Transfer::Halt => {
-                        cold_path();
-                        return Some((t, offset));
-                    }
                 }
 
                 *checkpoint += 1;
             }
         }
 
-        Some((Transfer::Accepted, offset))
+        Ok(offset)
     }
 
     #[inline(always)]

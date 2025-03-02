@@ -34,7 +34,7 @@ where
         0
     }
     #[inline(always)]
-    fn precede2(&self, slice: U, entry: &mut Self::Internal, eof: bool) -> Option<(Transfer, usize)> {
+    fn precede2<E: Situation>(&self, slice: U, entry: &mut Self::Internal, eof: bool) -> PrecedeResult<E> {
         match slice
             .split_at(*entry)
             .1
@@ -43,11 +43,11 @@ where
         {
             Some((off, item)) => {
                 *entry += off;
-                Some((Transfer::Accepted, *entry + slice.len_of(item)))
+                Ok(*entry + slice.len_of(item))
             }
             None => {
                 *entry = slice.len();
-                eof.then_some((Transfer::Accepted, *entry))
+                eof.then_some(*entry).ok_or(E::unfulfilled(None))
             }
         }
     }
@@ -73,21 +73,29 @@ where
         (0, self.end.init2())
     }
     #[inline(always)]
-    fn precede2(&self, slice: U, entry: &mut Self::Internal, eof: bool) -> Option<(Transfer, usize)> {
+    fn precede2<E: Situation>(&self, slice: U, entry: &mut Self::Internal, eof: bool) -> PrecedeResult<E> {
         let (offset, state) = entry;
         for item in slice.split_at(*offset).1.iter() {
             let mut st = self.end.init2();
-            let (t, len) = self.end.precede2(slice.split_at(*offset).1, &mut st, eof)?;
-            match t {
-                Transfer::Rejected => (),
-                t => {
+            let res = self.end.precede2::<E>(slice.split_at(*offset).1, &mut st, eof);
+            match res {
+                Ok(len) => {
                     *state = st;
-                    return Some((t, *offset + len));
+                    return Ok(*offset + len);
+                }
+                Err(e) => {
+                    if !e.is_rejected() {
+                        return Err(e);
+                    }
                 }
             }
             *offset += slice.len_of(item);
         }
-        eof.then_some((Transfer::Halt, *offset))
+
+        match eof {
+            true => E::raise_halt_at(*offset),
+            false => E::raise_unfulfilled(None),
+        }
     }
     #[inline(always)]
     fn extract2(&self, slice: U, entry: Self::Internal) -> Self::Captured {

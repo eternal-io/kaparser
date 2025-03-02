@@ -51,7 +51,7 @@ where
         (0, 0)
     }
     #[inline(always)]
-    fn precede2(&self, slice: U, entry: &mut Self::Internal, eof: bool) -> Option<(Transfer, usize)> {
+    fn precede2<E: Situation>(&self, slice: U, entry: &mut Self::Internal, eof: bool) -> PrecedeResult<E> {
         let (offset, times) = entry;
         if let Some((i, (off, item))) = slice
             .split_at(*offset)
@@ -65,16 +65,16 @@ where
             *times += i + 1;
         }
 
-        Some(match eof {
+        match eof {
             true => match self.range.contains(*times) {
-                true => (Transfer::Accepted, *offset),
-                false => (Transfer::Rejected, *offset),
+                true => Ok(*offset),
+                false => E::raise_reject_at(*offset),
             },
             false => match self.range.unfulfilled(*times) {
-                true => return None,
-                false => (Transfer::Accepted, *offset),
+                true => E::raise_unfulfilled(None),
+                false => Ok(*offset),
             },
-        })
+        }
     }
     #[inline(always)]
     fn extract2(&self, slice: U, entry: Self::Internal) -> Self::Captured {
@@ -97,7 +97,7 @@ where
         0
     }
     #[inline(always)]
-    fn precede2(&self, slice: U, entry: &mut Self::Internal, eof: bool) -> Option<(Transfer, usize)> {
+    fn precede2<E: Situation>(&self, slice: U, entry: &mut Self::Internal, eof: bool) -> PrecedeResult<E> {
         match slice
             .split_at(*entry)
             .1
@@ -106,11 +106,20 @@ where
         {
             Some((off, _)) => {
                 *entry += off;
-                Some(Transfer::perhaps((*entry > 0).then_some(*entry).ok_or(0)))
+                match *entry > 0 {
+                    true => Ok(*entry),
+                    false => E::raise_reject_at(0),
+                }
             }
             None => {
                 *entry = slice.len();
-                eof.then_some(Transfer::perhaps((*entry > 0).then_some(*entry).ok_or(0)))
+                match eof {
+                    true => match *entry > 0 {
+                        true => Ok(*entry),
+                        false => E::raise_reject_at(0),
+                    },
+                    false => E::raise_unfulfilled(None),
+                }
             }
         }
     }
