@@ -1,4 +1,9 @@
-use crate::{common::*, error::*, predicate::*};
+use crate::{
+    combine::{control, convert},
+    common::*,
+    error::*,
+    predicate::*,
+};
 
 #[doc(inline)]
 pub use crate::token_set;
@@ -16,7 +21,60 @@ where
     fn precede2(&self, slice: U, entry: &mut Self::Internal, eof: bool) -> PrecedeResult<E>;
 
     fn extract2(&self, slice: U, entry: Self::Internal) -> Self::Captured;
+
+    #[inline(always)]
+    fn verify<F>(self, f: F) -> control::Verify<U, E, Self, F>
+    where
+        Self: Sized,
+        F: Fn(Self::Captured) -> bool,
+    {
+        control::verify(f, self)
+    }
+
+    #[inline(always)]
+    fn map<F, Out>(self, op: F) -> convert::Map<U, E, Self, F, Out>
+    where
+        Self: Sized,
+        F: Fn(Self::Captured) -> Out,
+    {
+        convert::map(op, self)
+    }
+    #[inline(always)]
+    fn map_err<F, E2>(self, op: F) -> convert::MapErr<U, E, Self, F, E2>
+    where
+        Self: Sized,
+        F: Fn(E) -> E2,
+        E2: Situation,
+    {
+        convert::map_err(op, self)
+    }
+    #[inline(always)]
+    fn desc(self, desc: E::Description) -> convert::Describe<U, E, Self>
+    where
+        Self: Sized,
+        E::Description: Clone,
+    {
+        convert::desc(desc, self)
+    }
+    #[inline(always)]
+    fn desc_with<F>(self, f: F) -> convert::DescribeWith<U, E, Self, F>
+    where
+        Self: Sized,
+        F: Fn(&E) -> E::Description,
+    {
+        convert::desc_with(f, self)
+    }
+    #[inline(always)]
+    fn complex<Q>(self, then: Q) -> convert::Complex<U, E, Self, Q>
+    where
+        Self: Sized,
+        Q: Pattern2<U, E>,
+    {
+        convert::complex(self, then)
+    }
 }
+
+//==================================================================================================
 
 impl<U, E> Pattern2<U, E> for U
 where

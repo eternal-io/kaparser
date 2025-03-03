@@ -8,7 +8,7 @@ pub trait Situation: Sized + Debug {
     fn halt_at(len: usize) -> Self;
 
     fn backtrack(self, len: usize) -> Self;
-    fn detail(self, desc: Self::Description) -> Self;
+    fn describe(self, desc: Self::Description) -> Self;
 
     fn is_unfulfilled(&self) -> bool;
     fn is_rejected(&self) -> bool;
@@ -70,7 +70,7 @@ impl Situation for ParseError {
         self
     }
     #[inline(always)]
-    fn detail(self, _desc: Self::Description) -> Self {
+    fn describe(self, _esc: Self::Description) -> Self {
         self
     }
 

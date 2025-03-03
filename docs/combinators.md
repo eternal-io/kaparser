@@ -34,7 +34,7 @@
 | [`cond`](cond()) | `C` | TODO! |
 | [`verify`](verify()) | `C` | TODO! |
 
-However, there is no way to have combinator like `filter_map`, because `verify` and `map` happen at different stages.
+However, there is no way to have combinator like `verify_map`, because `verify` and `map` happen at different stages.
 
 ## Basic patterns
 

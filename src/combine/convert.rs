@@ -1,16 +1,62 @@
 use super::*;
 
 #[inline(always)]
-pub const fn map<U, E, P, F, O>(f: F, body: P) -> Map<U, E, P, F, O>
+pub const fn map<U, E, P, F, Out>(op: F, body: P) -> Map<U, E, P, F, Out>
 where
     U: Slice2,
     E: Situation,
     P: Pattern2<U, E>,
-    F: Fn(P::Captured) -> O,
+    F: Fn(P::Captured) -> Out,
 {
     Map {
         body,
-        then: f,
+        op,
+        phantom: PhantomData,
+    }
+}
+
+#[inline(always)]
+pub const fn map_err<U, E1, P, F, E2>(op: F, body: P) -> MapErr<U, E1, P, F, E2>
+where
+    U: Slice2,
+    E1: Situation,
+    P: Pattern2<U, E1>,
+    F: Fn(E1) -> E2,
+    E2: Situation,
+{
+    MapErr {
+        body,
+        op,
+        phantom: PhantomData,
+    }
+}
+
+#[inline(always)]
+pub const fn desc<U, E, P>(desc: E::Description, body: P) -> Describe<U, E, P>
+where
+    U: Slice2,
+    E: Situation,
+    E::Description: Clone,
+    P: Pattern2<U, E>,
+{
+    Describe {
+        body,
+        desc,
+        phantom: PhantomData,
+    }
+}
+
+#[inline(always)]
+pub const fn desc_with<U, E, P, F>(f: F, body: P) -> DescribeWith<U, E, P, F>
+where
+    U: Slice2,
+    E: Situation,
+    P: Pattern2<U, E>,
+    F: Fn(&E) -> E::Description,
+{
+    DescribeWith {
+        body,
+        f,
         phantom: PhantomData,
     }
 }
@@ -33,26 +79,26 @@ where
 
 //------------------------------------------------------------------------------
 
-pub struct Map<U, E, P, F, O>
+pub struct Map<U, E, P, F, Out>
 where
     U: Slice2,
     E: Situation,
     P: Pattern2<U, E>,
-    F: Fn(P::Captured) -> O,
+    F: Fn(P::Captured) -> Out,
 {
     body: P,
-    then: F,
+    op: F,
     phantom: PhantomData<(U, E)>,
 }
 
-impl<U, E, P, F, O> Pattern2<U, E> for Map<U, E, P, F, O>
+impl<U, E, P, F, Out> Pattern2<U, E> for Map<U, E, P, F, Out>
 where
     U: Slice2,
     E: Situation,
     P: Pattern2<U, E>,
-    F: Fn(P::Captured) -> O,
+    F: Fn(P::Captured) -> Out,
 {
-    type Captured = O;
+    type Captured = Out;
     type Internal = P::Internal;
 
     #[inline(always)]
@@ -65,7 +111,128 @@ where
     }
     #[inline(always)]
     fn extract2(&self, slice: U, entry: Self::Internal) -> Self::Captured {
-        (self.then)(self.body.extract2(slice, entry))
+        (self.op)(self.body.extract2(slice, entry))
+    }
+}
+
+//------------------------------------------------------------------------------
+
+pub struct MapErr<U, E1, P, F, E2>
+where
+    U: Slice2,
+    E1: Situation,
+    P: Pattern2<U, E1>,
+    F: Fn(E1) -> E2,
+    E2: Situation,
+{
+    body: P,
+    op: F,
+    phantom: PhantomData<(U, E1, E2)>,
+}
+
+impl<U, E1, P, F, E2> Pattern2<U, E2> for MapErr<U, E1, P, F, E2>
+where
+    U: Slice2,
+    E1: Situation,
+    P: Pattern2<U, E1>,
+    F: Fn(E1) -> E2,
+    E2: Situation,
+{
+    type Captured = P::Captured;
+    type Internal = P::Internal;
+
+    #[inline(always)]
+    fn init2(&self) -> Self::Internal {
+        self.body.init2()
+    }
+    #[inline(always)]
+    fn precede2(&self, slice: U, entry: &mut Self::Internal, eof: bool) -> PrecedeResult<E2> {
+        self.body.precede2(slice, entry, eof).map_err(|e| (self.op)(e))
+    }
+    #[inline(always)]
+    fn extract2(&self, slice: U, entry: Self::Internal) -> Self::Captured {
+        self.body.extract2(slice, entry)
+    }
+}
+
+//------------------------------------------------------------------------------
+
+pub struct Describe<U, E, P>
+where
+    U: Slice2,
+    E: Situation,
+    E::Description: Clone,
+    P: Pattern2<U, E>,
+{
+    body: P,
+    desc: E::Description,
+    phantom: PhantomData<(U, E)>,
+}
+
+impl<U, E, P> Pattern2<U, E> for Describe<U, E, P>
+where
+    U: Slice2,
+    E: Situation,
+    E::Description: Clone,
+    P: Pattern2<U, E>,
+{
+    type Captured = P::Captured;
+    type Internal = P::Internal;
+
+    #[inline(always)]
+    fn init2(&self) -> Self::Internal {
+        self.body.init2()
+    }
+    #[inline(always)]
+    fn precede2(&self, slice: U, entry: &mut Self::Internal, eof: bool) -> PrecedeResult<E> {
+        self.body
+            .precede2(slice, entry, eof)
+            .map_err(|e| e.describe(self.desc.clone()))
+    }
+    #[inline(always)]
+    fn extract2(&self, slice: U, entry: Self::Internal) -> Self::Captured {
+        self.body.extract2(slice, entry)
+    }
+}
+
+//------------------------------------------------------------------------------
+
+pub struct DescribeWith<U, E, P, F>
+where
+    U: Slice2,
+    E: Situation,
+    P: Pattern2<U, E>,
+    F: Fn(&E) -> E::Description,
+{
+    body: P,
+    f: F,
+    phantom: PhantomData<(U, E)>,
+}
+
+impl<U, E, P, F> Pattern2<U, E> for DescribeWith<U, E, P, F>
+where
+    U: Slice2,
+    E: Situation,
+    P: Pattern2<U, E>,
+    F: Fn(&E) -> E::Description,
+{
+    type Captured = P::Captured;
+    type Internal = P::Internal;
+
+    #[inline(always)]
+    fn init2(&self) -> Self::Internal {
+        self.body.init2()
+    }
+    #[inline(always)]
+    fn precede2(&self, slice: U, entry: &mut Self::Internal, eof: bool) -> PrecedeResult<E> {
+        self.body.precede2(slice, entry, eof).map_err(|e| {
+            let desc = (self.f)(&e);
+            e.describe(desc)
+        })
+    }
+    #[inline(always)]
+    fn extract2(&self, slice: U, entry: Self::Internal) -> Self::Captured {
+        self.body.extract2(slice, entry)
     }
 }
 

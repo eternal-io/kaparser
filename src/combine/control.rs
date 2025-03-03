@@ -16,14 +16,14 @@ where
 
 #[inline(always)]
 #[doc(alias = "filter")]
-pub const fn verify<U, E, P, F>(f: F, body: P) -> Filter<U, E, P, F>
+pub const fn verify<U, E, P, F>(f: F, body: P) -> Verify<U, E, P, F>
 where
     U: Slice2,
     E: Situation,
     P: Pattern2<U, E>,
     F: Fn(P::Captured) -> bool,
 {
-    Filter {
+    Verify {
         body,
         verify: f,
         phantom: PhantomData,
@@ -74,7 +74,7 @@ where
 
 //------------------------------------------------------------------------------
 
-pub struct Filter<U, E, P, F>
+pub struct Verify<U, E, P, F>
 where
     U: Slice2,
     E: Situation,
@@ -86,7 +86,7 @@ where
     phantom: PhantomData<(U, E)>,
 }
 
-impl<U, E, P, F> Pattern2<U, E> for Filter<U, E, P, F>
+impl<U, E, P, F> Pattern2<U, E> for Verify<U, E, P, F>
 where
     U: Slice2,
     E: Situation,
