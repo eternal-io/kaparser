@@ -48,6 +48,7 @@ where
     {
         convert::map_err(op, self)
     }
+
     #[inline(always)]
     fn desc(self, desc: E::Description) -> convert::Describe<U, E, Self>
     where
@@ -64,6 +65,31 @@ where
     {
         convert::desc_with(f, self)
     }
+
+    #[inline(always)]
+    fn unwrap(self) -> convert::Unwrap<U, E, Self>
+    where
+        Self: Sized,
+    {
+        convert::unwrap(self)
+    }
+    #[inline(always)]
+    fn unwrap_or(self, default: Self::Captured) -> convert::UnwrapOr<U, E, Self>
+    where
+        Self: Sized,
+        Self::Captured: Clone,
+    {
+        convert::unwrap_or(default, self)
+    }
+    #[inline(always)]
+    fn unwrap_or_default(self) -> convert::UnwrapOrDefault<U, E, Self>
+    where
+        Self: Sized,
+        Self::Captured: Default,
+    {
+        convert::unwrap_or_default(self)
+    }
+
     #[inline(always)]
     fn complex<Q>(self, then: Q) -> convert::Complex<U, E, Self, Q>
     where
