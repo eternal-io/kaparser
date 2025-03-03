@@ -2,7 +2,7 @@ use crate::{common::*, error::*, pattern::*};
 
 pub trait Parser<U, E>
 where
-    U: Slice2,
+    U: Slice,
     E: Situation,
 {
     type Captured;
@@ -22,20 +22,20 @@ where
 
 impl<U, E, P> Parser<U, E> for P
 where
-    U: Slice2,
+    U: Slice,
     E: Situation,
-    P: Pattern2<U, E>,
+    P: Pattern<U, E>,
 {
     type Captured = P::Captured;
 
     #[inline(always)]
     fn parse(&self, slice: &mut U) -> ParseResult<Self::Captured, E> {
-        let mut state = self.init2();
-        match self.precede2(*slice, &mut state, true) {
+        let mut state = self.init();
+        match self.precede(*slice, &mut state, true) {
             Ok(len) => {
                 let (left, right) = slice.split_at(len);
                 *slice = right;
-                Ok(self.extract2(left, state))
+                Ok(self.extract(left, state))
             }
             Err(e) => {
                 if e.is_unfulfilled() {

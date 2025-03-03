@@ -8,8 +8,8 @@ macro_rules! gen_binary_patterns {
     )* ) => { paste::paste! { $(
       $(#[$attr])*
         #[inline(always)]
-        pub const fn [<$f:upper _ $ty:upper>]<'a, E: Situation>()
-        -> Map<&'a [u8], E, Lens<u8, RangeFull, E, $len>, fn([u8; $len]) -> $ty, $ty> {
+        pub const fn [<$f:upper _ $ty:upper>]<'i, E: Situation>()
+        -> Map<&'i [u8], E, Lens<u8, RangeFull, E, $len>, fn([u8; $len]) -> $ty, $ty> {
             map($ty::[<from_ $f _bytes>], len!($len, ..))
         }
     )* } };

@@ -12,7 +12,7 @@ mod macros;
 pub mod common;
 pub mod combine;
 pub mod error;
-pub mod parser2;
+pub mod parser;
 pub mod pattern;
 pub mod predicate;
 pub mod prelude;
@@ -31,7 +31,7 @@ pub mod anything {
     //! [`combine::def`]: crate::combine::def
     //! [`combine::bin`]: crate::combine::bin
     #[doc(hidden)]
-    pub use crate::{combine::*, common::*, error::*, parser2::*, pattern::*, predicate::*, provider::*};
+    pub use crate::{combine::*, common::*, error::*, parser::*, pattern::*, predicate::*, provider::*};
     #[doc(hidden)]
     pub use core::ops::{Range, RangeFrom, RangeFull, RangeInclusive, RangeTo, RangeToInclusive};
 }

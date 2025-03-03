@@ -98,10 +98,10 @@ impl Situation for ParseError {
 
 //------------------------------------------------------------------------------
 
-pub type ProvideResult<T, E = ParseError> = Result<T, ProvideError<E>>;
+pub type ProviderResult<T, E = ParseError> = Result<T, ProviderError<E>>;
 
 #[derive(Debug)]
-pub enum ProvideError<E: Situation> {
+pub enum ProviderError<E: Situation> {
     #[cfg(feature = "std")]
     Io(::std::io::Error),
     InvalidUtf8,
@@ -109,8 +109,8 @@ pub enum ProvideError<E: Situation> {
 }
 
 #[cfg(feature = "std")]
-impl<E: Situation> From<::std::io::Error> for ProvideError<E> {
+impl<E: Situation> From<::std::io::Error> for ProviderError<E> {
     fn from(value: ::std::io::Error) -> Self {
-        ProvideError::Io(value)
+        ProviderError::Io(value)
     }
 }

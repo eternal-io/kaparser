@@ -2,21 +2,21 @@ use super::*;
 
 macro_rules! impl_pattern_for_tuple {
     ( $Len:literal, $( $LabN:lifetime ~ $GenN:ident ~ $ValN:ident ~ $OrdN:literal ~ $IdxN:tt )+ ) => { paste::paste! {
-        impl<U, E, $($GenN: Pattern2<U, E>),+> Pattern2<U, E> for ($($GenN,)+)
+        impl<U, E, $($GenN: Pattern<U, E>),+> Pattern<U, E> for ($($GenN,)+)
         where
-            U: Slice2,
+            U: Slice,
             E: Situation,
         {
             type Captured = ($($GenN::Captured,)+);
             type Internal = ([<Check $Len>], ($((usize, $GenN::Internal),)+));
 
             #[inline(always)]
-            fn init2(&self) -> Self::Internal {
-                ([<Check $Len>]::Point1, ($((0, self.$IdxN.init2()),)+))
+            fn init(&self) -> Self::Internal {
+                ([<Check $Len>]::Point1, ($((0, self.$IdxN.init()),)+))
             }
 
             #[inline(always)]
-            fn precede2(&self, slice: U, entry: &mut Self::Internal, eof: bool) -> PrecedeResult<E> {
+            fn precede(&self, slice: U, entry: &mut Self::Internal, eof: bool) -> PrecedeResult<E> {
                 use [<Check $Len>]::*;
                 let (checkpoint, states) = entry;
                 let mut offset = 0usize;
@@ -31,7 +31,7 @@ macro_rules! impl_pattern_for_tuple {
                                 *off = offset;
                             }
 
-                            offset = *off + self.$IdxN.precede2(slice.split_at(*off).1, state, eof)?;
+                            offset = *off + self.$IdxN.precede(slice.split_at(*off).1, state, eof)?;
                         }
                     )+ }
                 }
@@ -40,10 +40,10 @@ macro_rules! impl_pattern_for_tuple {
             }
 
             #[inline(always)]
-            fn extract2(&self, slice: U, entry: Self::Internal) -> Self::Captured {
+            fn extract(&self, slice: U, entry: Self::Internal) -> Self::Captured {
                 $(
                     let $ValN = entry.1.$IdxN;
-                    let $ValN = self.$IdxN.extract2(slice.split_at($ValN.0).1, $ValN.1);
+                    let $ValN = self.$IdxN.extract(slice.split_at($ValN.0).1, $ValN.1);
                 )+
                 ($($ValN,)+)
             }

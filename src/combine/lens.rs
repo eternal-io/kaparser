@@ -29,7 +29,7 @@ where
     phantom: PhantomData<(T, E)>,
 }
 
-impl<'i, T, P, E, const LEN: usize> Pattern2<&'i [T], E> for Lens<T, P, E, LEN>
+impl<'i, T, P, E, const LEN: usize> Pattern<&'i [T], E> for Lens<T, P, E, LEN>
 where
     T: Copy + PartialEq,
     P: Predicate<T>,
@@ -39,9 +39,9 @@ where
     type Internal = ();
 
     #[inline(always)]
-    fn init2(&self) -> Self::Internal {}
+    fn init(&self) -> Self::Internal {}
     #[inline(always)]
-    fn precede2(&self, slice: &'i [T], _ntry: &mut Self::Internal, eof: bool) -> PrecedeResult<E> {
+    fn precede(&self, slice: &'i [T], _ntry: &mut Self::Internal, eof: bool) -> PrecedeResult<E> {
         if slice.len() < LEN {
             match eof {
                 true => E::raise_reject_at(slice.len()),
@@ -57,7 +57,7 @@ where
         }
     }
     #[inline(always)]
-    fn extract2(&self, slice: &'i [T], _ntry: Self::Internal) -> Self::Captured {
+    fn extract(&self, slice: &'i [T], _ntry: Self::Internal) -> Self::Captured {
         slice.split_at(LEN).0.try_into().unwrap()
     }
 }

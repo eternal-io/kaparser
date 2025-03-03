@@ -13,7 +13,7 @@ pub use crate::{
         take::{take, take_one_more},
     },
     error::*,
-    parser2::*,
+    parser::*,
     pattern::token_set,
     predicate::*,
     provider::*,

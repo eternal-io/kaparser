@@ -23,42 +23,7 @@ pub(crate) const fn cold_path() {}
 
 //------------------------------------------------------------------------------
 
-#[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash)]
-pub enum Transfer {
-    Accepted,
-    Rejected,
-    Halt,
-}
-
-impl Transfer {
-    #[inline(always)]
-    pub const fn is_accepted(&self) -> bool {
-        match self {
-            Transfer::Accepted => true,
-            Transfer::Rejected | Transfer::Halt => false,
-        }
-    }
-
-    #[inline(always)]
-    pub const fn perhaps(res: Result<usize, usize>) -> (Self, usize) {
-        match res {
-            Ok(len) => (Self::Accepted, len),
-            Err(len) => (Self::Rejected, len),
-        }
-    }
-
-    #[inline(always)]
-    pub const fn cut(self) -> Self {
-        match self {
-            Self::Accepted => Self::Accepted,
-            Self::Rejected | Self::Halt => Self::Halt,
-        }
-    }
-}
-
-//------------------------------------------------------------------------------
-
-pub trait Slice2: Copy + Sized {
+pub trait Slice: Copy + Sized {
     type Item: Copy + PartialEq;
 
     fn len(&self) -> usize;
@@ -76,7 +41,7 @@ pub trait Slice2: Copy + Sized {
     }
 }
 
-impl Slice2 for &str {
+impl Slice for &str {
     type Item = char;
 
     #[inline(always)]
@@ -106,7 +71,7 @@ impl Slice2 for &str {
     }
 }
 
-impl<T> Slice2 for &[T]
+impl<T> Slice for &[T]
 where
     T: Copy + PartialEq,
 {
@@ -136,46 +101,6 @@ where
     #[inline(always)]
     fn iter_indices(self) -> impl Iterator<Item = (usize, Self::Item)> {
         (*self).iter().copied().enumerate()
-    }
-}
-
-pub trait Slice {
-    fn len(&self) -> usize;
-    fn split_at(&self, mid: usize) -> (&Self, &Self);
-    fn starts_with(&self, prefix: &Self) -> bool;
-
-    fn is_empty(&self) -> bool {
-        self.len() == 0
-    }
-}
-
-impl Slice for str {
-    #[inline(always)]
-    fn len(&self) -> usize {
-        self.len()
-    }
-    #[inline(always)]
-    fn split_at(&self, mid: usize) -> (&Self, &Self) {
-        self.split_at(mid)
-    }
-    #[inline(always)]
-    fn starts_with(&self, prefix: &Self) -> bool {
-        self.starts_with(prefix)
-    }
-}
-
-impl<T: PartialEq> Slice for [T] {
-    #[inline(always)]
-    fn len(&self) -> usize {
-        self.len()
-    }
-    #[inline(always)]
-    fn split_at(&self, mid: usize) -> (&Self, &Self) {
-        self.split_at(mid)
-    }
-    #[inline(always)]
-    fn starts_with(&self, prefix: &Self) -> bool {
-        self.starts_with(prefix)
     }
 }
 

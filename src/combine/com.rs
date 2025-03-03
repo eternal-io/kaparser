@@ -3,7 +3,7 @@ use super::*;
 #[inline(always)]
 pub const fn com<U, E, C>(com: C) -> Compound<U, E, C>
 where
-    U: Slice2,
+    U: Slice,
     E: Situation,
     C: Compoundable<U, E>,
 {
@@ -17,7 +17,7 @@ where
 
 pub struct Compound<U, E, C>
 where
-    U: Slice2,
+    U: Slice,
     E: Situation,
     C: Compoundable<U, E>,
 {
@@ -27,7 +27,7 @@ where
 
 pub trait Compoundable<U, E>
 where
-    U: Slice2,
+    U: Slice,
     E: Situation,
 {
     type Captured;
@@ -40,9 +40,9 @@ where
     fn extract_com(&self, slice: U, entry: Self::Internal) -> Self::Captured;
 }
 
-impl<U, E, C> Pattern2<U, E> for Compound<U, E, C>
+impl<U, E, C> Pattern<U, E> for Compound<U, E, C>
 where
-    U: Slice2,
+    U: Slice,
     E: Situation,
     C: Compoundable<U, E>,
 {
@@ -50,24 +50,24 @@ where
     type Internal = C::Internal;
 
     #[inline(always)]
-    fn init2(&self) -> Self::Internal {
+    fn init(&self) -> Self::Internal {
         self.com.init_com()
     }
     #[inline(always)]
-    fn precede2(&self, slice: U, entry: &mut Self::Internal, eof: bool) -> PrecedeResult<E> {
+    fn precede(&self, slice: U, entry: &mut Self::Internal, eof: bool) -> PrecedeResult<E> {
         self.com.precede_com(slice, entry, eof)
     }
     #[inline(always)]
-    fn extract2(&self, slice: U, entry: Self::Internal) -> Self::Captured {
+    fn extract(&self, slice: U, entry: Self::Internal) -> Self::Captured {
         self.com.extract_com(slice, entry)
     }
 }
 
 macro_rules! impl_compoundable_for_tuple {
     ( $Alt:ident, $( $LabN:lifetime ~ $GenN:ident ~ $VarN:ident ~ $IdxN:tt )+ ) => { paste::paste! {
-        impl<U, E, $($GenN: Pattern2<U, E>),+> Compoundable<U, E> for ($($GenN,)+)
+        impl<U, E, $($GenN: Pattern<U, E>),+> Compoundable<U, E> for ($($GenN,)+)
         where
-            U: Slice2,
+            U: Slice,
             E: Situation,
         {
             type Captured = U;
@@ -75,7 +75,7 @@ macro_rules! impl_compoundable_for_tuple {
 
             #[inline(always)]
             fn init_com(&self) -> Self::Internal {
-                (0, $Alt::Var1(self.0.init2()))
+                (0, $Alt::Var1(self.0.init()))
             }
 
             #[inline(always)]
@@ -87,10 +87,10 @@ macro_rules! impl_compoundable_for_tuple {
                 resume_precede! {
                     states => { $(
                         $LabN: $VarN(_) => [{
-                            *states = $VarN(self.$IdxN.init2());
+                            *states = $VarN(self.$IdxN.init());
                         }] {
                             let $VarN(state) = states else { unreachable!() };
-                            *offset += self.$IdxN.precede2(slice.split_at(*offset).1, state, eof)?;
+                            *offset += self.$IdxN.precede(slice.split_at(*offset).1, state, eof)?;
                         }
                     )+ }
                 }

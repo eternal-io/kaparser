@@ -3,7 +3,7 @@ use super::*;
 #[inline(always)]
 pub const fn alt<U, E, A>(alt: A) -> Alternate<U, E, A>
 where
-    U: Slice2,
+    U: Slice,
     E: Situation,
     A: Alternatable<U, E>,
 {
@@ -17,7 +17,7 @@ where
 
 pub struct Alternate<U, E, A>
 where
-    U: Slice2,
+    U: Slice,
     E: Situation,
     A: Alternatable<U, E>,
 {
@@ -27,7 +27,7 @@ where
 
 pub trait Alternatable<U, E>
 where
-    U: Slice2,
+    U: Slice,
     E: Situation,
 {
     type Captured;
@@ -40,9 +40,9 @@ where
     fn extract_alt(&self, slice: U, entry: Self::Internal) -> Self::Captured;
 }
 
-impl<U, E, A> Pattern2<U, E> for Alternate<U, E, A>
+impl<U, E, A> Pattern<U, E> for Alternate<U, E, A>
 where
-    U: Slice2,
+    U: Slice,
     E: Situation,
     A: Alternatable<U, E>,
 {
@@ -50,24 +50,24 @@ where
     type Internal = A::Internal;
 
     #[inline(always)]
-    fn init2(&self) -> Self::Internal {
+    fn init(&self) -> Self::Internal {
         self.alt.init_alt()
     }
     #[inline(always)]
-    fn precede2(&self, slice: U, entry: &mut Self::Internal, eof: bool) -> PrecedeResult<E> {
+    fn precede(&self, slice: U, entry: &mut Self::Internal, eof: bool) -> PrecedeResult<E> {
         self.alt.precede_alt(slice, entry, eof)
     }
     #[inline(always)]
-    fn extract2(&self, slice: U, entry: Self::Internal) -> Self::Captured {
+    fn extract(&self, slice: U, entry: Self::Internal) -> Self::Captured {
         self.alt.extract_alt(slice, entry)
     }
 }
 
 macro_rules! impl_alternatable_for_tuple {
     ( $Alt:ident, $( $LabN:lifetime ~ $GenN:ident ~ $VarN:ident ~ $OrdN:literal ~ $IdxN:tt )+ ) => { paste::paste! {
-        impl<U, E, $($GenN: Pattern2<U, E>),+> Alternatable<U, E> for ($($GenN,)+)
+        impl<U, E, $($GenN: Pattern<U, E>),+> Alternatable<U, E> for ($($GenN,)+)
         where
-            U: Slice2,
+            U: Slice,
             E: Situation,
         {
             type Captured = $Alt<$($GenN::Captured),+>;
@@ -75,7 +75,7 @@ macro_rules! impl_alternatable_for_tuple {
 
             #[inline(always)]
             fn init_alt(&self) -> Self::Internal {
-                $Alt::Var1(self.0.init2())
+                $Alt::Var1(self.0.init())
             }
 
             #[inline(always)]
@@ -86,10 +86,10 @@ macro_rules! impl_alternatable_for_tuple {
                 resume_precede! {
                     entry => { $(
                         $LabN: $VarN(_) => [{
-                            *entry = $VarN(self.$IdxN.init2());
+                            *entry = $VarN(self.$IdxN.init());
                         }] {
                             let $VarN(state) = entry else { unreachable!() };
-                            match self.$IdxN.precede2(slice, state, eof) {
+                            match self.$IdxN.precede(slice, state, eof) {
                                 Ok(len) => return Ok(len),
                                 Err(e) => if !e.is_rejected() {
                                     return Err(e);
@@ -106,7 +106,7 @@ macro_rules! impl_alternatable_for_tuple {
             fn extract_alt(&self, slice: U, entry: Self::Internal) -> Self::Captured {
                 use $Alt::*;
                 match entry { $(
-                    $VarN(state) => $VarN(self.$IdxN.extract2(slice, state)),
+                    $VarN(state) => $VarN(self.$IdxN.extract(slice, state)),
                 )+ }
             }
         }

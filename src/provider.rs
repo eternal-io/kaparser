@@ -6,39 +6,39 @@ use core::{
     str::from_utf8_unchecked,
 };
 
-pub trait Read2 {
-    fn read(&mut self, buf: &mut [u8]) -> ::std::io::Result<usize>;
+pub trait Read {
+    fn read<E: Situation>(&mut self, buf: &mut [u8]) -> Result<usize, ProviderError<E>>;
 }
 
-impl Read2 for Sliced2 {
-    fn read(&mut self, buf: &mut [u8]) -> ::std::io::Result<usize> {
+impl Read for Sliced {
+    fn read<E: Situation>(&mut self, buf: &mut [u8]) -> Result<usize, ProviderError<E>> {
         let _ = buf;
         unreachable!()
     }
 }
 
 #[cfg(feature = "std")]
-impl<R: ::std::io::Read> Read2 for R {
+impl<R: ::std::io::Read> Read for R {
     #[inline(always)]
-    fn read(&mut self, buf: &mut [u8]) -> ::std::io::Result<usize> {
-        self.read(buf)
+    fn read<E: Situation>(&mut self, buf: &mut [u8]) -> Result<usize, ProviderError<E>> {
+        Ok(self.read(buf)?)
     }
 }
 
 //==================================================================================================
 
 /// Uninhabited generic placeholder.
-pub enum Sliced2 {}
+pub enum Sliced {}
 
-pub struct Provider<U, R>(Source2<U, R>)
+pub struct Provider<U, R>(Source<U, R>)
 where
-    U: Slice2,
-    R: Read2;
+    U: Slice,
+    R: Read;
 
-enum Source2<U, R>
+enum Source<U, R>
 where
-    U: Slice2,
-    R: Read2,
+    U: Slice,
+    R: Read,
 {
     Sliced {
         slice: U,
@@ -68,10 +68,10 @@ where
 
 //==================================================================================================
 
-impl<'i> Provider<&'i str, Sliced2> {
+impl<'i> Provider<&'i str, Sliced> {
     #[allow(clippy::should_implement_trait)]
     pub fn from_str(s: &'i str) -> Self {
-        Self(Source2::Sliced {
+        Self(Source::Sliced {
             slice: s,
             consumed: 0,
             phantom: PhantomData,
@@ -79,7 +79,7 @@ impl<'i> Provider<&'i str, Sliced2> {
     }
 
     pub fn from_bstr(bytes: &'i [u8]) -> Option<Self> {
-        Some(Self(Source2::Sliced {
+        Some(Self(Source::Sliced {
             slice: simdutf8::basic::from_utf8(bytes).ok()?,
             consumed: 0,
             phantom: PhantomData,
@@ -88,9 +88,9 @@ impl<'i> Provider<&'i str, Sliced2> {
 }
 
 #[cfg(feature = "std")]
-impl<R: Read2> Provider<&str, R> {
+impl<R: Read> Provider<&str, R> {
     pub fn from_reader_in_str(reader: R) -> Self {
-        Self(Source2::ReadStr {
+        Self(Source::ReadStr {
             rdr: reader,
             eof: false,
             buf: ::std::vec::Vec::with_capacity(0x8000),
@@ -101,7 +101,7 @@ impl<R: Read2> Provider<&str, R> {
     }
 
     pub fn from_reader_in_str_with_capacity(reader: R, capacity: usize) -> Self {
-        Self(Source2::ReadStr {
+        Self(Source::ReadStr {
             rdr: reader,
             eof: false,
             buf: ::std::vec::Vec::with_capacity(capacity),
@@ -113,9 +113,9 @@ impl<R: Read2> Provider<&str, R> {
 }
 
 #[cfg(feature = "std")]
-impl<R: Read2> Provider<&[u8], R> {
+impl<R: Read> Provider<&[u8], R> {
     pub fn from_reader_in_bytes(reader: R) -> Self {
-        Self(Source2::ReadBytes {
+        Self(Source::ReadBytes {
             rdr: reader,
             eof: false,
             buf: ::std::vec::Vec::with_capacity(0x8000),
@@ -125,7 +125,7 @@ impl<R: Read2> Provider<&[u8], R> {
     }
 
     pub fn from_reader_in_bytes_with_capacity(reader: R, capacity: usize) -> Self {
-        Self(Source2::ReadBytes {
+        Self(Source::ReadBytes {
             rdr: reader,
             eof: false,
             buf: ::std::vec::Vec::with_capacity(capacity),
@@ -135,12 +135,12 @@ impl<R: Read2> Provider<&[u8], R> {
     }
 }
 
-impl<'i, T> Provider<&'i [T], Sliced2>
+impl<'i, T> Provider<&'i [T], Sliced>
 where
     T: Copy + PartialEq,
 {
     pub fn from_slice(slice: &'i [T]) -> Self {
-        Self(Source2::Sliced {
+        Self(Source::Sliced {
             slice,
             consumed: 0,
             phantom: PhantomData,
@@ -150,20 +150,20 @@ where
 
 //==================================================================================================
 
-impl<'i, R: Read2> Provider<&'i str, R> {
-    pub fn next_str<P, E>(&'i mut self, pat: &P) -> ProvideResult<P::Captured, E>
+impl<'i, R: Read> Provider<&'i str, R> {
+    pub fn next_str<P, E>(&'i mut self, pat: &P) -> ProviderResult<P::Captured, E>
     where
-        P: Pattern2<&'i str, E>,
+        P: Pattern<&'i str, E>,
         E: Situation,
     {
-        let mut entry = pat.init2();
+        let mut entry = pat.init();
         let mut first_time = true;
         let len = loop {
             let (slice, eof) = self.0.pull_str(first_time)?;
-            match pat.precede2(slice, &mut entry, eof) {
+            match pat.precede(slice, &mut entry, eof) {
                 Ok(len) => break len,
                 Err(e) => match e.is_unfulfilled() {
-                    false => return Err(ProvideError::Mismatched(e)),
+                    false => return Err(ProviderError::Mismatched(e)),
                     true => match eof {
                         true => panic!("implementation: pull after EOF"),
                         false => first_time = false,
@@ -172,28 +172,28 @@ impl<'i, R: Read2> Provider<&'i str, R> {
             }
         };
 
-        Ok(pat.extract2(self.0.bump_str(len), entry))
+        Ok(pat.extract(self.0.bump_str(len), entry))
     }
 }
 
-impl<'i, R: Read2> Source2<&'i str, R> {
+impl<'i, R: Read> Source<&'i str, R> {
     #[inline(always)]
     #[allow(unsafe_code)]
-    fn pull_str<E>(&mut self, first_time: bool) -> ProvideResult<(&'i str, bool), E>
+    fn pull_str<E>(&mut self, first_time: bool) -> ProviderResult<(&'i str, bool), E>
     where
         E: Situation,
     {
         match self {
-            Source2::Sliced { slice, consumed, .. } => {
+            Source::Sliced { slice, consumed, .. } => {
                 let _ = first_time;
                 Ok((slice.split_at(*consumed).1, true))
             }
 
             #[cfg(feature = "std")]
-            Source2::ReadBytes { .. } => unreachable!(),
+            Source::ReadBytes { .. } => unreachable!(),
 
             #[cfg(feature = "std")]
-            Source2::ReadStr {
+            Source::ReadStr {
                 rdr,
                 eof,
                 buf,
@@ -219,11 +219,11 @@ impl<'i, R: Read2> Source2<&'i str, R> {
 
                         if *eof {
                             if *pending != 0 {
-                                return Err(ProvideError::InvalidUtf8);
+                                return Err(ProviderError::InvalidUtf8);
                             }
                         } else if let Err(e) = simdutf8::compat::from_utf8(&buf[len_avail - *pending as usize..]) {
                             if e.error_len().is_some() {
-                                return Err(ProvideError::InvalidUtf8); // IDEA: lossy mode?
+                                return Err(ProviderError::InvalidUtf8); // IDEA: lossy mode?
                             } else {
                                 match e.valid_up_to() {
                                     0 => continue,
@@ -259,7 +259,7 @@ impl<'i, R: Read2> Source2<&'i str, R> {
     #[allow(unsafe_code)]
     fn bump_str(&'i mut self, n: usize) -> &'i str {
         match self {
-            Source2::Sliced { slice, consumed, .. } => {
+            Source::Sliced { slice, consumed, .. } => {
                 let left = slice[*consumed..]
                     .split_at_checked(n)
                     .expect("implementation: invalid bump")
@@ -269,10 +269,10 @@ impl<'i, R: Read2> Source2<&'i str, R> {
             }
 
             #[cfg(feature = "std")]
-            Source2::ReadBytes { .. } => unreachable!(),
+            Source::ReadBytes { .. } => unreachable!(),
 
             #[cfg(feature = "std")]
-            Source2::ReadStr { buf, consumed, .. } => {
+            Source::ReadStr { buf, consumed, .. } => {
                 let left = unsafe {
                     from_utf8_unchecked(&buf[*consumed..])
                         .split_at_checked(n)

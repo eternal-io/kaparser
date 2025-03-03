@@ -37,9 +37,9 @@ where
     phantom: PhantomData<T>,
 }
 
-impl<U, E, P, R> Pattern2<U, E> for Take<U::Item, P, R>
+impl<U, E, P, R> Pattern<U, E> for Take<U::Item, P, R>
 where
-    U: Slice2,
+    U: Slice,
     E: Situation,
     P: Predicate<U::Item>,
     R: URangeBounds,
@@ -48,11 +48,11 @@ where
     type Internal = (usize, usize);
 
     #[inline(always)]
-    fn init2(&self) -> Self::Internal {
+    fn init(&self) -> Self::Internal {
         (0, 0)
     }
     #[inline(always)]
-    fn precede2(&self, slice: U, entry: &mut Self::Internal, eof: bool) -> PrecedeResult<E> {
+    fn precede(&self, slice: U, entry: &mut Self::Internal, eof: bool) -> PrecedeResult<E> {
         let (offset, times) = entry;
         if let Some((i, (off, item))) = slice
             .split_at(*offset)
@@ -78,16 +78,16 @@ where
         }
     }
     #[inline(always)]
-    fn extract2(&self, slice: U, entry: Self::Internal) -> Self::Captured {
+    fn extract(&self, slice: U, entry: Self::Internal) -> Self::Captured {
         slice.split_at(entry.0).0
     }
 }
 
 //------------------------------------------------------------------------------
 
-impl<U, E, P> Pattern2<U, E> for RangeFrom<P>
+impl<U, E, P> Pattern<U, E> for RangeFrom<P>
 where
-    U: Slice2,
+    U: Slice,
     E: Situation,
     P: Predicate<U::Item>,
 {
@@ -95,11 +95,11 @@ where
     type Internal = usize;
 
     #[inline(always)]
-    fn init2(&self) -> Self::Internal {
+    fn init(&self) -> Self::Internal {
         0
     }
     #[inline(always)]
-    fn precede2(&self, slice: U, entry: &mut Self::Internal, eof: bool) -> PrecedeResult<E> {
+    fn precede(&self, slice: U, entry: &mut Self::Internal, eof: bool) -> PrecedeResult<E> {
         match slice
             .split_at(*entry)
             .1
@@ -126,7 +126,7 @@ where
         }
     }
     #[inline(always)]
-    fn extract2(&self, slice: U, entry: Self::Internal) -> Self::Captured {
+    fn extract(&self, slice: U, entry: Self::Internal) -> Self::Captured {
         slice.split_at(entry).0
     }
 }
