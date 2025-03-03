@@ -16,6 +16,7 @@ pub mod parser2;
 pub mod pattern;
 pub mod predicate;
 pub mod prelude;
+pub mod provider;
 pub mod anything {
     //! This module re-exports all items in kaparser.
     //!
@@ -30,7 +31,7 @@ pub mod anything {
     //! [`combine::def`]: crate::combine::def
     //! [`combine::bin`]: crate::combine::bin
     #[doc(hidden)]
-    pub use crate::{combine::*, common::*, parser2::*, pattern::*, predicate::*};
+    pub use crate::{combine::*, common::*, error::*, parser2::*, pattern::*, predicate::*, provider::*};
     #[doc(hidden)]
     pub use core::ops::{Range, RangeFrom, RangeFull, RangeInclusive, RangeTo, RangeToInclusive};
 }

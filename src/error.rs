@@ -1,62 +1,77 @@
 use core::{fmt::Debug, num::NonZeroUsize};
 
 pub trait Situation: Sized + Debug {
-    fn unfulfilled(delta: Option<NonZeroUsize>) -> Self;
-    fn reject_at(delta: usize) -> Self;
-    fn halt_at(delta: usize) -> Self;
+    type Description;
+
+    fn unfulfilled(len: Option<NonZeroUsize>) -> Self;
+    fn reject_at(len: usize) -> Self;
+    fn halt_at(len: usize) -> Self;
+
+    fn backtrack(self, len: usize) -> Self;
+    fn detail(self, desc: Self::Description) -> Self;
 
     fn is_unfulfilled(&self) -> bool;
     fn is_rejected(&self) -> bool;
     fn is_halted(&self) -> bool;
-
-    fn delta(&self) -> usize;
+    fn length(&self) -> usize;
 
     #[inline(always)]
-    fn raise_unfulfilled<T>(delta: Option<NonZeroUsize>) -> Result<T, Self> {
-        Err(Self::unfulfilled(delta))
+    fn raise_unfulfilled<T>(len: Option<NonZeroUsize>) -> Result<T, Self> {
+        Err(Self::unfulfilled(len))
     }
     #[inline(always)]
-    fn raise_reject_at<T>(delta: usize) -> Result<T, Self> {
-        Err(Self::reject_at(delta))
+    fn raise_reject_at<T>(len: usize) -> Result<T, Self> {
+        Err(Self::reject_at(len))
     }
     #[inline(always)]
-    fn raise_halt_at<T>(delta: usize) -> Result<T, Self> {
-        Err(Self::halt_at(delta))
+    fn raise_halt_at<T>(len: usize) -> Result<T, Self> {
+        Err(Self::halt_at(len))
     }
-}
-
-pub trait DetailedSituation: Situation {
-    fn msg(self, msg: &str) -> Self;
-    fn expected(self, expected: &str) -> Self;
 }
 
 //------------------------------------------------------------------------------
 
-pub type PrecedeResult<E = SimpleError> = Result<usize, E>;
+pub type PrecedeResult<E = ParseError> = Result<usize, E>;
 
 //------------------------------------------------------------------------------
 
-pub type SimpleResult<T, E = SimpleError> = Result<T, E>;
+pub type ParseResult<T, E = ParseError> = Result<T, E>;
 
 #[derive(Debug, Clone, Copy)]
-pub enum SimpleError {
+pub enum ParseError {
     Unfulfilled(Option<NonZeroUsize>),
     Rejected(usize),
     Halted(usize),
 }
 
-impl Situation for SimpleError {
+impl Situation for ParseError {
+    type Description = ();
+
     #[inline(always)]
-    fn unfulfilled(delta: Option<NonZeroUsize>) -> Self {
-        Self::Unfulfilled(delta)
+    fn unfulfilled(len: Option<NonZeroUsize>) -> Self {
+        Self::Unfulfilled(len)
     }
     #[inline(always)]
-    fn reject_at(delta: usize) -> Self {
-        Self::Rejected(delta)
+    fn reject_at(len: usize) -> Self {
+        Self::Rejected(len)
     }
     #[inline(always)]
-    fn halt_at(delta: usize) -> Self {
-        Self::Halted(delta)
+    fn halt_at(len: usize) -> Self {
+        Self::Halted(len)
+    }
+
+    #[inline(always)]
+    fn backtrack(mut self, len: usize) -> Self {
+        match &mut self {
+            Self::Unfulfilled(_) => (),
+            Self::Rejected(n) => *n += len,
+            Self::Halted(n) => *n += len,
+        }
+        self
+    }
+    #[inline(always)]
+    fn detail(self, _desc: Self::Description) -> Self {
+        self
     }
 
     #[inline(always)]
@@ -71,9 +86,8 @@ impl Situation for SimpleError {
     fn is_halted(&self) -> bool {
         matches!(self, Self::Halted(_))
     }
-
     #[inline(always)]
-    fn delta(&self) -> usize {
+    fn length(&self) -> usize {
         match *self {
             Self::Unfulfilled(n) => n.map(usize::from).unwrap_or(0),
             Self::Rejected(n) => n,
@@ -84,10 +98,10 @@ impl Situation for SimpleError {
 
 //------------------------------------------------------------------------------
 
-pub type ParseResult<T, E = SimpleError> = Result<T, ParseError<E>>;
+pub type ProvideResult<T, E = ParseError> = Result<T, ProvideError<E>>;
 
 #[derive(Debug)]
-pub enum ParseError<E: Situation> {
+pub enum ProvideError<E: Situation> {
     #[cfg(feature = "std")]
     Io(::std::io::Error),
     InvalidUtf8,
@@ -95,8 +109,8 @@ pub enum ParseError<E: Situation> {
 }
 
 #[cfg(feature = "std")]
-impl<E: Situation> From<::std::io::Error> for ParseError<E> {
+impl<E: Situation> From<::std::io::Error> for ProvideError<E> {
     fn from(value: ::std::io::Error) -> Self {
-        ParseError::Io(value)
+        ProvideError::Io(value)
     }
 }

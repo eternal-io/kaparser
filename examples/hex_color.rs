@@ -7,7 +7,7 @@ enum Color {
 }
 
 #[rustfmt::skip]
-fn parse_color(s: &str) -> SimpleResult<Color> {
+fn parse_color(s: &str) -> ParseResult<Color> {
     let pat = ("#", rep!(3..=4, take(2, is_hex)));
 
     let (_t, ([r, g, b], [a])) = pat.full_match(s)?;
