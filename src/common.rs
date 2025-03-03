@@ -122,7 +122,7 @@ where
     }
     #[inline(always)]
     fn starts_with(&self, prefix: &Self) -> bool {
-        (*self).starts_with(*prefix)
+        (*self).starts_with(prefix)
     }
 
     #[inline(always)]
