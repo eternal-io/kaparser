@@ -153,14 +153,14 @@ where
 impl<'i, R: Read2> Provider<&'i str, R> {
     pub fn next_str<P, E>(&'i mut self, pat: &P) -> ProvideResult<P::Captured, E>
     where
-        P: Pattern2<&'i str>,
+        P: Pattern2<&'i str, E>,
         E: Situation,
     {
         let mut entry = pat.init2();
         let mut first_time = true;
         let len = loop {
             let (slice, eof) = self.0.pull_str(first_time)?;
-            match pat.precede2::<E>(slice, &mut entry, eof) {
+            match pat.precede2(slice, &mut entry, eof) {
                 Ok(len) => break len,
                 Err(e) => match e.is_unfulfilled() {
                     false => return Err(ProvideError::Mismatched(e)),

@@ -4,10 +4,13 @@ use super::*;
 pub use crate::rep;
 
 #[inline(always)]
-pub const fn repeat<U, P, const AT_LEAST: usize, const MAY_MORE: usize>(body: P) -> Repeat<U, P, AT_LEAST, MAY_MORE>
+pub const fn repeat<U, E, P, const AT_LEAST: usize, const MAY_MORE: usize>(
+    body: P,
+) -> Repeat<U, E, P, AT_LEAST, MAY_MORE>
 where
     U: Slice2,
-    P: Pattern2<U>,
+    E: Situation,
+    P: Pattern2<U, E>,
 {
     Repeat {
         body,
@@ -16,38 +19,42 @@ where
 }
 
 #[inline(always)]
-pub const fn repeat_exact<U, P, const TIMES: usize>(body: P) -> RepeatExact<U, P, TIMES>
+pub const fn repeat_exact<U, E, P, const TIMES: usize>(body: P) -> RepeatExact<U, E, P, TIMES>
 where
     U: Slice2,
-    P: Pattern2<U>,
+    E: Situation,
+    P: Pattern2<U, E>,
 {
     RepeatExact { body: repeat(body) }
 }
 
 #[inline(always)]
-pub const fn repeat_at_most<U, P, const TIMES: usize>(body: P) -> RepeatAtMost<U, P, TIMES>
+pub const fn repeat_at_most<U, E, P, const TIMES: usize>(body: P) -> RepeatAtMost<U, E, P, TIMES>
 where
     U: Slice2,
-    P: Pattern2<U>,
+    E: Situation,
+    P: Pattern2<U, E>,
 {
     RepeatAtMost { body: repeat(body) }
 }
 
 //------------------------------------------------------------------------------
 
-pub struct Repeat<U, P, const AT_LEAST: usize, const MAY_MORE: usize>
+pub struct Repeat<U, E, P, const AT_LEAST: usize, const MAY_MORE: usize>
 where
     U: Slice2,
-    P: Pattern2<U>,
+    E: Situation,
+    P: Pattern2<U, E>,
 {
     body: P,
-    phantom: PhantomData<U>,
+    phantom: PhantomData<(U, E)>,
 }
 
-impl<U, P, const AT_LEAST: usize, const MAY_MORE: usize> Pattern2<U> for Repeat<U, P, AT_LEAST, MAY_MORE>
+impl<U, E, P, const AT_LEAST: usize, const MAY_MORE: usize> Pattern2<U, E> for Repeat<U, E, P, AT_LEAST, MAY_MORE>
 where
     U: Slice2,
-    P: Pattern2<U>,
+    E: Situation,
+    P: Pattern2<U, E>,
 {
     type Captured = ([P::Captured; AT_LEAST], [Option<P::Captured>; MAY_MORE]);
     type Internal = (
@@ -78,7 +85,7 @@ where
     }
 
     #[inline(always)]
-    fn precede2<E: Situation>(&self, slice: U, entry: &mut Self::Internal, eof: bool) -> PrecedeResult<E> {
+    fn precede2(&self, slice: U, entry: &mut Self::Internal, eof: bool) -> PrecedeResult<E> {
         let (checkpoint, at_least, may_more) = entry;
         let mut resuming = *checkpoint;
         let mut offset = 0usize;
@@ -94,7 +101,7 @@ where
                     *off = offset;
                 }
 
-                match self.body.precede2::<E>(slice.split_at(*off).1, state, eof) {
+                match self.body.precede2(slice.split_at(*off).1, state, eof) {
                     Ok(len) => offset = *off + len,
                     Err(e) => match e.is_rejected() {
                         false => return Err(e), // FIXME: Error location.
@@ -146,29 +153,31 @@ where
 
 //------------------------------------------------------------------------------
 
-pub struct RepeatExact<U, P, const TIMES: usize>
+pub struct RepeatExact<U, E, P, const TIMES: usize>
 where
     U: Slice2,
-    P: Pattern2<U>,
+    E: Situation,
+    P: Pattern2<U, E>,
 {
-    body: Repeat<U, P, TIMES, 0>,
+    body: Repeat<U, E, P, TIMES, 0>,
 }
 
-impl<U, P, const TIMES: usize> Pattern2<U> for RepeatExact<U, P, TIMES>
+impl<U, E, P, const TIMES: usize> Pattern2<U, E> for RepeatExact<U, E, P, TIMES>
 where
     U: Slice2,
-    P: Pattern2<U>,
+    E: Situation,
+    P: Pattern2<U, E>,
 {
     type Captured = [P::Captured; TIMES];
-    type Internal = <Repeat<U, P, TIMES, 0> as Pattern2<U>>::Internal;
+    type Internal = <Repeat<U, E, P, TIMES, 0> as Pattern2<U, E>>::Internal;
 
     #[inline(always)]
     fn init2(&self) -> Self::Internal {
         self.body.init2()
     }
     #[inline(always)]
-    fn precede2<E: Situation>(&self, slice: U, entry: &mut Self::Internal, eof: bool) -> PrecedeResult<E> {
-        self.body.precede2::<E>(slice, entry, eof)
+    fn precede2(&self, slice: U, entry: &mut Self::Internal, eof: bool) -> PrecedeResult<E> {
+        self.body.precede2(slice, entry, eof)
     }
     #[inline(always)]
     fn extract2(&self, slice: U, entry: Self::Internal) -> Self::Captured {
@@ -178,29 +187,31 @@ where
 
 //------------------------------------------------------------------------------
 
-pub struct RepeatAtMost<U, P, const TIMES: usize>
+pub struct RepeatAtMost<U, E, P, const TIMES: usize>
 where
     U: Slice2,
-    P: Pattern2<U>,
+    E: Situation,
+    P: Pattern2<U, E>,
 {
-    body: Repeat<U, P, 0, TIMES>,
+    body: Repeat<U, E, P, 0, TIMES>,
 }
 
-impl<U, P, const TIMES: usize> Pattern2<U> for RepeatAtMost<U, P, TIMES>
+impl<U, E, P, const TIMES: usize> Pattern2<U, E> for RepeatAtMost<U, E, P, TIMES>
 where
     U: Slice2,
-    P: Pattern2<U>,
+    E: Situation,
+    P: Pattern2<U, E>,
 {
     type Captured = [Option<P::Captured>; TIMES];
-    type Internal = <Repeat<U, P, 0, TIMES> as Pattern2<U>>::Internal;
+    type Internal = <Repeat<U, E, P, 0, TIMES> as Pattern2<U, E>>::Internal;
 
     #[inline(always)]
     fn init2(&self) -> Self::Internal {
         self.body.init2()
     }
     #[inline(always)]
-    fn precede2<E: Situation>(&self, slice: U, entry: &mut Self::Internal, eof: bool) -> PrecedeResult<E> {
-        self.body.precede2::<E>(slice, entry, eof)
+    fn precede2(&self, slice: U, entry: &mut Self::Internal, eof: bool) -> PrecedeResult<E> {
+        self.body.precede2(slice, entry, eof)
     }
     #[inline(always)]
     fn extract2(&self, slice: U, entry: Self::Internal) -> Self::Captured {

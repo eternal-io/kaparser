@@ -24,14 +24,14 @@ impl<U, E, P> Parser<U, E> for P
 where
     U: Slice2,
     E: Situation,
-    P: Pattern2<U>,
+    P: Pattern2<U, E>,
 {
     type Captured = P::Captured;
 
     #[inline(always)]
     fn parse(&self, slice: &mut U) -> ParseResult<Self::Captured, E> {
         let mut state = self.init2();
-        match self.precede2::<E>(*slice, &mut state, true) {
+        match self.precede2(*slice, &mut state, true) {
             Ok(len) => {
                 let (left, right) = slice.split_at(len);
                 *slice = right;

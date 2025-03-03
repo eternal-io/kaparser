@@ -1,10 +1,11 @@
 use super::*;
 
 #[inline(always)]
-pub const fn map<U, P, F, O>(f: F, body: P) -> Map<U, P, F, O>
+pub const fn map<U, E, P, F, O>(f: F, body: P) -> Map<U, E, P, F, O>
 where
     U: Slice2,
-    P: Pattern2<U>,
+    E: Situation,
+    P: Pattern2<U, E>,
     F: Fn(P::Captured) -> O,
 {
     Map {
@@ -16,11 +17,12 @@ where
 
 #[inline(always)]
 #[doc(alias = "and_then")]
-pub const fn complex<U, P, Q>(body: P, then: Q) -> Complex<U, P, Q>
+pub const fn complex<U, E, P, Q>(body: P, then: Q) -> Complex<U, E, P, Q>
 where
     U: Slice2,
-    P: Pattern2<U>,
-    Q: Pattern2<U>,
+    E: Situation,
+    P: Pattern2<U, E>,
+    Q: Pattern2<U, E>,
 {
     Complex {
         body,
@@ -31,21 +33,23 @@ where
 
 //------------------------------------------------------------------------------
 
-pub struct Map<U, P, F, O>
+pub struct Map<U, E, P, F, O>
 where
     U: Slice2,
-    P: Pattern2<U>,
+    E: Situation,
+    P: Pattern2<U, E>,
     F: Fn(P::Captured) -> O,
 {
     body: P,
     then: F,
-    phantom: PhantomData<U>,
+    phantom: PhantomData<(U, E)>,
 }
 
-impl<U, P, F, O> Pattern2<U> for Map<U, P, F, O>
+impl<U, E, P, F, O> Pattern2<U, E> for Map<U, E, P, F, O>
 where
     U: Slice2,
-    P: Pattern2<U>,
+    E: Situation,
+    P: Pattern2<U, E>,
     F: Fn(P::Captured) -> O,
 {
     type Captured = O;
@@ -56,7 +60,7 @@ where
         self.body.init2()
     }
     #[inline(always)]
-    fn precede2<E: Situation>(&self, slice: U, entry: &mut Self::Internal, eof: bool) -> PrecedeResult<E> {
+    fn precede2(&self, slice: U, entry: &mut Self::Internal, eof: bool) -> PrecedeResult<E> {
         self.body.precede2(slice, entry, eof)
     }
     #[inline(always)]
@@ -67,22 +71,24 @@ where
 
 //------------------------------------------------------------------------------
 
-pub struct Complex<U, P, Q>
+pub struct Complex<U, E, P, Q>
 where
     U: Slice2,
-    P: Pattern2<U>,
-    Q: Pattern2<U>,
+    E: Situation,
+    P: Pattern2<U, E>,
+    Q: Pattern2<U, E>,
 {
     body: P,
     then: Q,
-    phantom: PhantomData<U>,
+    phantom: PhantomData<(U, E)>,
 }
 
-impl<U, P, Q> Pattern2<U> for Complex<U, P, Q>
+impl<U, E, P, Q> Pattern2<U, E> for Complex<U, E, P, Q>
 where
     U: Slice2,
-    P: Pattern2<U>,
-    Q: Pattern2<U>,
+    E: Situation,
+    P: Pattern2<U, E>,
+    Q: Pattern2<U, E>,
 {
     type Captured = Q::Captured;
     type Internal = Alt2<P::Internal, Q::Internal>;
@@ -92,7 +98,7 @@ where
         Alt2::Var1(self.body.init2())
     }
     #[inline(always)]
-    fn precede2<E: Situation>(&self, slice: U, entry: &mut Self::Internal, eof: bool) -> PrecedeResult<E> {
+    fn precede2(&self, slice: U, entry: &mut Self::Internal, eof: bool) -> PrecedeResult<E> {
         let Alt2::Var1(state) = entry else {
             panic!("contract violation")
         };
@@ -101,7 +107,7 @@ where
         *entry = Alt2::Var2(self.then.init2());
 
         let Alt2::Var2(state) = entry else { unreachable!() };
-        self.then.precede2::<E>(slice.split_at(len).0, state, true)
+        self.then.precede2(slice.split_at(len).0, state, true)
     }
     #[inline(always)]
     fn extract2(&self, slice: U, entry: Self::Internal) -> Self::Captured {

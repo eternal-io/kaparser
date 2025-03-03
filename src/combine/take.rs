@@ -37,9 +37,10 @@ where
     phantom: PhantomData<T>,
 }
 
-impl<U, P, R> Pattern2<U> for Take<U::Item, P, R>
+impl<U, E, P, R> Pattern2<U, E> for Take<U::Item, P, R>
 where
     U: Slice2,
+    E: Situation,
     P: Predicate<U::Item>,
     R: URangeBounds,
 {
@@ -51,7 +52,7 @@ where
         (0, 0)
     }
     #[inline(always)]
-    fn precede2<E: Situation>(&self, slice: U, entry: &mut Self::Internal, eof: bool) -> PrecedeResult<E> {
+    fn precede2(&self, slice: U, entry: &mut Self::Internal, eof: bool) -> PrecedeResult<E> {
         let (offset, times) = entry;
         if let Some((i, (off, item))) = slice
             .split_at(*offset)
@@ -84,9 +85,10 @@ where
 
 //------------------------------------------------------------------------------
 
-impl<U, P> Pattern2<U> for RangeFrom<P>
+impl<U, E, P> Pattern2<U, E> for RangeFrom<P>
 where
     U: Slice2,
+    E: Situation,
     P: Predicate<U::Item>,
 {
     type Captured = U;
@@ -97,7 +99,7 @@ where
         0
     }
     #[inline(always)]
-    fn precede2<E: Situation>(&self, slice: U, entry: &mut Self::Internal, eof: bool) -> PrecedeResult<E> {
+    fn precede2(&self, slice: U, entry: &mut Self::Internal, eof: bool) -> PrecedeResult<E> {
         match slice
             .split_at(*entry)
             .1

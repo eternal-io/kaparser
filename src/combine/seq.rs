@@ -2,7 +2,11 @@ use super::*;
 
 macro_rules! impl_pattern_for_tuple {
     ( $Len:literal, $( $LabN:lifetime ~ $GenN:ident ~ $ValN:ident ~ $OrdN:literal ~ $IdxN:tt )+ ) => { $crate::common::paste! {
-        impl<U: Slice2, $($GenN: Pattern2<U>),+> Pattern2<U> for ($($GenN,)+) {
+        impl<U, E, $($GenN: Pattern2<U, E>),+> Pattern2<U, E> for ($($GenN,)+)
+        where
+            U: Slice2,
+            E: Situation,
+        {
             type Captured = ($($GenN::Captured,)+);
             type Internal = ([<Check $Len>], ($((usize, $GenN::Internal),)+));
 
@@ -12,7 +16,7 @@ macro_rules! impl_pattern_for_tuple {
             }
 
             #[inline(always)]
-            fn precede2<E: Situation>(&self, slice: U, entry: &mut Self::Internal, eof: bool) -> PrecedeResult<E> {
+            fn precede2(&self, slice: U, entry: &mut Self::Internal, eof: bool) -> PrecedeResult<E> {
                 use [<Check $Len>]::*;
                 let (checkpoint, states) = entry;
                 let mut offset = 0usize;

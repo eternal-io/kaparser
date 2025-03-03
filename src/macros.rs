@@ -2,7 +2,7 @@
 #[macro_export]
 macro_rules! len {
     ($n:expr, $p:expr) => {
-        $crate::combine::lens::lens::<_, _, { $n }>($p)
+        $crate::combine::lens::lens::<_, _, _, { $n }>($p)
     };
 }
 
@@ -12,13 +12,13 @@ macro_rules! len {
 #[macro_export]
 macro_rules! rep {
     ($n:tt, $p:expr) => {
-        $crate::combine::repeat::repeat_exact::<_, _, { $n }>($p)
+        $crate::combine::repeat::repeat_exact::<_, _, _, { $n }>($p)
     };
     ($n:tt..=$m:tt, $p:expr) => {
-        $crate::combine::repeat::repeat::<_, _, { $n }, { $m - $n }>($p)
+        $crate::combine::repeat::repeat::<_, _, _, { $n }, { $m - $n }>($p)
     };
     (..=$m:tt, $p:expr) => {
-        $crate::combine::repeat::repeat_at_most::<_, _, { $m }>($p)
+        $crate::combine::repeat::repeat_at_most::<_, _, _, { $m }>($p)
     };
 
     ($n:tt..$m:tt, $p:expr) => {

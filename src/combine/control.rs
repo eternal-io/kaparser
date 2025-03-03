@@ -1,10 +1,11 @@
 use super::*;
 
 #[inline(always)]
-pub const fn cond<U, P>(b: bool, body: P) -> Conditionate<U, P>
+pub const fn cond<U, E, P>(b: bool, body: P) -> Conditionate<U, E, P>
 where
     U: Slice2,
-    P: Pattern2<U>,
+    E: Situation,
+    P: Pattern2<U, E>,
 {
     Conditionate {
         cond: b,
@@ -15,10 +16,11 @@ where
 
 #[inline(always)]
 #[doc(alias = "filter")]
-pub const fn verify<U, P, F>(f: F, body: P) -> Filter<U, P, F>
+pub const fn verify<U, E, P, F>(f: F, body: P) -> Filter<U, E, P, F>
 where
     U: Slice2,
-    P: Pattern2<U>,
+    E: Situation,
+    P: Pattern2<U, E>,
     F: Fn(P::Captured) -> bool,
 {
     Filter {
@@ -30,20 +32,22 @@ where
 
 //------------------------------------------------------------------------------
 
-pub struct Conditionate<U, P>
+pub struct Conditionate<U, E, P>
 where
     U: Slice2,
-    P: Pattern2<U>,
+    E: Situation,
+    P: Pattern2<U, E>,
 {
     cond: bool,
     body: P,
-    phantom: PhantomData<U>,
+    phantom: PhantomData<(U, E)>,
 }
 
-impl<U, P> Pattern2<U> for Conditionate<U, P>
+impl<U, E, P> Pattern2<U, E> for Conditionate<U, E, P>
 where
     U: Slice2,
-    P: Pattern2<U>,
+    E: Situation,
+    P: Pattern2<U, E>,
 {
     type Captured = Option<P::Captured>;
     type Internal = P::Internal;
@@ -53,9 +57,9 @@ where
         self.body.init2()
     }
     #[inline(always)]
-    fn precede2<E: Situation>(&self, slice: U, entry: &mut Self::Internal, eof: bool) -> PrecedeResult<E> {
+    fn precede2(&self, slice: U, entry: &mut Self::Internal, eof: bool) -> PrecedeResult<E> {
         match self.cond {
-            true => self.body.precede2::<E>(slice, entry, eof),
+            true => self.body.precede2(slice, entry, eof),
             false => Ok(0),
         }
     }
@@ -70,21 +74,23 @@ where
 
 //------------------------------------------------------------------------------
 
-pub struct Filter<U, P, F>
+pub struct Filter<U, E, P, F>
 where
     U: Slice2,
-    P: Pattern2<U>,
+    E: Situation,
+    P: Pattern2<U, E>,
     F: Fn(P::Captured) -> bool,
 {
     body: P,
     verify: F,
-    phantom: PhantomData<U>,
+    phantom: PhantomData<(U, E)>,
 }
 
-impl<U, P, F> Pattern2<U> for Filter<U, P, F>
+impl<U, E, P, F> Pattern2<U, E> for Filter<U, E, P, F>
 where
     U: Slice2,
-    P: Pattern2<U>,
+    E: Situation,
+    P: Pattern2<U, E>,
     F: Fn(P::Captured) -> bool,
 {
     type Captured = P::Captured;
@@ -95,7 +101,7 @@ where
         self.body.init2()
     }
     #[inline(always)]
-    fn precede2<E: Situation>(&self, slice: U, entry: &mut Self::Internal, eof: bool) -> PrecedeResult<E> {
+    fn precede2(&self, slice: U, entry: &mut Self::Internal, eof: bool) -> PrecedeResult<E> {
         let len = self.body.precede2(slice, entry, eof)?;
         ((self.verify)(self.body.extract2(slice, entry.clone())))
             .then_some(len)

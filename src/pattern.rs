@@ -3,23 +3,25 @@ use crate::{common::*, error::*, predicate::*};
 #[doc(inline)]
 pub use crate::token_set;
 
-pub trait Pattern2<U>
+pub trait Pattern2<U, E>
 where
     U: Slice2,
+    E: Situation,
 {
     type Captured;
     type Internal: 'static + Clone;
 
     fn init2(&self) -> Self::Internal;
 
-    fn precede2<E: Situation>(&self, slice: U, entry: &mut Self::Internal, eof: bool) -> PrecedeResult<E>;
+    fn precede2(&self, slice: U, entry: &mut Self::Internal, eof: bool) -> PrecedeResult<E>;
 
     fn extract2(&self, slice: U, entry: Self::Internal) -> Self::Captured;
 }
 
-impl<U> Pattern2<U> for U
+impl<U, E> Pattern2<U, E> for U
 where
     U: Slice2,
+    E: Situation,
 {
     type Captured = U;
     type Internal = ();
@@ -28,7 +30,7 @@ where
     fn init2(&self) -> Self::Internal {}
 
     #[inline(always)]
-    fn precede2<E: Situation>(&self, slice: U, _ntry: &mut Self::Internal, eof: bool) -> PrecedeResult<E> {
+    fn precede2(&self, slice: U, _ntry: &mut Self::Internal, eof: bool) -> PrecedeResult<E> {
         if slice.len() < self.len() {
             match eof {
                 true => E::raise_unfulfilled(Some((self.len() - slice.len()).try_into().unwrap())),
@@ -50,9 +52,10 @@ where
     }
 }
 
-impl<U, P> Pattern2<U> for [P; 1]
+impl<U, E, P> Pattern2<U, E> for [P; 1]
 where
     U: Slice2,
+    E: Situation,
     P: Predicate<U::Item>,
 {
     type Captured = U::Item;
@@ -62,7 +65,7 @@ where
     fn init2(&self) -> Self::Internal {}
 
     #[inline(always)]
-    fn precede2<E: Situation>(&self, slice: U, _ntry: &mut Self::Internal, eof: bool) -> PrecedeResult<E> {
+    fn precede2(&self, slice: U, _ntry: &mut Self::Internal, eof: bool) -> PrecedeResult<E> {
         match slice.first() {
             Some(item) => match self[0].predicate(&item) {
                 true => Ok(slice.len_of(item)),

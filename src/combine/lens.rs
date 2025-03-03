@@ -5,10 +5,11 @@ use super::*;
 pub use crate::len;
 
 #[inline(always)]
-pub const fn lens<T, P, const LEN: usize>(predicate: P) -> Lens<T, P, LEN>
+pub const fn lens<T, P, E, const LEN: usize>(predicate: P) -> Lens<T, P, E, LEN>
 where
     T: Copy + PartialEq,
     P: Predicate<T>,
+    E: Situation,
 {
     Lens {
         predicate,
@@ -18,19 +19,21 @@ where
 
 //------------------------------------------------------------------------------
 
-pub struct Lens<T, P, const LEN: usize>
+pub struct Lens<T, P, E, const LEN: usize>
 where
     T: Copy + PartialEq,
     P: Predicate<T>,
+    E: Situation,
 {
     predicate: P,
-    phantom: PhantomData<T>,
+    phantom: PhantomData<(T, E)>,
 }
 
-impl<'i, T, P, const LEN: usize> Pattern2<&'i [T]> for Lens<T, P, LEN>
+impl<'i, T, P, E, const LEN: usize> Pattern2<&'i [T], E> for Lens<T, P, E, LEN>
 where
     T: Copy + PartialEq,
     P: Predicate<T>,
+    E: Situation,
 {
     type Captured = [T; LEN];
     type Internal = ();
@@ -38,7 +41,7 @@ where
     #[inline(always)]
     fn init2(&self) -> Self::Internal {}
     #[inline(always)]
-    fn precede2<E: Situation>(&self, slice: &'i [T], _ntry: &mut Self::Internal, eof: bool) -> PrecedeResult<E> {
+    fn precede2(&self, slice: &'i [T], _ntry: &mut Self::Internal, eof: bool) -> PrecedeResult<E> {
         if slice.len() < LEN {
             match eof {
                 true => E::raise_reject_at(slice.len()),

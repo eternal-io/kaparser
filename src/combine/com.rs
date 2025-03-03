@@ -1,10 +1,11 @@
 use super::*;
 
 #[inline(always)]
-pub const fn com<U, C>(com: C) -> Compound<U, C>
+pub const fn com<U, E, C>(com: C) -> Compound<U, E, C>
 where
     U: Slice2,
-    C: Compoundable<U>,
+    E: Situation,
+    C: Compoundable<U, E>,
 {
     Compound {
         com,
@@ -14,33 +15,36 @@ where
 
 //------------------------------------------------------------------------------
 
-pub struct Compound<U, C>
+pub struct Compound<U, E, C>
 where
     U: Slice2,
-    C: Compoundable<U>,
+    E: Situation,
+    C: Compoundable<U, E>,
 {
     com: C,
-    phantom: PhantomData<U>,
+    phantom: PhantomData<(U, E)>,
 }
 
-pub trait Compoundable<U>
+pub trait Compoundable<U, E>
 where
     U: Slice2,
+    E: Situation,
 {
     type Captured;
     type Internal: 'static + Clone;
 
     fn init_com(&self) -> Self::Internal;
 
-    fn precede_com<E: Situation>(&self, slice: U, entry: &mut Self::Internal, eof: bool) -> PrecedeResult<E>;
+    fn precede_com(&self, slice: U, entry: &mut Self::Internal, eof: bool) -> PrecedeResult<E>;
 
     fn extract_com(&self, slice: U, entry: Self::Internal) -> Self::Captured;
 }
 
-impl<U, C> Pattern2<U> for Compound<U, C>
+impl<U, E, C> Pattern2<U, E> for Compound<U, E, C>
 where
     U: Slice2,
-    C: Compoundable<U>,
+    E: Situation,
+    C: Compoundable<U, E>,
 {
     type Captured = C::Captured;
     type Internal = C::Internal;
@@ -50,7 +54,7 @@ where
         self.com.init_com()
     }
     #[inline(always)]
-    fn precede2<E: Situation>(&self, slice: U, entry: &mut Self::Internal, eof: bool) -> PrecedeResult<E> {
+    fn precede2(&self, slice: U, entry: &mut Self::Internal, eof: bool) -> PrecedeResult<E> {
         self.com.precede_com(slice, entry, eof)
     }
     #[inline(always)]
@@ -61,7 +65,11 @@ where
 
 macro_rules! impl_compoundable_for_tuple {
     ( $Alt:ident, $( $LabN:lifetime ~ $GenN:ident ~ $VarN:ident ~ $IdxN:tt )+ ) => { $crate::common::paste! {
-        impl<U: Slice2, $($GenN: Pattern2<U>),+> Compoundable<U> for ($($GenN,)+) {
+        impl<U, E, $($GenN: Pattern2<U, E>),+> Compoundable<U, E> for ($($GenN,)+)
+        where
+            U: Slice2,
+            E: Situation,
+        {
             type Captured = U;
             type Internal = (usize, $Alt<$($GenN::Internal),+>);
 
@@ -72,7 +80,7 @@ macro_rules! impl_compoundable_for_tuple {
 
             #[inline(always)]
             #[allow(irrefutable_let_patterns)]
-            fn precede_com<E: Situation>(&self, slice: U, entry: &mut Self::Internal, eof: bool) -> PrecedeResult<E> {
+            fn precede_com(&self, slice: U, entry: &mut Self::Internal, eof: bool) -> PrecedeResult<E> {
                 use $Alt::*;
                 let (offset, states) = entry;
 
@@ -82,7 +90,7 @@ macro_rules! impl_compoundable_for_tuple {
                             *states = $VarN(self.$IdxN.init2());
                         }] {
                             let $VarN(state) = states else { unreachable!() };
-                            *offset += self.$IdxN.precede2::<E>(slice.split_at(*offset).1, state, eof)?;
+                            *offset += self.$IdxN.precede2(slice.split_at(*offset).1, state, eof)?;
                         }
                     )+ }
                 }

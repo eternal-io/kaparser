@@ -1,10 +1,11 @@
 use super::*;
 
 #[inline(always)]
-pub const fn alt<U, A>(alt: A) -> Alternate<U, A>
+pub const fn alt<U, E, A>(alt: A) -> Alternate<U, E, A>
 where
     U: Slice2,
-    A: Alternatable<U>,
+    E: Situation,
+    A: Alternatable<U, E>,
 {
     Alternate {
         alt,
@@ -14,33 +15,36 @@ where
 
 //------------------------------------------------------------------------------
 
-pub struct Alternate<U, A>
+pub struct Alternate<U, E, A>
 where
     U: Slice2,
-    A: Alternatable<U>,
+    E: Situation,
+    A: Alternatable<U, E>,
 {
     alt: A,
-    phantom: PhantomData<U>,
+    phantom: PhantomData<(U, E)>,
 }
 
-pub trait Alternatable<U>
+pub trait Alternatable<U, E>
 where
     U: Slice2,
+    E: Situation,
 {
     type Captured;
     type Internal: 'static + Clone;
 
     fn init_alt(&self) -> Self::Internal;
 
-    fn precede_alt<E: Situation>(&self, slice: U, entry: &mut Self::Internal, eof: bool) -> PrecedeResult<E>;
+    fn precede_alt(&self, slice: U, entry: &mut Self::Internal, eof: bool) -> PrecedeResult<E>;
 
     fn extract_alt(&self, slice: U, entry: Self::Internal) -> Self::Captured;
 }
 
-impl<U, A> Pattern2<U> for Alternate<U, A>
+impl<U, E, A> Pattern2<U, E> for Alternate<U, E, A>
 where
     U: Slice2,
-    A: Alternatable<U>,
+    E: Situation,
+    A: Alternatable<U, E>,
 {
     type Captured = A::Captured;
     type Internal = A::Internal;
@@ -50,7 +54,7 @@ where
         self.alt.init_alt()
     }
     #[inline(always)]
-    fn precede2<E: Situation>(&self, slice: U, entry: &mut Self::Internal, eof: bool) -> PrecedeResult<E> {
+    fn precede2(&self, slice: U, entry: &mut Self::Internal, eof: bool) -> PrecedeResult<E> {
         self.alt.precede_alt(slice, entry, eof)
     }
     #[inline(always)]
@@ -61,7 +65,11 @@ where
 
 macro_rules! impl_alternatable_for_tuple {
     ( $Alt:ident, $( $LabN:lifetime ~ $GenN:ident ~ $VarN:ident ~ $OrdN:literal ~ $IdxN:tt )+ ) => { $crate::common::paste! {
-        impl<U: Slice2, $($GenN: Pattern2<U>),+> Alternatable<U> for ($($GenN,)+) {
+        impl<U, E, $($GenN: Pattern2<U, E>),+> Alternatable<U, E> for ($($GenN,)+)
+        where
+            U: Slice2,
+            E: Situation,
+        {
             type Captured = $Alt<$($GenN::Captured),+>;
             type Internal = $Alt<$($GenN::Internal),+>;
 
@@ -72,7 +80,7 @@ macro_rules! impl_alternatable_for_tuple {
 
             #[inline(always)]
             #[allow(irrefutable_let_patterns)]
-            fn precede_alt<E: Situation>(&self, slice: U, entry: &mut Self::Internal, eof: bool) -> PrecedeResult<E> {
+            fn precede_alt(&self, slice: U, entry: &mut Self::Internal, eof: bool) -> PrecedeResult<E> {
                 use $Alt::*;
 
                 resume_precede! {
@@ -81,7 +89,7 @@ macro_rules! impl_alternatable_for_tuple {
                             *entry = $VarN(self.$IdxN.init2());
                         }] {
                             let $VarN(state) = entry else { unreachable!() };
-                            match self.$IdxN.precede2::<E>(slice, state, eof) {
+                            match self.$IdxN.precede2(slice, state, eof) {
                                 Ok(len) => return Ok(len),
                                 Err(e) => if !e.is_rejected() {
                                     return Err(e);
