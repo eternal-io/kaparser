@@ -64,7 +64,7 @@ where
 }
 
 macro_rules! impl_compoundable_for_tuple {
-    ( $Alt:ident, $( $LabN:lifetime ~ $GenN:ident ~ $VarN:ident ~ $IdxN:tt )+ ) => { $crate::common::paste! {
+    ( $Alt:ident, $( $LabN:lifetime ~ $GenN:ident ~ $VarN:ident ~ $IdxN:tt )+ ) => { paste::paste! {
         impl<U, E, $($GenN: Pattern2<U, E>),+> Compoundable<U, E> for ($($GenN,)+)
         where
             U: Slice2,
@@ -119,7 +119,7 @@ macro_rules! impl_compoundable_for_tuples {
     ( @ $( $Lens1N:literal ~ $LabN:lifetime ~ $OrdN:literal ~ $IdxN:tt )+ ;
            $Lens1K:literal ~ $LabK:lifetime ~ $OrdK:literal ~ $IdxK:tt
         $( $Lens1M:literal ~ $LabM:lifetime ~ $OrdM:literal ~ $IdxM:tt )*
-    ) => { $crate::common::paste! {
+    ) => { paste::paste! {
         impl_compoundable_for_tuple!( [<Alt $Lens1K>], $($LabN ~ [<P $OrdN>] ~ [<Var $OrdN>] ~ $IdxN)+ );
 
         impl_compoundable_for_tuples! { @

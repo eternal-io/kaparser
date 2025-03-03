@@ -139,7 +139,7 @@ macro_rules! gen_ascii_predicates {
     ( $(
       $(#[$attr:meta])*
         $desc:literal $func:ident($ch:ident) => $expr:expr
-    ),* $(,)? ) => { $crate::common::paste! { $(
+    ),* $(,)? ) => { paste::paste! { $(
         #[doc = "ASCII " $desc ".\n\n"]
       $(#[$attr])*
         #[inline(always)]
@@ -153,7 +153,7 @@ macro_rules! gen_unicode_predicates {
     ( $(
         $(#[$attr:meta])*
         $prop:literal $func:ident($ch:ident) => $expr:expr
-    ),* $(,)? ) => { $crate::common::paste! { $(
+    ),* $(,)? ) => { paste::paste! { $(
         #[doc = "Unicode character " $prop ".\n\n"]
       $(#[$attr])*
         #[inline(always)]

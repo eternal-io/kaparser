@@ -298,7 +298,7 @@ macro_rules! gen_checkpoints {
     ( @ $( $Lens1N:literal ~ $OrdN:tt )+ ;
            $Lens1K:literal ~ $OrdK:tt
         $( $Lens1M:literal ~ $OrdM:tt )*
-    ) => { $crate::common::paste! {
+    ) => { paste::paste! {
         #[doc(hidden)]
         #[derive(Clone)]
         pub enum [<Check $Lens1K>] { $(
@@ -351,7 +351,7 @@ macro_rules! gen_alternates {
     ( @ $( $Lens1N:literal ~ $GenN:ident ~ $OrdN:tt )+ ;
            $Lens1K:literal ~ $GenK:ident ~ $OrdK:tt
         $( $Lens1M:literal ~ $GenM:ident ~ $OrdM:tt )*
-    ) => { $crate::common::paste! {
+    ) => { paste::paste! {
         #[derive(Debug, Clone)]
         pub enum [<Alt $Lens1K>]<$($GenN),+> { $(
            #[doc = "Variant " $OrdN " of " $Lens1K "."]

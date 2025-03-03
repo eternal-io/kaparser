@@ -1,7 +1,7 @@
 use super::*;
 
 macro_rules! impl_pattern_for_tuple {
-    ( $Len:literal, $( $LabN:lifetime ~ $GenN:ident ~ $ValN:ident ~ $OrdN:literal ~ $IdxN:tt )+ ) => { $crate::common::paste! {
+    ( $Len:literal, $( $LabN:lifetime ~ $GenN:ident ~ $ValN:ident ~ $OrdN:literal ~ $IdxN:tt )+ ) => { paste::paste! {
         impl<U, E, $($GenN: Pattern2<U, E>),+> Pattern2<U, E> for ($($GenN,)+)
         where
             U: Slice2,
@@ -64,7 +64,7 @@ macro_rules! impl_pattern_for_tuples {
     ( @ $( $Lens1N:literal ~ $LabN:lifetime ~ $OrdN:literal ~ $IdxN:tt )+ ;
            $Lens1K:literal ~ $LabK:lifetime ~ $OrdK:literal ~ $IdxK:tt
         $( $Lens1M:literal ~ $LabM:lifetime ~ $OrdM:literal ~ $IdxM:tt )*
-    ) => { $crate::common::paste! {
+    ) => { paste::paste! {
         impl_pattern_for_tuple!( $Lens1K, $($LabN ~ [<P $OrdN>] ~ [<val $OrdN>] ~ $OrdN ~ $IdxN)+ );
 
         impl_pattern_for_tuples! { @
