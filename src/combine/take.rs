@@ -52,7 +52,7 @@ where
         (0, 0)
     }
     #[inline(always)]
-    fn precede(&self, slice: &U, entry: &mut Self::Internal, eof: bool) -> PrecedeResult<E> {
+    fn precede(&self, slice: &U, entry: &mut Self::Internal, eof: bool) -> Result<usize, E> {
         let (offset, times) = entry;
         if let Some((i, (off, item))) = slice
             .split_at(*offset)
@@ -99,7 +99,7 @@ where
         0
     }
     #[inline(always)]
-    fn precede(&self, slice: &U, entry: &mut Self::Internal, eof: bool) -> PrecedeResult<E> {
+    fn precede(&self, slice: &U, entry: &mut Self::Internal, eof: bool) -> Result<usize, E> {
         match slice
             .split_at(*entry)
             .1

@@ -16,7 +16,7 @@ macro_rules! impl_pattern_for_tuple {
             }
 
             #[inline(always)]
-            fn precede(&self, slice: &U, entry: &mut Self::Internal, eof: bool) -> PrecedeResult<E> {
+            fn precede(&self, slice: &U, entry: &mut Self::Internal, eof: bool) -> Result<usize, E> {
                 use [<Check $Len>]::*;
                 let (checkpoint, states) = entry;
                 let mut offset = 0usize;

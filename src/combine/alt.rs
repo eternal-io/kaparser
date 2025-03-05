@@ -35,7 +35,7 @@ where
 
     fn init_alt(&self) -> Self::Internal;
 
-    fn precede_alt(&self, slice: &U, entry: &mut Self::Internal, eof: bool) -> PrecedeResult<E>;
+    fn precede_alt(&self, slice: &U, entry: &mut Self::Internal, eof: bool) -> Result<usize, E>;
 
     fn extract_alt(&self, slice: &'i U, entry: Self::Internal) -> Self::Captured;
 }
@@ -54,7 +54,7 @@ where
         self.alt.init_alt()
     }
     #[inline(always)]
-    fn precede(&self, slice: &U, entry: &mut Self::Internal, eof: bool) -> PrecedeResult<E> {
+    fn precede(&self, slice: &U, entry: &mut Self::Internal, eof: bool) -> Result<usize, E> {
         self.alt.precede_alt(slice, entry, eof)
     }
     #[inline(always)]
@@ -80,7 +80,7 @@ macro_rules! impl_alternatable_for_tuple {
 
             #[inline(always)]
             #[allow(irrefutable_let_patterns)]
-            fn precede_alt(&self, slice: &U, entry: &mut Self::Internal, eof: bool) -> PrecedeResult<E> {
+            fn precede_alt(&self, slice: &U, entry: &mut Self::Internal, eof: bool) -> Result<usize, E> {
                 use $Alt::*;
 
                 resume_precede! {

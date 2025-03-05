@@ -144,7 +144,7 @@ where
         self.body.init()
     }
     #[inline(always)]
-    fn precede(&self, slice: &U, entry: &mut Self::Internal, eof: bool) -> PrecedeResult<E> {
+    fn precede(&self, slice: &U, entry: &mut Self::Internal, eof: bool) -> Result<usize, E> {
         self.body.precede(slice, entry, eof)
     }
     #[inline(always)]
@@ -184,7 +184,7 @@ where
         self.body.init()
     }
     #[inline(always)]
-    fn precede(&self, slice: &U, entry: &mut Self::Internal, eof: bool) -> PrecedeResult<E2> {
+    fn precede(&self, slice: &U, entry: &mut Self::Internal, eof: bool) -> Result<usize, E2> {
         self.body.precede(slice, entry, eof).map_err(|e| (self.op)(e))
     }
     #[inline(always)]
@@ -222,7 +222,7 @@ where
         self.body.init()
     }
     #[inline(always)]
-    fn precede(&self, slice: &U, entry: &mut Self::Internal, eof: bool) -> PrecedeResult<E> {
+    fn precede(&self, slice: &U, entry: &mut Self::Internal, eof: bool) -> Result<usize, E> {
         self.body
             .precede(slice, entry, eof)
             .map_err(|e| e.describe(self.desc.clone()))
@@ -262,7 +262,7 @@ where
         self.body.init()
     }
     #[inline(always)]
-    fn precede(&self, slice: &U, entry: &mut Self::Internal, eof: bool) -> PrecedeResult<E> {
+    fn precede(&self, slice: &U, entry: &mut Self::Internal, eof: bool) -> Result<usize, E> {
         self.body.precede(slice, entry, eof).map_err(|e| {
             let desc = (self.f)(&e);
             e.describe(desc)
@@ -300,7 +300,7 @@ where
         self.body.init()
     }
     #[inline(always)]
-    fn precede(&self, slice: &U, entry: &mut Self::Internal, eof: bool) -> PrecedeResult<E> {
+    fn precede(&self, slice: &U, entry: &mut Self::Internal, eof: bool) -> Result<usize, E> {
         Ok(self.body.precede(slice, entry, eof).expect("unexpected input"))
     }
     #[inline(always)]
@@ -338,7 +338,7 @@ where
         Some(self.body.init())
     }
     #[inline(always)]
-    fn precede(&self, slice: &U, entry: &mut Self::Internal, eof: bool) -> PrecedeResult<E> {
+    fn precede(&self, slice: &U, entry: &mut Self::Internal, eof: bool) -> Result<usize, E> {
         match entry {
             None => Ok(0),
             Some(state) => {
@@ -389,7 +389,7 @@ where
         Some(self.body.init())
     }
     #[inline(always)]
-    fn precede(&self, slice: &U, entry: &mut Self::Internal, eof: bool) -> PrecedeResult<E> {
+    fn precede(&self, slice: &U, entry: &mut Self::Internal, eof: bool) -> Result<usize, E> {
         match entry {
             None => Ok(0),
             Some(state) => {
@@ -441,7 +441,7 @@ where
         Alt2::Var1(self.body.init())
     }
     #[inline(always)]
-    fn precede(&self, slice: &U, entry: &mut Self::Internal, eof: bool) -> PrecedeResult<E> {
+    fn precede(&self, slice: &U, entry: &mut Self::Internal, eof: bool) -> Result<usize, E> {
         let Alt2::Var1(state) = entry else {
             panic!("contract violation")
         };

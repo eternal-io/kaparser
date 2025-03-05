@@ -21,7 +21,7 @@ where
 
     fn init(&self) -> Self::Internal;
 
-    fn precede(&self, slice: &U, entry: &mut Self::Internal, eof: bool) -> PrecedeResult<E>;
+    fn precede(&self, slice: &U, entry: &mut Self::Internal, eof: bool) -> Result<usize, E>;
 
     fn extract(&self, slice: &'i U, entry: Self::Internal) -> Self::Captured;
 
@@ -108,7 +108,7 @@ where
     fn init(&self) -> Self::Internal {}
 
     #[inline(always)]
-    fn precede(&self, slice: &U, _ntry: &mut Self::Internal, eof: bool) -> PrecedeResult<E> {
+    fn precede(&self, slice: &U, _ntry: &mut Self::Internal, eof: bool) -> Result<usize, E> {
         if slice.len() < self.len() {
             match eof {
                 true => E::raise_unfulfilled(Some((self.len() - slice.len()).try_into().unwrap())),
@@ -143,7 +143,7 @@ where
     fn init(&self) -> Self::Internal {}
 
     #[inline(always)]
-    fn precede(&self, slice: &U, _ntry: &mut Self::Internal, eof: bool) -> PrecedeResult<E> {
+    fn precede(&self, slice: &U, _ntry: &mut Self::Internal, eof: bool) -> Result<usize, E> {
         match slice.first() {
             Some(item) => match self[0].predicate(&item) {
                 true => Ok(slice.len_of(item)),

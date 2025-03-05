@@ -41,7 +41,7 @@ where
     #[inline(always)]
     fn init(&self) -> Self::Internal {}
     #[inline(always)]
-    fn precede(&self, slice: &[T], _ntry: &mut Self::Internal, eof: bool) -> PrecedeResult<E> {
+    fn precede(&self, slice: &[T], _ntry: &mut Self::Internal, eof: bool) -> Result<usize, E> {
         if slice.len() < LEN {
             match eof {
                 true => E::raise_reject_at(slice.len()),

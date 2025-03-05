@@ -35,7 +35,7 @@ where
 
     fn init_com(&self) -> Self::Internal;
 
-    fn precede_com(&self, slice: &U, entry: &mut Self::Internal, eof: bool) -> PrecedeResult<E>;
+    fn precede_com(&self, slice: &U, entry: &mut Self::Internal, eof: bool) -> Result<usize, E>;
 
     fn extract_com(&self, slice: &'i U, entry: Self::Internal) -> Self::Captured;
 }
@@ -54,7 +54,7 @@ where
         self.com.init_com()
     }
     #[inline(always)]
-    fn precede(&self, slice: &U, entry: &mut Self::Internal, eof: bool) -> PrecedeResult<E> {
+    fn precede(&self, slice: &U, entry: &mut Self::Internal, eof: bool) -> Result<usize, E> {
         self.com.precede_com(slice, entry, eof)
     }
     #[inline(always)]
@@ -80,7 +80,7 @@ macro_rules! impl_compoundable_for_tuple {
 
             #[inline(always)]
             #[allow(irrefutable_let_patterns)]
-            fn precede_com(&self, slice: &U, entry: &mut Self::Internal, eof: bool) -> PrecedeResult<E> {
+            fn precede_com(&self, slice: &U, entry: &mut Self::Internal, eof: bool) -> Result<usize, E> {
                 use $Alt::*;
                 let (offset, states) = entry;
 

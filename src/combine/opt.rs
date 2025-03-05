@@ -39,7 +39,7 @@ where
         Some(self.opt.init())
     }
     #[inline(always)]
-    fn precede(&self, slice: &U, entry: &mut Self::Internal, eof: bool) -> PrecedeResult<E> {
+    fn precede(&self, slice: &U, entry: &mut Self::Internal, eof: bool) -> Result<usize, E> {
         let res = self.opt.precede(slice, entry.as_mut().unwrap(), eof);
         if let Err(ref e) = res {
             if !e.is_unfulfilled() {

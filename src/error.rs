@@ -36,10 +36,6 @@ pub trait Situation: Sized + Debug {
 
 //------------------------------------------------------------------------------
 
-pub type PrecedeResult<E = ParseError> = Result<usize, E>;
-
-//------------------------------------------------------------------------------
-
 pub type ParseResult<T, E = ParseError> = Result<T, E>;
 
 #[derive(Debug, Clone, Copy)]

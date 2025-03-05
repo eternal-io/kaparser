@@ -41,7 +41,7 @@ where
         self.body.init()
     }
     #[inline(always)]
-    fn precede(&self, slice: &U, entry: &mut Self::Internal, eof: bool) -> PrecedeResult<E> {
+    fn precede(&self, slice: &U, entry: &mut Self::Internal, eof: bool) -> Result<usize, E> {
         match self.cond {
             true => self.body.precede(slice, entry, eof),
             false => Ok(0),

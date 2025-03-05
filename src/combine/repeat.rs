@@ -86,7 +86,7 @@ where
     }
 
     #[inline(always)]
-    fn precede(&self, slice: &U, entry: &mut Self::Internal, eof: bool) -> PrecedeResult<E> {
+    fn precede(&self, slice: &U, entry: &mut Self::Internal, eof: bool) -> Result<usize, E> {
         let (checkpoint, at_least, may_more) = entry;
         let mut resuming = *checkpoint;
         let mut offset = 0usize;
@@ -177,7 +177,7 @@ where
         self.body.init()
     }
     #[inline(always)]
-    fn precede(&self, slice: &U, entry: &mut Self::Internal, eof: bool) -> PrecedeResult<E> {
+    fn precede(&self, slice: &U, entry: &mut Self::Internal, eof: bool) -> Result<usize, E> {
         self.body.precede(slice, entry, eof)
     }
     #[inline(always)]
@@ -211,7 +211,7 @@ where
         self.body.init()
     }
     #[inline(always)]
-    fn precede(&self, slice: &U, entry: &mut Self::Internal, eof: bool) -> PrecedeResult<E> {
+    fn precede(&self, slice: &U, entry: &mut Self::Internal, eof: bool) -> Result<usize, E> {
         self.body.precede(slice, entry, eof)
     }
     #[inline(always)]
