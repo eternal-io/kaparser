@@ -25,13 +25,6 @@ impl<R: ::std::io::Read> Read for R {
     }
 }
 
-pub trait SliceLen {
-    fn len(&self) -> usize;
-    fn is_empty(&self) -> bool {
-        self.len() == 0
-    }
-}
-
 //==================================================================================================
 
 /// Uninhabited generic placeholder.
@@ -39,12 +32,12 @@ pub enum Sliced {}
 
 pub struct Provider<'src, U, R>(Source<'src, U, R>)
 where
-    U: ?Sized,
+    U: ?Sized + Slice,
     R: Read;
 
 enum Source<'src, U, R>
 where
-    U: ?Sized,
+    U: ?Sized + Slice,
     R: Read,
 {
     Sliced {
@@ -158,7 +151,11 @@ where
     }
 }
 
-impl<U: ?Sized, R: Read> Provider<'_, U, R> {
+impl<U, R> Provider<'_, U, R>
+where
+    U: ?Sized + Slice,
+    R: Read,
+{
     pub fn offset(&self) -> usize {
         match &self.0 {
             Source::Sliced { consumed, .. } => *consumed,
@@ -173,10 +170,7 @@ impl<U: ?Sized, R: Read> Provider<'_, U, R> {
         }
     }
 
-    pub fn exhausted(&self) -> bool
-    where
-        U: SliceLen,
-    {
+    pub fn exhausted(&self) -> bool {
         match &self.0 {
             Source::Sliced { slice, consumed, .. } => *consumed == slice.len(),
 
@@ -199,186 +193,178 @@ impl<U: ?Sized, R: Read> Provider<'_, U, R> {
 
 //==================================================================================================
 
-// impl<'i, R: Read> Provider<&'i str, R> {
-//     pub fn next_str<P, E>(&'i mut self, pat: &P) -> ProviderResult<P::Captured, E>
-//     where
-//         P: Pattern<&'i str, E>,
-//         E: Situation,
-//     {
-//         let mut entry = pat.init();
-//         let mut first_time = true;
-//         let len = loop {
-//             let (slice, eof) = self.0.pull_str(first_time)?;
-//             match pat.precede(slice, &mut entry, eof) {
-//                 Ok(len) => break len,
-//                 Err(e) => match e.is_unfulfilled() {
-//                     false => return Err(ProviderError::Mismatched(e)),
-//                     true => match eof {
-//                         true => panic!("implementation: pull after EOF"),
-//                         false => first_time = false,
-//                     },
-//                 },
-//             }
-//         };
+impl<R: Read> Provider<'_, str, R> {
+    pub fn next_str<'i, P, E>(&'i mut self, pat: &P) -> ProviderResult<P::Captured, E>
+    where
+        P: Pattern<'i, str, E>,
+        E: Situation,
+    {
+        let mut entry = pat.init();
+        let mut first_time = true;
+        let len = loop {
+            let (slice, eof) = self.0.pull_str(first_time)?;
+            match pat.precede(slice, &mut entry, eof) {
+                Ok(len) => break len,
+                Err(e) => match e.is_unfulfilled() {
+                    false => return Err(ProviderError::Mismatched(e)),
+                    true => match eof {
+                        true => panic!("implementation: pull after EOF"),
+                        false => first_time = false,
+                    },
+                },
+            }
+        };
 
-//         Ok(pat.extract(self.0.bump_str(len), entry))
-//     }
+        Ok(pat.extract(self.0.bump_str(len), entry))
+    }
 
-//     pub fn peek_str<P, E>(&'i mut self, pat: &P) -> ProviderResult<P::Captured, E>
-//     where
-//         P: Pattern<&'i str, E>,
-//         E: Situation,
-//     {
-//         let mut entry = pat.init();
-//         let mut first_time = true;
-//         let len = loop {
-//             let (slice, eof) = self.0.pull_str(first_time)?;
-//             match pat.precede(slice, &mut entry, eof) {
-//                 Ok(len) => break len,
-//                 Err(e) => match e.is_unfulfilled() {
-//                     false => return Err(ProviderError::Mismatched(e)),
-//                     true => match eof {
-//                         true => panic!("implementation: pull after EOF"),
-//                         false => first_time = false,
-//                     },
-//                 },
-//             }
-//         };
+    pub fn peek_str<'i, P, E>(&'i mut self, pat: &P) -> ProviderResult<P::Captured, E>
+    where
+        P: Pattern<'i, str, E>,
+        E: Situation,
+    {
+        let mut entry = pat.init();
+        let mut first_time = true;
+        let len = loop {
+            let (slice, eof) = self.0.pull_str(first_time)?;
+            match pat.precede(slice, &mut entry, eof) {
+                Ok(len) => break len,
+                Err(e) => match e.is_unfulfilled() {
+                    false => return Err(ProviderError::Mismatched(e)),
+                    true => match eof {
+                        true => panic!("implementation: pull after EOF"),
+                        false => first_time = false,
+                    },
+                },
+            }
+        };
 
-//         Ok(pat.extract(self.0.slice_str(len), entry))
-//     }
-// }
+        Ok(pat.extract(self.0.slice_str(len), entry))
+    }
+}
 
-// impl<'i, R: Read> Source<&'i str, R> {
-//     #[inline(always)]
-//     #[allow(unsafe_code)]
-//     fn pull_str<E: Situation>(&mut self, first_time: bool) -> ProviderResult<(&'i str, bool), E> {
-//         match self {
-//             Source::Sliced { slice, consumed, .. } => {
-//                 let _ = first_time;
-//                 Ok((slice.split_at(*consumed).1, true))
-//             }
+impl<R: Read> Source<'_, str, R> {
+    #[inline(always)]
+    #[allow(unsafe_code)]
+    fn pull_str<E: Situation>(&mut self, first_time: bool) -> ProviderResult<(&str, bool), E> {
+        match self {
+            Source::Sliced { slice, consumed, .. } => {
+                let _ = first_time;
+                Ok((slice.split_at(*consumed).1, true))
+            }
 
-//             #[cfg(feature = "std")]
-//             Source::ReadBytes { .. } => unreachable!(),
+            #[cfg(feature = "std")]
+            Source::ReadBytes { .. } => unreachable!(),
 
-//             #[cfg(feature = "std")]
-//             Source::ReadStr {
-//                 rdr,
-//                 eof,
-//                 buf,
-//                 pending,
-//                 consumed,
-//                 discarded,
-//                 ..
-//             } => {
-//                 match first_time {
-//                     true => Self::buf_first_time(buf, consumed, discarded),
-//                     false => Self::buf_subsequent(buf),
-//                 }
+            #[cfg(feature = "std")]
+            Source::ReadStr {
+                rdr,
+                eof,
+                buf,
+                pending,
+                consumed,
+                discarded,
+                ..
+            } => {
+                match first_time {
+                    true => Self::buf_first_time(buf, consumed, discarded),
+                    false => Self::buf_subsequent(buf),
+                }
 
-//                 if buf.len() < buf.capacity() {
-//                     loop {
-//                         let len_avail = buf.len();
-//                         let len_delta = rdr.read(unsafe {
-//                             mem::transmute::<&mut [MaybeUninit<u8>], &mut [u8]>(buf.spare_capacity_mut())
-//                         })?;
-//                         unsafe { buf.set_len(len_avail + len_delta) };
+                if buf.len() < buf.capacity() {
+                    loop {
+                        let len_avail = buf.len();
+                        let len_delta = rdr.read(unsafe {
+                            mem::transmute::<&mut [MaybeUninit<u8>], &mut [u8]>(buf.spare_capacity_mut())
+                        })?;
+                        unsafe { buf.set_len(len_avail + len_delta) };
 
-//                         *eof = len_delta == 0;
+                        *eof = len_delta == 0;
 
-//                         if *eof {
-//                             if *pending != 0 {
-//                                 return Err(ProviderError::InvalidUtf8);
-//                             }
-//                         } else if let Err(e) = simdutf8::compat::from_utf8(&buf[len_avail - *pending as usize..]) {
-//                             if e.error_len().is_some() {
-//                                 return Err(ProviderError::InvalidUtf8); // IDEA: lossy mode?
-//                             } else {
-//                                 match e.valid_up_to() {
-//                                     0 => continue,
-//                                     n => *pending = (*pending as usize + len_delta - n) as u8,
-//                                 }
-//                             }
-//                         } else {
-//                             *pending = 0
-//                         }
+                        if *eof {
+                            if *pending != 0 {
+                                return Err(ProviderError::InvalidUtf8);
+                            }
+                        } else if let Err(e) = simdutf8::compat::from_utf8(&buf[len_avail - *pending as usize..]) {
+                            if e.error_len().is_some() {
+                                return Err(ProviderError::InvalidUtf8); // IDEA: lossy mode?
+                            } else {
+                                match e.valid_up_to() {
+                                    0 => continue,
+                                    n => *pending = (*pending as usize + len_delta - n) as u8,
+                                }
+                            }
+                        } else {
+                            *pending = 0
+                        }
 
-//                         break;
-//                     }
-//                 }
+                        break;
+                    }
+                }
 
-//                 Ok((
-//                     // Safety:
-//                     // 1. from_utf8_unchecked, because already verified by simdutf8.
-//                     // 2. Extend lifetime, because `&self` does not outlives `'i`.
-//                     //   - The returned value can only be used by [`Pattern::precede`];
-//                     //   - The associated [`Pattern::Internal`] must outlives `'static`.
-//                     unsafe {
-//                         mem::transmute::<&str, &'i str>(from_utf8_unchecked(
-//                             &buf[*consumed..buf.len() - *pending as usize],
-//                         ))
-//                     },
-//                     *eof,
-//                 ))
-//             }
-//         }
-//     }
+                Ok((
+                    // Safety: already verified by simdutf8.
+                    unsafe { from_utf8_unchecked(&buf[*consumed..buf.len() - *pending as usize]) },
+                    *eof,
+                ))
+            }
+        }
+    }
 
-//     #[inline(always)]
-//     #[allow(unsafe_code)]
-//     fn bump_str(&'i mut self, n: usize) -> &'i str {
-//         match self {
-//             Source::Sliced { slice, consumed, .. } => {
-//                 let left = slice[*consumed..]
-//                     .split_at_checked(n)
-//                     .expect("implementation: invalid bump")
-//                     .0;
-//                 *consumed += n;
-//                 left
-//             }
+    #[inline(always)]
+    #[allow(unsafe_code)]
+    fn bump_str(&mut self, n: usize) -> &str {
+        match self {
+            Source::Sliced { slice, consumed, .. } => {
+                let left = slice[*consumed..]
+                    .split_at_checked(n)
+                    .expect("implementation: invalid bump")
+                    .0;
+                *consumed += n;
+                left
+            }
 
-//             #[cfg(feature = "std")]
-//             Source::ReadBytes { .. } => unreachable!(),
+            #[cfg(feature = "std")]
+            Source::ReadBytes { .. } => unreachable!(),
 
-//             #[cfg(feature = "std")]
-//             Source::ReadStr { buf, consumed, .. } => {
-//                 let left = unsafe {
-//                     from_utf8_unchecked(&buf[*consumed..])
-//                         .split_at_checked(n)
-//                         .expect("implementation: invalid bump")
-//                         .0
-//                 };
-//                 *consumed += n;
-//                 left
-//             }
-//         }
-//     }
+            #[cfg(feature = "std")]
+            Source::ReadStr { buf, consumed, .. } => {
+                let left = unsafe {
+                    from_utf8_unchecked(&buf[*consumed..])
+                        .split_at_checked(n)
+                        .expect("implementation: invalid bump")
+                        .0
+                };
+                *consumed += n;
+                left
+            }
+        }
+    }
 
-//     #[inline(always)]
-//     #[allow(unsafe_code)]
-//     fn slice_str(&self, n: usize) -> &str {
-//         match self {
-//             Source::Sliced { slice, consumed, .. } => {
-//                 slice[*consumed..]
-//                     .split_at_checked(n)
-//                     .expect("implementation: invalid slice")
-//                     .0
-//             }
+    #[inline(always)]
+    #[allow(unsafe_code)]
+    fn slice_str(&self, n: usize) -> &str {
+        match self {
+            Source::Sliced { slice, consumed, .. } => {
+                slice[*consumed..]
+                    .split_at_checked(n)
+                    .expect("implementation: invalid slice")
+                    .0
+            }
 
-//             #[cfg(feature = "std")]
-//             Source::ReadBytes { .. } => unreachable!(),
+            #[cfg(feature = "std")]
+            Source::ReadBytes { .. } => unreachable!(),
 
-//             #[cfg(feature = "std")]
-//             Source::ReadStr { buf, consumed, .. } => unsafe {
-//                 from_utf8_unchecked(&buf[*consumed..])
-//                     .split_at_checked(n)
-//                     .expect("implementation: invalid slice")
-//                     .0
-//             },
-//         }
-//     }
-// }
+            #[cfg(feature = "std")]
+            Source::ReadStr { buf, consumed, .. } => unsafe {
+                from_utf8_unchecked(&buf[*consumed..])
+                    .split_at_checked(n)
+                    .expect("implementation: invalid slice")
+                    .0
+            },
+        }
+    }
+}
 
 //==================================================================================================
 
@@ -387,34 +373,34 @@ where
     T: Copy + PartialEq,
     R: Read,
 {
-    // #[allow(clippy::should_implement_trait)]
-    // pub fn next<'i, P, E>(&'i mut self, pat: &P) -> ProviderResult<P::Captured, E>
-    // where
-    //     P: Pattern<&'i [T], E>,
-    //     E: Situation,
-    // {
-    //     let mut entry = pat.init();
-    //     let mut first_time = true;
-    //     let len = loop {
-    //         let (slice, eof) = self.0.pull(first_time)?;
-    //         match pat.precede(slice, &mut entry, eof) {
-    //             Ok(len) => break len,
-    //             Err(e) => match e.is_unfulfilled() {
-    //                 false => return Err(ProviderError::Mismatched(e)),
-    //                 true => match eof {
-    //                     true => panic!("implementation: pull after EOF"),
-    //                     false => first_time = false,
-    //                 },
-    //             },
-    //         }
-    //     };
+    #[allow(clippy::should_implement_trait)]
+    pub fn next<'i, P, E>(&'i mut self, pat: &P) -> ProviderResult<P::Captured, E>
+    where
+        P: Pattern<'i, [T], E>,
+        E: Situation,
+    {
+        let mut entry = pat.init();
+        let mut first_time = true;
+        let len = loop {
+            let (slice, eof) = self.0.pull(first_time)?;
+            match pat.precede(slice, &mut entry, eof) {
+                Ok(len) => break len,
+                Err(e) => match e.is_unfulfilled() {
+                    false => return Err(ProviderError::Mismatched(e)),
+                    true => match eof {
+                        true => panic!("implementation: pull after EOF"),
+                        false => first_time = false,
+                    },
+                },
+            }
+        };
 
-    //     Ok(pat.extract(self.0.bump(len), entry))
-    // }
+        Ok(pat.extract(self.0.bump(len), entry))
+    }
 
     pub fn peek<'i, P, E>(&'i mut self, pat: &P) -> ProviderResult<P::Captured, E>
     where
-        P: Pattern<&'i [T], E>,
+        P: Pattern<'i, [T], E>,
         E: Situation,
     {
         let mut entry = pat.init();
@@ -551,7 +537,7 @@ where
 //==================================================================================================
 
 #[cfg(feature = "std")]
-impl<U: ?Sized, R: Read> Source<'_, U, R> {
+impl<U: ?Sized + Slice, R: Read> Source<'_, U, R> {
     #[inline(always)]
     fn buf_first_time(buf: &mut ::std::vec::Vec<u8>, consumed: &mut usize, discarded: &mut usize) {
         const fn p75(n: usize) -> usize {
@@ -578,7 +564,7 @@ impl<U: ?Sized, R: Read> Source<'_, U, R> {
 }
 
 #[cfg(all(test, feature = "std"))]
-impl<U: ?Sized, R: Read> Source<'_, U, R> {
+impl<U: ?Sized + Slice, R: Read> Source<'_, U, R> {
     fn inspect(&self) {
         match self {
             Source::Sliced { .. } => (),
@@ -630,95 +616,92 @@ mod tests {
         buf
     }
 
-    // #[test]
-    // fn test_pull_str() {
-    //     let buf = random_string(1123);
-    //     let mut src = Source::ReadStr {
-    //         rdr: buf.as_bytes(),
-    //         eof: false,
-    //         buf: Vec::with_capacity(0x8000),
-    //         pending: 0,
-    //         consumed: 0,
-    //         discarded: 0,
-    //     };
+    #[test]
+    fn test_pull_str() {
+        let buf = random_string(1123);
+        let mut src = Source::ReadStr {
+            rdr: buf.as_bytes(),
+            eof: false,
+            buf: Vec::with_capacity(0x8000),
+            pending: 0,
+            consumed: 0,
+            discarded: 0,
+        };
 
-    //     let mut ctr = 0;
-    //     src.inspect();
-    //     loop {
-    //         ctr += 1;
-    //         let (s, eof) = src.pull_str::<ParseError>(true).unwrap();
-    //         let len = (random(ctr) as usize % s.len()..)
-    //             .find(|n| s.is_char_boundary(*n))
-    //             .unwrap();
+        let mut ctr = 0;
+        src.inspect();
+        loop {
+            ctr += 1;
+            let (s, eof) = src.pull_str::<ParseError>(true).unwrap();
+            let len = (random(ctr) as usize % s.len()..)
+                .find(|n| s.is_char_boundary(*n))
+                .unwrap();
 
-    //         simdutf8::compat::from_utf8(src.bump_str(len).as_bytes()).unwrap();
+            simdutf8::compat::from_utf8(src.bump_str(len).as_bytes()).unwrap();
 
-    //         src.inspect();
-    //         if eof {
-    //             break;
-    //         }
-    //     }
+            src.inspect();
+            if eof {
+                break;
+            }
+        }
 
-    //     println!("{}", ctr);
-    // }
+        println!("{}", ctr);
+    }
 
-    // #[test]
-    // fn test_parse_str() {
-    //     let buf = random_string(42);
-    //     let mut par = Provider::from_reader_in_str(buf.as_bytes());
-    //     let mut ctr = 0;
-    //     let mut len = 0;
+    #[test]
+    fn test_parse_str() {
+        let buf = random_string(42);
+        let mut par = Provider::from_reader_in_str(buf.as_bytes());
+        let mut ctr = 0;
+        let mut len = 0;
 
-    //     par.0.inspect();
-    //     loop {
-    //         ctr += 1;
+        par.0.inspect();
+        loop {
+            ctr += 1;
 
-    //         match par.next_str(&opt(is_ascii..)) {
-    //             Ok(cap) => {
-    //                 if let Some(s) = cap {
-    //                     len += s.len();
-    //                 }
-    //             }
-    //             Err(e) => match e {
-    //                 ProviderError::Mismatched(_) => (),
-    //                 _ => panic!("{:?}", e),
-    //             },
-    //         }
+            match par.next_str::<_, ParseError>(&opt(is_ascii..)) {
+                Ok(cap) => {
+                    if let Some(s) = cap {
+                        len += s.len();
+                    }
+                }
+                Err(e) => match e {
+                    ProviderError::Mismatched(_) => (),
+                    _ => panic!("{:?}", e),
+                },
+            }
 
-    //         match par.next_str(&opt(not(is_ascii)..)) {
-    //             Ok(cap) => {
-    //                 if let Some(s) = cap {
-    //                     len += s.len();
-    //                 }
-    //             }
-    //             Err(e) => match e {
-    //                 ProviderError::Mismatched(_) => (),
-    //                 _ => panic!("{:?}", e),
-    //             },
-    //         }
+            match par.next_str::<_, ParseError>(&opt(not(is_ascii)..)) {
+                Ok(cap) => {
+                    if let Some(s) = cap {
+                        len += s.len();
+                    }
+                }
+                Err(e) => match e {
+                    ProviderError::Mismatched(_) => (),
+                    _ => panic!("{:?}", e),
+                },
+            }
 
-    //         par.0.inspect();
-    //         if par.exhausted() {
-    //             break;
-    //         }
-    //     }
+            par.0.inspect();
+            if par.exhausted() {
+                break;
+            }
+        }
 
-    //     println!("{}", ctr);
+        println!("{}", ctr);
 
-    //     assert_eq!(len, buf.len());
-    // }
+        assert_eq!(len, buf.len());
+    }
 
     #[test]
     fn test_parse_bytes() {
         let bytes = b"asdf\0";
         let mut par = Provider::from_reader_in_bytes_with_capacity(bytes.as_ref(), 2);
 
-        par.peek::<_, ParseError>(&(not(0)..)).unwrap();
-        par.peek::<_, ParseError>(&(not(0)..)).unwrap();
-
-        // assert_eq!(par.peek::<_, ParseError>(&(not(0)..)).unwrap(), b"asdf");
-        // assert_eq!(par.next::<_, ParseError>(&(not(0)..)).unwrap(), b"asdf");
-        // assert_eq!(par.next::<_, ParseError>(&[0]).unwrap(), 0);
-        // assert!(par.exhausted());
+        assert_eq!(par.peek::<_, ParseError>(&(not(0)..)).unwrap(), b"asdf");
+        assert_eq!(par.next::<_, ParseError>(&(not(0)..)).unwrap(), b"asdf");
+        assert_eq!(par.next::<_, ParseError>(&[0]).unwrap(), 0);
+        assert!(par.exhausted());
     }
 }

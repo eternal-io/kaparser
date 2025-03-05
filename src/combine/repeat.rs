@@ -4,13 +4,13 @@ use super::*;
 pub use crate::rep;
 
 #[inline(always)]
-pub const fn repeat<U, E, P, const AT_LEAST: usize, const MAY_MORE: usize>(
+pub const fn repeat<'i, U, E, P, const AT_LEAST: usize, const MAY_MORE: usize>(
     body: P,
-) -> Repeat<U, E, P, AT_LEAST, MAY_MORE>
+) -> Repeat<'i, U, E, P, AT_LEAST, MAY_MORE>
 where
-    U: Slice,
+    U: ?Sized + Slice,
     E: Situation,
-    P: Pattern<U, E>,
+    P: Pattern<'i, U, E>,
 {
     Repeat {
         body,
@@ -19,42 +19,43 @@ where
 }
 
 #[inline(always)]
-pub const fn repeat_exact<U, E, P, const TIMES: usize>(body: P) -> RepeatExact<U, E, P, TIMES>
+pub const fn repeat_exact<'i, U, E, P, const TIMES: usize>(body: P) -> RepeatExact<'i, U, E, P, TIMES>
 where
-    U: Slice,
+    U: ?Sized + Slice,
     E: Situation,
-    P: Pattern<U, E>,
+    P: Pattern<'i, U, E>,
 {
     RepeatExact { body: repeat(body) }
 }
 
 #[inline(always)]
-pub const fn repeat_at_most<U, E, P, const TIMES: usize>(body: P) -> RepeatAtMost<U, E, P, TIMES>
+pub const fn repeat_at_most<'i, U, E, P, const TIMES: usize>(body: P) -> RepeatAtMost<'i, U, E, P, TIMES>
 where
-    U: Slice,
+    U: ?Sized + Slice,
     E: Situation,
-    P: Pattern<U, E>,
+    P: Pattern<'i, U, E>,
 {
     RepeatAtMost { body: repeat(body) }
 }
 
 //------------------------------------------------------------------------------
 
-pub struct Repeat<U, E, P, const AT_LEAST: usize, const MAY_MORE: usize>
+pub struct Repeat<'i, U, E, P, const AT_LEAST: usize, const MAY_MORE: usize>
 where
-    U: Slice,
+    U: ?Sized + Slice,
     E: Situation,
-    P: Pattern<U, E>,
+    P: Pattern<'i, U, E>,
 {
     body: P,
-    phantom: PhantomData<(U, E)>,
+    phantom: PhantomData<(&'i U, E)>,
 }
 
-impl<U, E, P, const AT_LEAST: usize, const MAY_MORE: usize> Pattern<U, E> for Repeat<U, E, P, AT_LEAST, MAY_MORE>
+impl<'i, U, E, P, const AT_LEAST: usize, const MAY_MORE: usize> Pattern<'i, U, E>
+    for Repeat<'i, U, E, P, AT_LEAST, MAY_MORE>
 where
-    U: Slice,
+    U: ?Sized + Slice,
     E: Situation,
-    P: Pattern<U, E>,
+    P: Pattern<'i, U, E>,
 {
     type Captured = ([P::Captured; AT_LEAST], [Option<P::Captured>; MAY_MORE]);
     type Internal = (
@@ -85,7 +86,7 @@ where
     }
 
     #[inline(always)]
-    fn precede(&self, slice: U, entry: &mut Self::Internal, eof: bool) -> PrecedeResult<E> {
+    fn precede(&self, slice: &U, entry: &mut Self::Internal, eof: bool) -> PrecedeResult<E> {
         let (checkpoint, at_least, may_more) = entry;
         let mut resuming = *checkpoint;
         let mut offset = 0usize;
@@ -121,7 +122,7 @@ where
 
     #[inline(always)]
     #[allow(unsafe_code)]
-    fn extract(&self, slice: U, entry: Self::Internal) -> Self::Captured {
+    fn extract(&self, slice: &'i U, entry: Self::Internal) -> Self::Captured {
         let (mut checkpoint, at_least, may_more) = entry;
         let mut at_least_cap: MaybeUninit<[P::Captured; AT_LEAST]> = MaybeUninit::uninit();
         let mut may_more_cap: MaybeUninit<[Option<P::Captured>; MAY_MORE]> = MaybeUninit::uninit();
@@ -153,68 +154,68 @@ where
 
 //------------------------------------------------------------------------------
 
-pub struct RepeatExact<U, E, P, const TIMES: usize>
+pub struct RepeatExact<'i, U, E, P, const TIMES: usize>
 where
-    U: Slice,
+    U: ?Sized + Slice,
     E: Situation,
-    P: Pattern<U, E>,
+    P: Pattern<'i, U, E>,
 {
-    body: Repeat<U, E, P, TIMES, 0>,
+    body: Repeat<'i, U, E, P, TIMES, 0>,
 }
 
-impl<U, E, P, const TIMES: usize> Pattern<U, E> for RepeatExact<U, E, P, TIMES>
+impl<'i, U, E, P, const TIMES: usize> Pattern<'i, U, E> for RepeatExact<'i, U, E, P, TIMES>
 where
-    U: Slice,
+    U: ?Sized + Slice,
     E: Situation,
-    P: Pattern<U, E>,
+    P: Pattern<'i, U, E>,
 {
     type Captured = [P::Captured; TIMES];
-    type Internal = <Repeat<U, E, P, TIMES, 0> as Pattern<U, E>>::Internal;
+    type Internal = <Repeat<'i, U, E, P, TIMES, 0> as Pattern<'i, U, E>>::Internal;
 
     #[inline(always)]
     fn init(&self) -> Self::Internal {
         self.body.init()
     }
     #[inline(always)]
-    fn precede(&self, slice: U, entry: &mut Self::Internal, eof: bool) -> PrecedeResult<E> {
+    fn precede(&self, slice: &U, entry: &mut Self::Internal, eof: bool) -> PrecedeResult<E> {
         self.body.precede(slice, entry, eof)
     }
     #[inline(always)]
-    fn extract(&self, slice: U, entry: Self::Internal) -> Self::Captured {
+    fn extract(&self, slice: &'i U, entry: Self::Internal) -> Self::Captured {
         self.body.extract(slice, entry).0
     }
 }
 
 //------------------------------------------------------------------------------
 
-pub struct RepeatAtMost<U, E, P, const TIMES: usize>
+pub struct RepeatAtMost<'i, U, E, P, const TIMES: usize>
 where
-    U: Slice,
+    U: ?Sized + Slice,
     E: Situation,
-    P: Pattern<U, E>,
+    P: Pattern<'i, U, E>,
 {
-    body: Repeat<U, E, P, 0, TIMES>,
+    body: Repeat<'i, U, E, P, 0, TIMES>,
 }
 
-impl<U, E, P, const TIMES: usize> Pattern<U, E> for RepeatAtMost<U, E, P, TIMES>
+impl<'i, U, E, P, const TIMES: usize> Pattern<'i, U, E> for RepeatAtMost<'i, U, E, P, TIMES>
 where
-    U: Slice,
+    U: ?Sized + Slice,
     E: Situation,
-    P: Pattern<U, E>,
+    P: Pattern<'i, U, E>,
 {
     type Captured = [Option<P::Captured>; TIMES];
-    type Internal = <Repeat<U, E, P, 0, TIMES> as Pattern<U, E>>::Internal;
+    type Internal = <Repeat<'i, U, E, P, 0, TIMES> as Pattern<'i, U, E>>::Internal;
 
     #[inline(always)]
     fn init(&self) -> Self::Internal {
         self.body.init()
     }
     #[inline(always)]
-    fn precede(&self, slice: U, entry: &mut Self::Internal, eof: bool) -> PrecedeResult<E> {
+    fn precede(&self, slice: &U, entry: &mut Self::Internal, eof: bool) -> PrecedeResult<E> {
         self.body.precede(slice, entry, eof)
     }
     #[inline(always)]
-    fn extract(&self, slice: U, entry: Self::Internal) -> Self::Captured {
+    fn extract(&self, slice: &'i U, entry: Self::Internal) -> Self::Captured {
         self.body.extract(slice, entry).1
     }
 }

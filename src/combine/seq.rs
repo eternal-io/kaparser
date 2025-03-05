@@ -2,9 +2,9 @@ use super::*;
 
 macro_rules! impl_pattern_for_tuple {
     ( $Len:literal, $( $LabN:lifetime ~ $GenN:ident ~ $ValN:ident ~ $OrdN:literal ~ $IdxN:tt )+ ) => { paste::paste! {
-        impl<U, E, $($GenN: Pattern<U, E>),+> Pattern<U, E> for ($($GenN,)+)
+        impl<'i, U, E, $($GenN: Pattern<'i, U, E>),+> Pattern<'i, U, E> for ($($GenN,)+)
         where
-            U: Slice,
+            U: ?Sized + Slice,
             E: Situation,
         {
             type Captured = ($($GenN::Captured,)+);
@@ -16,7 +16,7 @@ macro_rules! impl_pattern_for_tuple {
             }
 
             #[inline(always)]
-            fn precede(&self, slice: U, entry: &mut Self::Internal, eof: bool) -> PrecedeResult<E> {
+            fn precede(&self, slice: &U, entry: &mut Self::Internal, eof: bool) -> PrecedeResult<E> {
                 use [<Check $Len>]::*;
                 let (checkpoint, states) = entry;
                 let mut offset = 0usize;
@@ -40,7 +40,7 @@ macro_rules! impl_pattern_for_tuple {
             }
 
             #[inline(always)]
-            fn extract(&self, slice: U, entry: Self::Internal) -> Self::Captured {
+            fn extract(&self, slice: &'i U, entry: Self::Internal) -> Self::Captured {
                 $(
                     let $ValN = entry.1.$IdxN;
                     let $ValN = self.$IdxN.extract(slice.split_at($ValN.0).1, $ValN.1);

@@ -23,7 +23,7 @@ pub(crate) const fn cold_path() {}
 
 //------------------------------------------------------------------------------
 
-pub trait Slice: Copy + Sized {
+pub trait Slice {
     type Item: Copy + PartialEq;
 
     fn len(&self) -> usize;
@@ -33,15 +33,15 @@ pub trait Slice: Copy + Sized {
         self.len() == 0
     }
 
-    fn split_at(self, mid: usize) -> (Self, Self);
-    fn iter(self) -> impl Iterator<Item = Self::Item>;
-    fn iter_indices(self) -> impl Iterator<Item = (usize, Self::Item)>;
-    fn first(self) -> Option<Self::Item> {
+    fn split_at(&self, mid: usize) -> (&Self, &Self);
+    fn iter(&self) -> impl Iterator<Item = Self::Item>;
+    fn iter_indices(&self) -> impl Iterator<Item = (usize, Self::Item)>;
+    fn first(&self) -> Option<Self::Item> {
         self.iter().next()
     }
 }
 
-impl Slice for &str {
+impl Slice for str {
     type Item = char;
 
     #[inline(always)]
@@ -54,24 +54,24 @@ impl Slice for &str {
     }
     #[inline(always)]
     fn starts_with(&self, prefix: &Self) -> bool {
-        (*self).starts_with(*prefix)
+        (*self).starts_with(prefix)
     }
 
     #[inline(always)]
-    fn split_at(self, mid: usize) -> (Self, Self) {
+    fn split_at(&self, mid: usize) -> (&Self, &Self) {
         (*self).split_at(mid)
     }
     #[inline(always)]
-    fn iter(self) -> impl Iterator<Item = Self::Item> {
+    fn iter(&self) -> impl Iterator<Item = Self::Item> {
         self.chars()
     }
     #[inline(always)]
-    fn iter_indices(self) -> impl Iterator<Item = (usize, Self::Item)> {
+    fn iter_indices(&self) -> impl Iterator<Item = (usize, Self::Item)> {
         self.char_indices()
     }
 }
 
-impl<T> Slice for &[T]
+impl<T> Slice for [T]
 where
     T: Copy + PartialEq,
 {
@@ -91,15 +91,15 @@ where
     }
 
     #[inline(always)]
-    fn split_at(self, mid: usize) -> (Self, Self) {
+    fn split_at(&self, mid: usize) -> (&Self, &Self) {
         (*self).split_at(mid)
     }
     #[inline(always)]
-    fn iter(self) -> impl Iterator<Item = Self::Item> {
+    fn iter(&self) -> impl Iterator<Item = Self::Item> {
         (*self).iter().copied()
     }
     #[inline(always)]
-    fn iter_indices(self) -> impl Iterator<Item = (usize, Self::Item)> {
+    fn iter_indices(&self) -> impl Iterator<Item = (usize, Self::Item)> {
         (*self).iter().copied().enumerate()
     }
 }

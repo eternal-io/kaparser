@@ -1,11 +1,11 @@
 use super::*;
 
 #[inline(always)]
-pub const fn alt<U, E, A>(alt: A) -> Alternate<U, E, A>
+pub const fn alt<'i, U, E, A>(alt: A) -> Alternate<'i, U, E, A>
 where
-    U: Slice,
+    U: ?Sized + Slice,
     E: Situation,
-    A: Alternatable<U, E>,
+    A: Alternatable<'i, U, E>,
 {
     Alternate {
         alt,
@@ -15,19 +15,19 @@ where
 
 //------------------------------------------------------------------------------
 
-pub struct Alternate<U, E, A>
+pub struct Alternate<'i, U, E, A>
 where
-    U: Slice,
+    U: ?Sized + Slice,
     E: Situation,
-    A: Alternatable<U, E>,
+    A: Alternatable<'i, U, E>,
 {
     alt: A,
-    phantom: PhantomData<(U, E)>,
+    phantom: PhantomData<(&'i U, E)>,
 }
 
-pub trait Alternatable<U, E>
+pub trait Alternatable<'i, U, E>
 where
-    U: Slice,
+    U: ?Sized + Slice,
     E: Situation,
 {
     type Captured;
@@ -35,16 +35,16 @@ where
 
     fn init_alt(&self) -> Self::Internal;
 
-    fn precede_alt(&self, slice: U, entry: &mut Self::Internal, eof: bool) -> PrecedeResult<E>;
+    fn precede_alt(&self, slice: &U, entry: &mut Self::Internal, eof: bool) -> PrecedeResult<E>;
 
-    fn extract_alt(&self, slice: U, entry: Self::Internal) -> Self::Captured;
+    fn extract_alt(&self, slice: &'i U, entry: Self::Internal) -> Self::Captured;
 }
 
-impl<U, E, A> Pattern<U, E> for Alternate<U, E, A>
+impl<'i, U, E, A> Pattern<'i, U, E> for Alternate<'i, U, E, A>
 where
-    U: Slice,
+    U: ?Sized + Slice,
     E: Situation,
-    A: Alternatable<U, E>,
+    A: Alternatable<'i, U, E>,
 {
     type Captured = A::Captured;
     type Internal = A::Internal;
@@ -54,20 +54,20 @@ where
         self.alt.init_alt()
     }
     #[inline(always)]
-    fn precede(&self, slice: U, entry: &mut Self::Internal, eof: bool) -> PrecedeResult<E> {
+    fn precede(&self, slice: &U, entry: &mut Self::Internal, eof: bool) -> PrecedeResult<E> {
         self.alt.precede_alt(slice, entry, eof)
     }
     #[inline(always)]
-    fn extract(&self, slice: U, entry: Self::Internal) -> Self::Captured {
+    fn extract(&self, slice: &'i U, entry: Self::Internal) -> Self::Captured {
         self.alt.extract_alt(slice, entry)
     }
 }
 
 macro_rules! impl_alternatable_for_tuple {
     ( $Alt:ident, $( $LabN:lifetime ~ $GenN:ident ~ $VarN:ident ~ $OrdN:literal ~ $IdxN:tt )+ ) => { paste::paste! {
-        impl<U, E, $($GenN: Pattern<U, E>),+> Alternatable<U, E> for ($($GenN,)+)
+        impl<'i, U, E, $($GenN: Pattern<'i, U, E>),+> Alternatable<'i, U, E> for ($($GenN,)+)
         where
-            U: Slice,
+            U: ?Sized + Slice,
             E: Situation,
         {
             type Captured = $Alt<$($GenN::Captured),+>;
@@ -80,7 +80,7 @@ macro_rules! impl_alternatable_for_tuple {
 
             #[inline(always)]
             #[allow(irrefutable_let_patterns)]
-            fn precede_alt(&self, slice: U, entry: &mut Self::Internal, eof: bool) -> PrecedeResult<E> {
+            fn precede_alt(&self, slice: &U, entry: &mut Self::Internal, eof: bool) -> PrecedeResult<E> {
                 use $Alt::*;
 
                 resume_precede! {
@@ -103,7 +103,7 @@ macro_rules! impl_alternatable_for_tuple {
             }
 
             #[inline(always)]
-            fn extract_alt(&self, slice: U, entry: Self::Internal) -> Self::Captured {
+            fn extract_alt(&self, slice: &'i U, entry: Self::Internal) -> Self::Captured {
                 use $Alt::*;
                 match entry { $(
                     $VarN(state) => $VarN(self.$IdxN.extract(slice, state)),

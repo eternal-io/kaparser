@@ -1,16 +1,16 @@
 use crate::{common::*, error::*, pattern::*};
 
-pub trait Parser<U, E>
+pub trait Parser<'i, U, E>
 where
-    U: Slice,
+    U: ?Sized + Slice,
     E: Situation,
 {
     type Captured;
 
-    fn parse(&self, slice: &mut U) -> ParseResult<Self::Captured, E>;
+    fn parse(&self, slice: &mut &'i U) -> ParseResult<Self::Captured, E>;
 
     #[inline(always)]
-    fn full_match(&self, slice: U) -> ParseResult<Self::Captured, E> {
+    fn full_match(&self, slice: &'i U) -> ParseResult<Self::Captured, E> {
         let mut sli = slice;
         let cap = self.parse(&mut sli)?;
         match sli.len() {
@@ -20,16 +20,16 @@ where
     }
 }
 
-impl<U, E, P> Parser<U, E> for P
+impl<'i, U, E, P> Parser<'i, U, E> for P
 where
-    U: Slice,
+    U: ?Sized + Slice,
     E: Situation,
-    P: Pattern<U, E>,
+    P: Pattern<'i, U, E>,
 {
     type Captured = P::Captured;
 
     #[inline(always)]
-    fn parse(&self, slice: &mut U) -> ParseResult<Self::Captured, E> {
+    fn parse(&self, slice: &mut &'i U) -> ParseResult<Self::Captured, E> {
         let mut state = self.init();
         match self.precede(*slice, &mut state, true) {
             Ok(len) => {

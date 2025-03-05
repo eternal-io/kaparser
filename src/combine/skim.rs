@@ -11,24 +11,24 @@ where
 }
 
 #[inline(always)]
-pub const fn until<U, E, P>(end: P) -> RangeToInclusive<P>
+pub const fn until<'i, U, E, P>(end: P) -> RangeToInclusive<P>
 where
-    U: Slice,
+    U: ?Sized + Slice,
     E: Situation,
-    P: Pattern<U, E>,
+    P: Pattern<'i, U, E>,
 {
     RangeToInclusive { end }
 }
 
 //------------------------------------------------------------------------------
 
-impl<U, E, P> Pattern<U, E> for RangeTo<P>
+impl<'i, U, E, P> Pattern<'i, U, E> for RangeTo<P>
 where
-    U: Slice,
+    U: ?Sized + Slice + 'i,
     E: Situation,
     P: Predicate<U::Item>,
 {
-    type Captured = (U, Option<U::Item>);
+    type Captured = (&'i U, Option<U::Item>);
     type Internal = usize;
 
     #[inline(always)]
@@ -36,7 +36,7 @@ where
         0
     }
     #[inline(always)]
-    fn precede(&self, slice: U, entry: &mut Self::Internal, eof: bool) -> PrecedeResult<E> {
+    fn precede(&self, slice: &U, entry: &mut Self::Internal, eof: bool) -> PrecedeResult<E> {
         match slice
             .split_at(*entry)
             .1
@@ -54,7 +54,7 @@ where
         }
     }
     #[inline(always)]
-    fn extract(&self, slice: U, entry: Self::Internal) -> Self::Captured {
+    fn extract(&self, slice: &'i U, entry: Self::Internal) -> Self::Captured {
         let (left, right) = slice.split_at(entry);
         (left, right.first())
     }
@@ -62,13 +62,13 @@ where
 
 //------------------------------------------------------------------------------
 
-impl<U, E, P> Pattern<U, E> for RangeToInclusive<P>
+impl<'i, U, E, P> Pattern<'i, U, E> for RangeToInclusive<P>
 where
-    U: Slice,
+    U: ?Sized + Slice + 'i,
     E: Situation,
-    P: Pattern<U, E>,
+    P: Pattern<'i, U, E>,
 {
-    type Captured = (U, P::Captured);
+    type Captured = (&'i U, P::Captured);
     type Internal = (usize, P::Internal);
 
     #[inline(always)]
@@ -76,7 +76,7 @@ where
         (0, self.end.init())
     }
     #[inline(always)]
-    fn precede(&self, slice: U, entry: &mut Self::Internal, eof: bool) -> PrecedeResult<E> {
+    fn precede(&self, slice: &U, entry: &mut Self::Internal, eof: bool) -> PrecedeResult<E> {
         let (offset, state) = entry;
         for item in slice.split_at(*offset).1.iter() {
             let mut st = self.end.init();
@@ -101,7 +101,7 @@ where
         }
     }
     #[inline(always)]
-    fn extract(&self, slice: U, entry: Self::Internal) -> Self::Captured {
+    fn extract(&self, slice: &'i U, entry: Self::Internal) -> Self::Captured {
         let (off, state) = entry;
         let (left, right) = slice.split_at(off);
         (left, self.end.extract(right, state))

@@ -1,16 +1,11 @@
-use crate::{
-    combine::{control, convert},
-    common::*,
-    error::*,
-    predicate::*,
-};
+use crate::{combine::convert, common::*, error::*, predicate::*};
 
 #[doc(inline)]
 pub use crate::token_set;
 
-pub trait Pattern<U, E>
+pub trait Pattern<'i, U, E>
 where
-    U: Slice,
+    U: ?Sized + Slice,
     E: Situation,
 {
     type Captured;
@@ -18,21 +13,12 @@ where
 
     fn init(&self) -> Self::Internal;
 
-    fn precede(&self, slice: U, entry: &mut Self::Internal, eof: bool) -> PrecedeResult<E>;
+    fn precede(&self, slice: &U, entry: &mut Self::Internal, eof: bool) -> PrecedeResult<E>;
 
-    fn extract(&self, slice: U, entry: Self::Internal) -> Self::Captured;
-
-    #[inline(always)]
-    fn verify<F>(self, f: F) -> control::Verify<U, E, Self, F>
-    where
-        Self: Sized,
-        F: Fn(Self::Captured) -> bool,
-    {
-        control::verify(f, self)
-    }
+    fn extract(&self, slice: &'i U, entry: Self::Internal) -> Self::Captured;
 
     #[inline(always)]
-    fn map<F, Out>(self, op: F) -> convert::Map<U, E, Self, F, Out>
+    fn map<F, Out>(self, op: F) -> convert::Map<'i, U, E, Self, F, Out>
     where
         Self: Sized,
         F: Fn(Self::Captured) -> Out,
@@ -40,7 +26,7 @@ where
         convert::map(op, self)
     }
     #[inline(always)]
-    fn map_err<F, E2>(self, op: F) -> convert::MapErr<U, E, Self, F, E2>
+    fn map_err<F, E2>(self, op: F) -> convert::MapErr<'i, U, E, Self, F, E2>
     where
         Self: Sized,
         F: Fn(E) -> E2,
@@ -50,7 +36,7 @@ where
     }
 
     #[inline(always)]
-    fn desc(self, desc: E::Description) -> convert::Describe<U, E, Self>
+    fn desc(self, desc: E::Description) -> convert::Describe<'i, U, E, Self>
     where
         Self: Sized,
         E::Description: Clone,
@@ -58,7 +44,7 @@ where
         convert::desc(desc, self)
     }
     #[inline(always)]
-    fn desc_with<F>(self, f: F) -> convert::DescribeWith<U, E, Self, F>
+    fn desc_with<F>(self, f: F) -> convert::DescribeWith<'i, U, E, Self, F>
     where
         Self: Sized,
         F: Fn(&E) -> E::Description,
@@ -67,14 +53,14 @@ where
     }
 
     #[inline(always)]
-    fn unwrap(self) -> convert::Unwrap<U, E, Self>
+    fn unwrap(self) -> convert::Unwrap<'i, U, E, Self>
     where
         Self: Sized,
     {
         convert::unwrap(self)
     }
     #[inline(always)]
-    fn unwrap_or(self, default: Self::Captured) -> convert::UnwrapOr<U, E, Self>
+    fn unwrap_or(self, default: Self::Captured) -> convert::UnwrapOr<'i, U, E, Self>
     where
         Self: Sized,
         Self::Captured: Clone,
@@ -82,7 +68,7 @@ where
         convert::unwrap_or(default, self)
     }
     #[inline(always)]
-    fn unwrap_or_default(self) -> convert::UnwrapOrDefault<U, E, Self>
+    fn unwrap_or_default(self) -> convert::UnwrapOrDefault<'i, U, E, Self>
     where
         Self: Sized,
         Self::Captured: Default,
@@ -91,10 +77,10 @@ where
     }
 
     #[inline(always)]
-    fn complex<Q>(self, then: Q) -> convert::Complex<U, E, Self, Q>
+    fn complex<Q>(self, then: Q) -> convert::Complex<'i, U, E, Self, Q>
     where
         Self: Sized,
-        Q: Pattern<U, E>,
+        Q: Pattern<'i, U, E>,
     {
         convert::complex(self, then)
     }
@@ -102,19 +88,19 @@ where
 
 //------------------------------------------------------------------------------
 
-impl<U, E> Pattern<U, E> for U
+impl<'i, U, E> Pattern<'i, U, E> for &'i U
 where
-    U: Slice,
+    U: ?Sized + Slice,
     E: Situation,
 {
-    type Captured = U;
+    type Captured = &'i U;
     type Internal = ();
 
     #[inline(always)]
     fn init(&self) -> Self::Internal {}
 
     #[inline(always)]
-    fn precede(&self, slice: U, _ntry: &mut Self::Internal, eof: bool) -> PrecedeResult<E> {
+    fn precede(&self, slice: &U, _ntry: &mut Self::Internal, eof: bool) -> PrecedeResult<E> {
         if slice.len() < self.len() {
             match eof {
                 true => E::raise_unfulfilled(Some((self.len() - slice.len()).try_into().unwrap())),
@@ -131,14 +117,14 @@ where
     }
 
     #[inline(always)]
-    fn extract(&self, slice: U, _ntry: Self::Internal) -> Self::Captured {
+    fn extract(&self, slice: &'i U, _ntry: Self::Internal) -> Self::Captured {
         slice.split_at(self.len()).0
     }
 }
 
-impl<U, E, P> Pattern<U, E> for [P; 1]
+impl<'i, U, E, P> Pattern<'i, U, E> for [P; 1]
 where
-    U: Slice,
+    U: ?Sized + Slice,
     E: Situation,
     P: Predicate<U::Item>,
 {
@@ -149,7 +135,7 @@ where
     fn init(&self) -> Self::Internal {}
 
     #[inline(always)]
-    fn precede(&self, slice: U, _ntry: &mut Self::Internal, eof: bool) -> PrecedeResult<E> {
+    fn precede(&self, slice: &U, _ntry: &mut Self::Internal, eof: bool) -> PrecedeResult<E> {
         match slice.first() {
             Some(item) => match self[0].predicate(&item) {
                 true => Ok(slice.len_of(item)),
@@ -163,7 +149,7 @@ where
     }
 
     #[inline(always)]
-    fn extract(&self, slice: U, _ntry: Self::Internal) -> Self::Captured {
+    fn extract(&self, slice: &'i U, _ntry: Self::Internal) -> Self::Captured {
         slice.first().unwrap()
     }
 }

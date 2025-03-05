@@ -37,14 +37,14 @@ where
     phantom: PhantomData<T>,
 }
 
-impl<U, E, P, R> Pattern<U, E> for Take<U::Item, P, R>
+impl<'i, U, E, P, R> Pattern<'i, U, E> for Take<U::Item, P, R>
 where
-    U: Slice,
+    U: ?Sized + Slice + 'i,
     E: Situation,
     P: Predicate<U::Item>,
     R: URangeBounds,
 {
-    type Captured = U;
+    type Captured = &'i U;
     type Internal = (usize, usize);
 
     #[inline(always)]
@@ -52,7 +52,7 @@ where
         (0, 0)
     }
     #[inline(always)]
-    fn precede(&self, slice: U, entry: &mut Self::Internal, eof: bool) -> PrecedeResult<E> {
+    fn precede(&self, slice: &U, entry: &mut Self::Internal, eof: bool) -> PrecedeResult<E> {
         let (offset, times) = entry;
         if let Some((i, (off, item))) = slice
             .split_at(*offset)
@@ -78,20 +78,20 @@ where
         }
     }
     #[inline(always)]
-    fn extract(&self, slice: U, entry: Self::Internal) -> Self::Captured {
+    fn extract(&self, slice: &'i U, entry: Self::Internal) -> Self::Captured {
         slice.split_at(entry.0).0
     }
 }
 
 //------------------------------------------------------------------------------
 
-impl<U, E, P> Pattern<U, E> for RangeFrom<P>
+impl<'i, U, E, P> Pattern<'i, U, E> for RangeFrom<P>
 where
-    U: Slice,
+    U: ?Sized + Slice + 'i,
     E: Situation,
     P: Predicate<U::Item>,
 {
-    type Captured = U;
+    type Captured = &'i U;
     type Internal = usize;
 
     #[inline(always)]
@@ -99,7 +99,7 @@ where
         0
     }
     #[inline(always)]
-    fn precede(&self, slice: U, entry: &mut Self::Internal, eof: bool) -> PrecedeResult<E> {
+    fn precede(&self, slice: &U, entry: &mut Self::Internal, eof: bool) -> PrecedeResult<E> {
         match slice
             .split_at(*entry)
             .1
@@ -126,7 +126,7 @@ where
         }
     }
     #[inline(always)]
-    fn extract(&self, slice: U, entry: Self::Internal) -> Self::Captured {
+    fn extract(&self, slice: &'i U, entry: Self::Internal) -> Self::Captured {
         slice.split_at(entry).0
     }
 }

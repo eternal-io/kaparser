@@ -1,11 +1,11 @@
 use super::*;
 
 #[inline(always)]
-pub const fn map<U, E, P, F, Out>(op: F, body: P) -> Map<U, E, P, F, Out>
+pub const fn map<'i, U, E, P, F, Out>(op: F, body: P) -> Map<'i, U, E, P, F, Out>
 where
-    U: Slice,
+    U: ?Sized + Slice,
     E: Situation,
-    P: Pattern<U, E>,
+    P: Pattern<'i, U, E>,
     F: Fn(P::Captured) -> Out,
 {
     Map {
@@ -15,11 +15,11 @@ where
     }
 }
 #[inline(always)]
-pub const fn map_err<U, E1, P, F, E2>(op: F, body: P) -> MapErr<U, E1, P, F, E2>
+pub const fn map_err<'i, U, E1, P, F, E2>(op: F, body: P) -> MapErr<'i, U, E1, P, F, E2>
 where
-    U: Slice,
+    U: ?Sized + Slice,
     E1: Situation,
-    P: Pattern<U, E1>,
+    P: Pattern<'i, U, E1>,
     F: Fn(E1) -> E2,
     E2: Situation,
 {
@@ -31,12 +31,12 @@ where
 }
 
 #[inline(always)]
-pub const fn desc<U, E, P>(desc: E::Description, body: P) -> Describe<U, E, P>
+pub const fn desc<'i, U, E, P>(desc: E::Description, body: P) -> Describe<'i, U, E, P>
 where
-    U: Slice,
+    U: ?Sized + Slice,
     E: Situation,
     E::Description: Clone,
-    P: Pattern<U, E>,
+    P: Pattern<'i, U, E>,
 {
     Describe {
         body,
@@ -45,11 +45,11 @@ where
     }
 }
 #[inline(always)]
-pub const fn desc_with<U, E, P, F>(f: F, body: P) -> DescribeWith<U, E, P, F>
+pub const fn desc_with<'i, U, E, P, F>(f: F, body: P) -> DescribeWith<'i, U, E, P, F>
 where
-    U: Slice,
+    U: ?Sized + Slice,
     E: Situation,
-    P: Pattern<U, E>,
+    P: Pattern<'i, U, E>,
     F: Fn(&E) -> E::Description,
 {
     DescribeWith {
@@ -60,11 +60,11 @@ where
 }
 
 #[inline(always)]
-pub const fn unwrap<U, E, P>(body: P) -> Unwrap<U, E, P>
+pub const fn unwrap<'i, U, E, P>(body: P) -> Unwrap<'i, U, E, P>
 where
-    U: Slice,
+    U: ?Sized + Slice,
     E: Situation,
-    P: Pattern<U, E>,
+    P: Pattern<'i, U, E>,
 {
     Unwrap {
         body,
@@ -72,11 +72,11 @@ where
     }
 }
 #[inline(always)]
-pub const fn unwrap_or<U, E, P>(default: P::Captured, body: P) -> UnwrapOr<U, E, P>
+pub const fn unwrap_or<'i, U, E, P>(default: P::Captured, body: P) -> UnwrapOr<'i, U, E, P>
 where
-    U: Slice,
+    U: ?Sized + Slice,
     E: Situation,
-    P: Pattern<U, E>,
+    P: Pattern<'i, U, E>,
     P::Captured: Clone,
 {
     UnwrapOr {
@@ -86,11 +86,11 @@ where
     }
 }
 #[inline(always)]
-pub const fn unwrap_or_default<U, E, P>(body: P) -> UnwrapOrDefault<U, E, P>
+pub const fn unwrap_or_default<'i, U, E, P>(body: P) -> UnwrapOrDefault<'i, U, E, P>
 where
-    U: Slice,
+    U: ?Sized + Slice,
     E: Situation,
-    P: Pattern<U, E>,
+    P: Pattern<'i, U, E>,
     P::Captured: Default,
 {
     UnwrapOrDefault {
@@ -101,12 +101,12 @@ where
 
 #[inline(always)]
 #[doc(alias = "and_then")]
-pub const fn complex<U, E, P, Q>(body: P, then: Q) -> Complex<U, E, P, Q>
+pub const fn complex<'i, U, E, P, Q>(body: P, then: Q) -> Complex<'i, U, E, P, Q>
 where
-    U: Slice,
+    U: ?Sized + Slice,
     E: Situation,
-    P: Pattern<U, E>,
-    Q: Pattern<U, E>,
+    P: Pattern<'i, U, E>,
+    Q: Pattern<'i, U, E>,
 {
     Complex {
         body,
@@ -117,23 +117,23 @@ where
 
 //------------------------------------------------------------------------------
 
-pub struct Map<U, E, P, F, Out>
+pub struct Map<'i, U, E, P, F, Out>
 where
-    U: Slice,
+    U: ?Sized + Slice,
     E: Situation,
-    P: Pattern<U, E>,
+    P: Pattern<'i, U, E>,
     F: Fn(P::Captured) -> Out,
 {
     body: P,
     op: F,
-    phantom: PhantomData<(U, E)>,
+    phantom: PhantomData<(&'i U, E)>,
 }
 
-impl<U, E, P, F, Out> Pattern<U, E> for Map<U, E, P, F, Out>
+impl<'i, U, E, P, F, Out> Pattern<'i, U, E> for Map<'i, U, E, P, F, Out>
 where
-    U: Slice,
+    U: ?Sized + Slice,
     E: Situation,
-    P: Pattern<U, E>,
+    P: Pattern<'i, U, E>,
     F: Fn(P::Captured) -> Out,
 {
     type Captured = Out;
@@ -144,35 +144,35 @@ where
         self.body.init()
     }
     #[inline(always)]
-    fn precede(&self, slice: U, entry: &mut Self::Internal, eof: bool) -> PrecedeResult<E> {
+    fn precede(&self, slice: &U, entry: &mut Self::Internal, eof: bool) -> PrecedeResult<E> {
         self.body.precede(slice, entry, eof)
     }
     #[inline(always)]
-    fn extract(&self, slice: U, entry: Self::Internal) -> Self::Captured {
+    fn extract(&self, slice: &'i U, entry: Self::Internal) -> Self::Captured {
         (self.op)(self.body.extract(slice, entry))
     }
 }
 
 //------------------------------------------------------------------------------
 
-pub struct MapErr<U, E1, P, F, E2>
+pub struct MapErr<'i, U, E1, P, F, E2>
 where
-    U: Slice,
+    U: ?Sized + Slice,
     E1: Situation,
-    P: Pattern<U, E1>,
+    P: Pattern<'i, U, E1>,
     F: Fn(E1) -> E2,
     E2: Situation,
 {
     body: P,
     op: F,
-    phantom: PhantomData<(U, E1, E2)>,
+    phantom: PhantomData<(&'i U, E1, E2)>,
 }
 
-impl<U, E1, P, F, E2> Pattern<U, E2> for MapErr<U, E1, P, F, E2>
+impl<'i, U, E1, P, F, E2> Pattern<'i, U, E2> for MapErr<'i, U, E1, P, F, E2>
 where
-    U: Slice,
+    U: ?Sized + Slice,
     E1: Situation,
-    P: Pattern<U, E1>,
+    P: Pattern<'i, U, E1>,
     F: Fn(E1) -> E2,
     E2: Situation,
 {
@@ -184,35 +184,35 @@ where
         self.body.init()
     }
     #[inline(always)]
-    fn precede(&self, slice: U, entry: &mut Self::Internal, eof: bool) -> PrecedeResult<E2> {
+    fn precede(&self, slice: &U, entry: &mut Self::Internal, eof: bool) -> PrecedeResult<E2> {
         self.body.precede(slice, entry, eof).map_err(|e| (self.op)(e))
     }
     #[inline(always)]
-    fn extract(&self, slice: U, entry: Self::Internal) -> Self::Captured {
+    fn extract(&self, slice: &'i U, entry: Self::Internal) -> Self::Captured {
         self.body.extract(slice, entry)
     }
 }
 
 //------------------------------------------------------------------------------
 
-pub struct Describe<U, E, P>
+pub struct Describe<'i, U, E, P>
 where
-    U: Slice,
+    U: ?Sized + Slice,
     E: Situation,
     E::Description: Clone,
-    P: Pattern<U, E>,
+    P: Pattern<'i, U, E>,
 {
     body: P,
     desc: E::Description,
-    phantom: PhantomData<(U, E)>,
+    phantom: PhantomData<(&'i U, E)>,
 }
 
-impl<U, E, P> Pattern<U, E> for Describe<U, E, P>
+impl<'i, U, E, P> Pattern<'i, U, E> for Describe<'i, U, E, P>
 where
-    U: Slice,
+    U: ?Sized + Slice,
     E: Situation,
     E::Description: Clone,
-    P: Pattern<U, E>,
+    P: Pattern<'i, U, E>,
 {
     type Captured = P::Captured;
     type Internal = P::Internal;
@@ -222,36 +222,36 @@ where
         self.body.init()
     }
     #[inline(always)]
-    fn precede(&self, slice: U, entry: &mut Self::Internal, eof: bool) -> PrecedeResult<E> {
+    fn precede(&self, slice: &U, entry: &mut Self::Internal, eof: bool) -> PrecedeResult<E> {
         self.body
             .precede(slice, entry, eof)
             .map_err(|e| e.describe(self.desc.clone()))
     }
     #[inline(always)]
-    fn extract(&self, slice: U, entry: Self::Internal) -> Self::Captured {
+    fn extract(&self, slice: &'i U, entry: Self::Internal) -> Self::Captured {
         self.body.extract(slice, entry)
     }
 }
 
 //------------------------------------------------------------------------------
 
-pub struct DescribeWith<U, E, P, F>
+pub struct DescribeWith<'i, U, E, P, F>
 where
-    U: Slice,
+    U: ?Sized + Slice,
     E: Situation,
-    P: Pattern<U, E>,
+    P: Pattern<'i, U, E>,
     F: Fn(&E) -> E::Description,
 {
     body: P,
     f: F,
-    phantom: PhantomData<(U, E)>,
+    phantom: PhantomData<(&'i U, E)>,
 }
 
-impl<U, E, P, F> Pattern<U, E> for DescribeWith<U, E, P, F>
+impl<'i, U, E, P, F> Pattern<'i, U, E> for DescribeWith<'i, U, E, P, F>
 where
-    U: Slice,
+    U: ?Sized + Slice,
     E: Situation,
-    P: Pattern<U, E>,
+    P: Pattern<'i, U, E>,
     F: Fn(&E) -> E::Description,
 {
     type Captured = P::Captured;
@@ -262,35 +262,35 @@ where
         self.body.init()
     }
     #[inline(always)]
-    fn precede(&self, slice: U, entry: &mut Self::Internal, eof: bool) -> PrecedeResult<E> {
+    fn precede(&self, slice: &U, entry: &mut Self::Internal, eof: bool) -> PrecedeResult<E> {
         self.body.precede(slice, entry, eof).map_err(|e| {
             let desc = (self.f)(&e);
             e.describe(desc)
         })
     }
     #[inline(always)]
-    fn extract(&self, slice: U, entry: Self::Internal) -> Self::Captured {
+    fn extract(&self, slice: &'i U, entry: Self::Internal) -> Self::Captured {
         self.body.extract(slice, entry)
     }
 }
 
 //------------------------------------------------------------------------------
 
-pub struct Unwrap<U, E, P>
+pub struct Unwrap<'i, U, E, P>
 where
-    U: Slice,
+    U: ?Sized + Slice,
     E: Situation,
-    P: Pattern<U, E>,
+    P: Pattern<'i, U, E>,
 {
     body: P,
-    phantom: PhantomData<(U, E)>,
+    phantom: PhantomData<(&'i U, E)>,
 }
 
-impl<U, E, P> Pattern<U, E> for Unwrap<U, E, P>
+impl<'i, U, E, P> Pattern<'i, U, E> for Unwrap<'i, U, E, P>
 where
-    U: Slice,
+    U: ?Sized + Slice,
     E: Situation,
-    P: Pattern<U, E>,
+    P: Pattern<'i, U, E>,
 {
     type Captured = P::Captured;
     type Internal = P::Internal;
@@ -300,34 +300,34 @@ where
         self.body.init()
     }
     #[inline(always)]
-    fn precede(&self, slice: U, entry: &mut Self::Internal, eof: bool) -> PrecedeResult<E> {
+    fn precede(&self, slice: &U, entry: &mut Self::Internal, eof: bool) -> PrecedeResult<E> {
         Ok(self.body.precede(slice, entry, eof).expect("unexpected input"))
     }
     #[inline(always)]
-    fn extract(&self, slice: U, entry: Self::Internal) -> Self::Captured {
+    fn extract(&self, slice: &'i U, entry: Self::Internal) -> Self::Captured {
         self.body.extract(slice, entry)
     }
 }
 
 //------------------------------------------------------------------------------
 
-pub struct UnwrapOr<U, E, P>
+pub struct UnwrapOr<'i, U, E, P>
 where
-    U: Slice,
+    U: ?Sized + Slice,
     E: Situation,
-    P: Pattern<U, E>,
+    P: Pattern<'i, U, E>,
     P::Captured: Clone,
 {
     body: P,
     default: P::Captured,
-    phantom: PhantomData<(U, E)>,
+    phantom: PhantomData<(&'i U, E)>,
 }
 
-impl<U, E, P> Pattern<U, E> for UnwrapOr<U, E, P>
+impl<'i, U, E, P> Pattern<'i, U, E> for UnwrapOr<'i, U, E, P>
 where
-    U: Slice,
+    U: ?Sized + Slice,
     E: Situation,
-    P: Pattern<U, E>,
+    P: Pattern<'i, U, E>,
     P::Captured: Clone,
 {
     type Captured = P::Captured;
@@ -338,7 +338,7 @@ where
         Some(self.body.init())
     }
     #[inline(always)]
-    fn precede(&self, slice: U, entry: &mut Self::Internal, eof: bool) -> PrecedeResult<E> {
+    fn precede(&self, slice: &U, entry: &mut Self::Internal, eof: bool) -> PrecedeResult<E> {
         match entry {
             None => Ok(0),
             Some(state) => {
@@ -353,7 +353,7 @@ where
         }
     }
     #[inline(always)]
-    fn extract(&self, slice: U, entry: Self::Internal) -> Self::Captured {
+    fn extract(&self, slice: &'i U, entry: Self::Internal) -> Self::Captured {
         match entry {
             None => self.default.clone(),
             Some(state) => self.body.extract(slice, state),
@@ -363,22 +363,22 @@ where
 
 //------------------------------------------------------------------------------
 
-pub struct UnwrapOrDefault<U, E, P>
+pub struct UnwrapOrDefault<'i, U, E, P>
 where
-    U: Slice,
+    U: ?Sized + Slice,
     E: Situation,
-    P: Pattern<U, E>,
+    P: Pattern<'i, U, E>,
     P::Captured: Default,
 {
     body: P,
-    phantom: PhantomData<(U, E)>,
+    phantom: PhantomData<(&'i U, E)>,
 }
 
-impl<U, E, P> Pattern<U, E> for UnwrapOrDefault<U, E, P>
+impl<'i, U, E, P> Pattern<'i, U, E> for UnwrapOrDefault<'i, U, E, P>
 where
-    U: Slice,
+    U: ?Sized + Slice,
     E: Situation,
-    P: Pattern<U, E>,
+    P: Pattern<'i, U, E>,
     P::Captured: Default,
 {
     type Captured = P::Captured;
@@ -389,7 +389,7 @@ where
         Some(self.body.init())
     }
     #[inline(always)]
-    fn precede(&self, slice: U, entry: &mut Self::Internal, eof: bool) -> PrecedeResult<E> {
+    fn precede(&self, slice: &U, entry: &mut Self::Internal, eof: bool) -> PrecedeResult<E> {
         match entry {
             None => Ok(0),
             Some(state) => {
@@ -404,7 +404,7 @@ where
         }
     }
     #[inline(always)]
-    fn extract(&self, slice: U, entry: Self::Internal) -> Self::Captured {
+    fn extract(&self, slice: &'i U, entry: Self::Internal) -> Self::Captured {
         match entry {
             None => Default::default(),
             Some(state) => self.body.extract(slice, state),
@@ -414,24 +414,24 @@ where
 
 //------------------------------------------------------------------------------
 
-pub struct Complex<U, E, P, Q>
+pub struct Complex<'i, U, E, P, Q>
 where
-    U: Slice,
+    U: ?Sized + Slice,
     E: Situation,
-    P: Pattern<U, E>,
-    Q: Pattern<U, E>,
+    P: Pattern<'i, U, E>,
+    Q: Pattern<'i, U, E>,
 {
     body: P,
     then: Q,
-    phantom: PhantomData<(U, E)>,
+    phantom: PhantomData<(&'i U, E)>,
 }
 
-impl<U, E, P, Q> Pattern<U, E> for Complex<U, E, P, Q>
+impl<'i, U, E, P, Q> Pattern<'i, U, E> for Complex<'i, U, E, P, Q>
 where
-    U: Slice,
+    U: ?Sized + Slice,
     E: Situation,
-    P: Pattern<U, E>,
-    Q: Pattern<U, E>,
+    P: Pattern<'i, U, E>,
+    Q: Pattern<'i, U, E>,
 {
     type Captured = Q::Captured;
     type Internal = Alt2<P::Internal, Q::Internal>;
@@ -441,7 +441,7 @@ where
         Alt2::Var1(self.body.init())
     }
     #[inline(always)]
-    fn precede(&self, slice: U, entry: &mut Self::Internal, eof: bool) -> PrecedeResult<E> {
+    fn precede(&self, slice: &U, entry: &mut Self::Internal, eof: bool) -> PrecedeResult<E> {
         let Alt2::Var1(state) = entry else {
             panic!("contract violation")
         };
@@ -453,7 +453,7 @@ where
         self.then.precede(slice.split_at(len).0, state, true)
     }
     #[inline(always)]
-    fn extract(&self, slice: U, entry: Self::Internal) -> Self::Captured {
+    fn extract(&self, slice: &'i U, entry: Self::Internal) -> Self::Captured {
         let Alt2::Var2(state) = entry else {
             panic!("contract violation")
         };

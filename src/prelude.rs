@@ -3,7 +3,7 @@ pub use crate::{
         alt::alt,
         bin,
         com::com,
-        control::{cond, verify},
+        control::cond,
         convert, def,
         lens::len,
         not::not,
