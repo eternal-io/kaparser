@@ -27,6 +27,11 @@ pub trait Situation: Sized + Debug {
     fn raise_halt_at<T>(len: usize) -> Result<T, Self> {
         Err(Self::halt_at(len))
     }
+
+    #[inline(always)]
+    fn raise_backtrack<T>(self, len: usize) -> Result<T, Self> {
+        Err(self.backtrack(len))
+    }
 }
 
 //------------------------------------------------------------------------------

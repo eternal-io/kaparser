@@ -88,7 +88,7 @@ where
                 }
                 Err(e) => {
                     if !e.is_rejected() {
-                        return Err(e);
+                        return e.raise_backtrack(*offset);
                     }
                 }
             }

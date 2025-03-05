@@ -90,7 +90,10 @@ macro_rules! impl_compoundable_for_tuple {
                             *states = $VarN(self.$IdxN.init());
                         }] {
                             let $VarN(state) = states else { unreachable!() };
-                            *offset += self.$IdxN.precede(slice.split_at(*offset).1, state, eof)?;
+                            match self.$IdxN.precede(slice.split_at(*offset).1, state, eof) {
+                                Ok(len) => *offset += len,
+                                Err(e) => return e.raise_backtrack(*offset),
+                            }
                         }
                     )+ }
                 }

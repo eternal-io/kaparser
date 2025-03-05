@@ -28,5 +28,5 @@ fn main() {
     assert_eq!(parse_color("#1123EE").unwrap(), Color::Rgb(0x11, 0x23, 0xEE));
     assert_eq!(parse_color("#69F0AE").unwrap(), Color::Rgb(0x69, 0xF0, 0xAE));
     assert_eq!(parse_color("#ffab00ff").unwrap(), Color::Rgba(0xff, 0xab, 0, 0xff));
-    // assert_eq!(parse_color("#1234xx").unwrap_err().delta(), 5);
+    assert_eq!(parse_color("#1234xx").unwrap_err().length(), 5);
 }
