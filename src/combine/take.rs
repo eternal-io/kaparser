@@ -133,75 +133,84 @@ where
 
 //------------------------------------------------------------------------------
 
-// #[cfg(test)]
-// mod tests {
-//     use crate::prelude::*;
+#[cfg(test)]
+mod tests {
+    use crate::prelude::*;
 
-//     #[test]
-//     fn times() {
-//         assert_eq!(take(1..3, unc::upper).full_match("").unwrap_err(), 0);
-//         assert_eq!(take(1..3, unc::upper).full_match("Ａ").unwrap(), "Ａ");
-//         assert_eq!(take(1..3, unc::upper).full_match("ＡＢ").unwrap(), "ＡＢ");
-//         assert_eq!(take(1..3, unc::upper).full_match("ＡＢＣ").unwrap_err(), 6);
+    #[test]
+    fn times() {
+        let pat = __pat::<str, _, ParseError>(take(1..3, unc::upper));
+        assert_eq!(pat.full_match("").unwrap_err().length(), 0);
+        assert_eq!(pat.full_match("Ａ").unwrap(), "Ａ");
+        assert_eq!(pat.full_match("ＡＢ").unwrap(), "ＡＢ");
+        assert_eq!(pat.full_match("ＡＢＣ").unwrap_err().length(), 6);
 
-//         assert_eq!(take(2..=3, is_alpha).full_match("").unwrap_err(), 0);
-//         assert_eq!(take(2..=3, is_alpha).full_match("a").unwrap_err(), 1);
-//         assert_eq!(take(2..=3, is_alpha).full_match("ab").unwrap(), "ab");
-//         assert_eq!(take(2..=3, is_alpha).full_match("abc").unwrap(), "abc");
-//         assert_eq!(take(2..=3, is_alpha).full_match("abcd").unwrap_err(), 3);
+        let pat = __pat::<str, _, ParseError>(take(2..=3, is_alpha));
+        assert_eq!(pat.full_match("").unwrap_err().length(), 0);
+        assert_eq!(pat.full_match("a").unwrap_err().length(), 1);
+        assert_eq!(pat.full_match("ab").unwrap(), "ab");
+        assert_eq!(pat.full_match("abc").unwrap(), "abc");
+        assert_eq!(pat.full_match("abcd").unwrap_err().length(), 3);
 
-//         assert_eq!(take(4, is_alpha).full_match("abc").unwrap_err(), 3);
-//         assert_eq!(take(4, is_alpha).full_match("abcd").unwrap(), "abcd");
-//         assert_eq!(take(4, is_alpha).full_match("abcde").unwrap_err(), 4);
+        let pat = __pat::<str, _, ParseError>(take(4, is_alpha));
+        assert_eq!(pat.full_match("abc").unwrap_err().length(), 3);
+        assert_eq!(pat.full_match("abcd").unwrap(), "abcd");
+        assert_eq!(pat.full_match("abcde").unwrap_err().length(), 4);
 
-//         assert_eq!(take(4, not(0)).full_match(b"abc\0").unwrap_err(), 3);
-//         assert_eq!(take(4, not(0)).full_match(b"abc\n").unwrap(), b"abc\n");
+        let pat = __pat::<[u8], _, ParseError>(take(4, not(0)));
+        assert_eq!(pat.full_match(b"abc\0").unwrap_err().length(), 3);
+        assert_eq!(pat.full_match(b"abc\n").unwrap(), b"abc\n");
 
-//         assert_eq!(take(2..=3, not(0)).parse(b"a\0").unwrap_err(), 1);
-//         assert_eq!(take(2..=3, not(0)).parse(b"ab\0d").unwrap(), (b"ab".as_ref(), 2));
-//         assert_eq!(take(2..=3, not(0)).parse(b"ab\nd").unwrap(), (b"ab\n".as_ref(), 3));
-//     }
+        let pat = __pat::<[u8], _, ParseError>(take(2..=3, not(0)));
+        assert_eq!(pat.parse(&mut b"a\0".as_ref()).unwrap_err().length(), 1);
+        assert_eq!(pat.parse(&mut b"ab\0d".as_ref()).unwrap(), b"ab".as_ref());
+        assert_eq!(pat.parse(&mut b"ab\nd".as_ref()).unwrap(), b"ab\n".as_ref());
+    }
 
-//     #[test]
-//     fn one_more() {
-//         assert_eq!({ is_dec.. }.full_match("!").unwrap_err(), 0);
-//         assert_eq!({ is_dec.. }.full_match("0123!").unwrap_err(), 4);
-//         assert_eq!({ is_dec.. }.full_match("7890").unwrap(), "7890");
-//         assert_eq!({ is_dec.. }.parse("!").unwrap_err(), 0);
-//         assert_eq!({ is_dec.. }.parse("0123!").unwrap(), ("0123", 4));
-//         assert_eq!({ is_dec.. }.parse("7890").unwrap(), ("7890", 4));
+    #[test]
+    fn one_more() {
+        let pat = __pat::<str, _, ParseError>(is_dec..);
+        assert_eq!(pat.full_match("!").unwrap_err().length(), 0);
+        assert_eq!(pat.full_match("0123!").unwrap_err().length(), 4);
+        assert_eq!(pat.full_match("7890").unwrap(), "7890");
+        assert_eq!(pat.parse(&mut "!").unwrap_err().length(), 0);
+        assert_eq!(pat.parse(&mut "0123!").unwrap(), "0123");
+        assert_eq!(pat.parse(&mut "7890").unwrap(), "7890");
 
-//         assert_eq!({ not(0).. }.full_match(b"\0").unwrap_err(), 0);
-//         assert_eq!({ not(0).. }.full_match(b"0123\0").unwrap_err(), 4);
-//         assert_eq!({ not(0).. }.full_match(b"7890").unwrap(), b"7890");
-//         assert_eq!({ not(0).. }.parse(b"\0").unwrap_err(), 0);
-//         assert_eq!({ not(0).. }.parse(b"0123\0").unwrap(), (b"0123".as_ref(), 4));
-//         assert_eq!({ not(0).. }.parse(b"7890").unwrap(), (b"7890".as_ref(), 4));
-//     }
+        let pat = __pat::<[u8], _, ParseError>(not(0)..);
+        assert_eq!(pat.full_match(b"\0").unwrap_err().length(), 0);
+        assert_eq!(pat.full_match(b"0123\0").unwrap_err().length(), 4);
+        assert_eq!(pat.full_match(b"7890").unwrap(), b"7890");
+        assert_eq!(pat.parse(&mut b"\0".as_ref()).unwrap_err().length(), 0);
+        assert_eq!(pat.parse(&mut b"0123\0".as_ref()).unwrap(), b"0123");
+        assert_eq!(pat.parse(&mut b"7890".as_ref()).unwrap(), b"7890");
+    }
 
-//     // #[test]
-//     // #[cfg(feature = "std")]
-//     // fn streaming() {
-//     //     let s = "EFAB6251-2b3e-4395-bfc0-370e268935d1";
-//     //     let pat = seq((
-//     //         take(8, is_hex),
-//     //         "-",
-//     //         take(4, is_hex),
-//     //         "-",
-//     //         take(4, is_hex),
-//     //         "-",
-//     //         take(4, is_hex),
-//     //         "-",
-//     //         is_hex..,
-//     //     ));
+    #[test]
+    #[cfg(feature = "std")]
+    fn streaming() -> ProviderResult<()> {
+        let s = "EFAB6251-2b3e-4395-bfc0-370e268935d1";
+        let pat = __pat::<_, _, ParseError>((
+            take(8, is_hex),
+            "-",
+            take(4, is_hex),
+            "-",
+            take(4, is_hex),
+            "-",
+            take(4, is_hex),
+            "-",
+            is_hex..,
+        ));
 
-//     //     let mut par = Parser::from_reader_in_str_with_capacity(s.as_bytes(), 0);
+        let mut prv = Provider::from_reader_in_str_with_capacity(s.as_bytes(), 0);
 
-//     //     assert_eq!(
-//     //         par.next_str(pat).unwrap(),
-//     //         ("EFAB6251", "-", "2b3e", "-", "4395", "-", "bfc0", "-", "370e268935d1")
-//     //     );
+        assert_eq!(
+            prv.next_str(pat)?,
+            ("EFAB6251", "-", "2b3e", "-", "4395", "-", "bfc0", "-", "370e268935d1")
+        );
 
-//     //     assert!(par.exhausted());
-//     // }
-// }
+        assert!(prv.exhausted());
+
+        Ok(())
+    }
+}

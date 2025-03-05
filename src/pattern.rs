@@ -3,6 +3,14 @@ use crate::{combine::convert, common::*, error::*, predicate::*};
 #[doc(inline)]
 pub use crate::token_set;
 
+pub fn __pat<'i, U, Cap, E>(pat: impl Pattern<'i, U, E, Captured = Cap>) -> impl Pattern<'i, U, E, Captured = Cap>
+where
+    U: ?Sized + Slice,
+    E: Situation,
+{
+    pat
+}
+
 pub trait Pattern<'i, U, E>
 where
     U: ?Sized + Slice,
