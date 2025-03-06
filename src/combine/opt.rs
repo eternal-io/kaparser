@@ -41,8 +41,8 @@ where
     #[inline(always)]
     fn precede(&self, slice: &U, entry: &mut Self::Internal, eof: bool) -> Result<usize, E> {
         let res = self.opt.precede(slice, entry.as_mut().unwrap(), eof);
-        if let Err(ref e) = res {
-            if !e.is_unfulfilled() {
+        if let Err(e) = &res {
+            if e.is_rejected() {
                 *entry = None;
                 return Ok(0);
             }
@@ -52,5 +52,25 @@ where
     #[inline(always)]
     fn extract(&self, slice: &'i U, entry: Self::Internal) -> Self::Captured {
         entry.map(|state| self.opt.extract(slice, state))
+    }
+}
+
+//------------------------------------------------------------------------------
+
+#[cfg(test)]
+mod tests {
+    use crate::prelude::*;
+
+    #[test]
+    fn main() {
+        let pat = __pat::<str, _, ParseError>(opt(is_alpha..));
+        assert_eq!(pat.full_match("qwer").unwrap(), Some("qwer"));
+        assert_eq!(pat.full_match("7890").unwrap_err().length(), 0);
+        assert_eq!(pat.parse(&mut "7890").unwrap(), None);
+        assert_eq!(pat.parse(&mut "LB90").unwrap(), Some("LB"));
+
+        let pat = __pat::<str, _, ParseError>(opt(..=[is_ctrl]));
+        assert_eq!(pat.full_match("xyz\n").unwrap(), Some(("xyz", '\n')));
+        assert_eq!(pat.full_match("xyzww").unwrap_err().length(), 5);
     }
 }
