@@ -158,3 +158,21 @@ impl_alternatable_for_tuples! {
     15 ~ 'p16 ~ 16 ~ 15
     16 ~ 'p17 ~ 17 ~ 16
 }
+
+//------------------------------------------------------------------------------
+
+#[cfg(test)]
+mod tests {
+    use crate::prelude::*;
+
+    #[test]
+    fn main() {
+        let pat = __pat::<str, _, ParseError>(("0", alt((("b", is_bin..), ("o", is_oct..), ("x", is_hex..)))));
+        assert_eq!(pat.full_match("0b101010").unwrap().1, Alt3::Var1(("b", "101010")));
+        assert_eq!(pat.full_match("0o234567").unwrap().1, Alt3::Var2(("o", "234567")));
+        assert_eq!(pat.full_match("0xabcdef").unwrap().1, Alt3::Var3(("x", "abcdef")));
+        assert_eq!(pat.full_match("0x").unwrap_err().length(), 1);
+        assert_eq!(pat.full_match("0").unwrap_err().length(), 1);
+        assert_eq!(pat.full_match("").unwrap_err().length(), 0);
+    }
+}

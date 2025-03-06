@@ -201,7 +201,7 @@ mod tests {
     use crate::prelude::*;
 
     #[test]
-    fn times() {
+    fn main() {
         let pat = __pat::<str, _, ParseError>(take(1..3, unc::upper));
         assert_eq!(pat.full_match("").unwrap_err().length(), 0);
         assert_eq!(pat.full_match("Ａ").unwrap(), "Ａ");

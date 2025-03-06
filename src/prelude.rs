@@ -12,6 +12,7 @@ pub use crate::{
         skim::{till, until},
         take::{take, take0, take1},
     },
+    common::{Alt1, Alt2, Alt3, Alt4, Alt5, Alt6, Alt7, Alt8, Alt9, Alt10, Alt11, Alt12, Alt13, Alt14, Alt15, Alt16},
     error::*,
     pattern::{__pat, Pattern, token_set},
     predicate::*,

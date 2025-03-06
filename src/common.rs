@@ -277,7 +277,7 @@ macro_rules! gen_alternates {
            $Lens1K:literal ~ $GenK:ident ~ $OrdK:tt
         $( $Lens1M:literal ~ $GenM:ident ~ $OrdM:tt )*
     ) => { paste::paste! {
-        #[derive(Debug, Clone)]
+        #[derive(Debug, Clone, PartialEq, Eq, PartialOrd, Ord)]
         pub enum [<Alt $Lens1K>]<$($GenN),+> { $(
            #[doc = "Variant " $OrdN " of " $Lens1K "."]
             [<Var $OrdN>]($GenN),

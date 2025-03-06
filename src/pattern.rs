@@ -157,8 +157,8 @@ where
     fn precede(&self, slice: &U, _ntry: &mut Self::Internal, eof: bool) -> Result<usize, E> {
         if slice.len() < self.len() {
             match eof {
-                true => E::raise_unfulfilled(Some((self.len() - slice.len()).try_into().unwrap())),
-                false => E::raise_reject_at(slice.len()),
+                true => E::raise_reject_at(slice.len()),
+                false => E::raise_unfulfilled(Some((self.len() - slice.len()).try_into().unwrap())),
             }
         } else {
             for ((off, expected), item) in self.iter_indices().zip(slice.iter()) {
@@ -205,5 +205,35 @@ where
     #[inline(always)]
     fn extract(&self, slice: &'i U, _ntry: Self::Internal) -> Self::Captured {
         slice.first().unwrap()
+    }
+}
+
+//==================================================================================================
+
+#[cfg(test)]
+mod tests {
+    use crate::prelude::*;
+
+    #[test]
+    fn slice() {
+        let pat = __pat::<_, _, ParseError>("");
+        assert!(pat.full_match("").is_ok());
+        assert_eq!(pat.full_match("?").unwrap_err().length(), 0);
+        assert_eq!(pat.full_match("??").unwrap_err().length(), 0);
+
+        let pat = __pat::<_, _, ParseError>("A");
+        assert_eq!(pat.full_match("").unwrap_err().length(), 0);
+        assert_eq!(pat.full_match("A").unwrap(), "A");
+        assert_eq!(pat.full_match("AA").unwrap_err().length(), 1);
+
+        let pat = __pat::<_, _, ParseError>("AB");
+        assert_eq!(pat.full_match("").unwrap_err().length(), 0);
+        assert_eq!(pat.full_match("AB").unwrap(), "AB");
+        assert_eq!(pat.full_match("ABCD").unwrap_err().length(), 2);
+
+        let pat = __pat::<_, _, ParseError>("ABCD");
+        assert_eq!(pat.full_match("").unwrap_err().length(), 0);
+        assert_eq!(pat.full_match("AB").unwrap_err().length(), 2);
+        assert_eq!(pat.full_match("ABCD").unwrap(), "ABCD");
     }
 }
