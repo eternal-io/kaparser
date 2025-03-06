@@ -14,6 +14,7 @@ pub trait Situation: Sized + Debug {
     fn is_rejected(&self) -> bool;
     fn is_halted(&self) -> bool;
     fn length(&self) -> usize;
+    fn description(&self) -> Self::Description;
 
     #[inline(always)]
     fn raise_unfulfilled<T>(len: Option<NonZeroUsize>) -> Result<T, Self> {
@@ -95,6 +96,7 @@ impl Situation for ParseError {
             Self::Halted(n) => n,
         }
     }
+    fn description(&self) -> Self::Description {}
 }
 
 //------------------------------------------------------------------------------

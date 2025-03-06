@@ -25,6 +25,38 @@ where
 
     fn extract(&self, slice: &'i U, entry: Self::Internal) -> Self::Captured;
 
+    //------------------------------------------------------------------------------
+
+    #[inline(always)]
+    fn parse(&self, slice: &mut &'i U) -> Result<Self::Captured, E> {
+        let mut state = self.init();
+        match self.precede(*slice, &mut state, true) {
+            Ok(len) => {
+                let (left, right) = slice.split_at(len);
+                *slice = right;
+                Ok(self.extract(left, state))
+            }
+            Err(e) => {
+                if e.is_unfulfilled() {
+                    panic!("implementation: pull after EOF")
+                }
+                Err(e)
+            }
+        }
+    }
+
+    #[inline(always)]
+    fn full_match(&self, slice: &'i U) -> Result<Self::Captured, E> {
+        let mut sli = slice;
+        let cap = self.parse(&mut sli)?;
+        match sli.len() {
+            0 => Ok(cap),
+            n => E::raise_reject_at(slice.len() - n),
+        }
+    }
+
+    //------------------------------------------------------------------------------
+
     #[inline(always)]
     fn map<F, Out>(self, op: F) -> convert::Map<'i, U, E, Self, F, Out>
     where
@@ -94,7 +126,7 @@ where
     }
 }
 
-//------------------------------------------------------------------------------
+//==================================================================================================
 
 impl<'i, U, E> Pattern<'i, U, E> for &'i U
 where
