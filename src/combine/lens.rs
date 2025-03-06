@@ -61,3 +61,20 @@ where
         slice.split_at(LEN).0.try_into().unwrap()
     }
 }
+
+//------------------------------------------------------------------------------
+
+#[cfg(test)]
+mod tests {
+    use crate::prelude::*;
+
+    #[test]
+    fn main() {
+        let pat = __pat::<[u8], _, ParseError>(len!(3, 0x80..0xAA));
+        assert!(pat.full_match([0x80, 0x80, 0x80].as_ref()).is_ok());
+        assert_eq!(pat.full_match([0x80, 0x80, 0x7F].as_ref()).unwrap_err().length(), 2);
+        assert_eq!(pat.full_match([0x80, 0x7F, 0x80].as_ref()).unwrap_err().length(), 1);
+        assert_eq!(pat.full_match([0x80, 0x80, 0xAA].as_ref()).unwrap_err().length(), 2);
+        assert!(pat.full_match([0x80, 0x80, 0xA9].as_ref()).is_ok());
+    }
+}

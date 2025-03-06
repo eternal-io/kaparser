@@ -219,3 +219,25 @@ where
         self.body.extract(slice, entry).1
     }
 }
+
+//------------------------------------------------------------------------------
+
+#[cfg(test)]
+mod tests {
+    use crate::prelude::*;
+
+    #[test]
+    fn main() {
+        let pat = __pat::<str, _, ParseError>(rep!(2..=4, [is_alpha]));
+        assert_eq!(pat.full_match("z").unwrap_err().length(), 1);
+        assert_eq!(pat.full_match("zx").unwrap(), (['z', 'x'], [None, None]));
+        assert_eq!(pat.full_match("zxc").unwrap(), (['z', 'x'], [Some('c'), None]));
+        assert_eq!(pat.full_match("zxcv").unwrap(), (['z', 'x'], [Some('c'), Some('v')]));
+        assert_eq!(pat.full_match("zxcvb").unwrap_err().length(), 4);
+        assert!(pat.parse(&mut "zxcvb").is_ok());
+
+        assert_eq!(pat.full_match("z0").unwrap_err().length(), 1);
+        assert_eq!(pat.parse(&mut "zx0").unwrap(), (['z', 'x'], [None, None]));
+        assert_eq!(pat.full_match("zx00").unwrap_err().length(), 2);
+    }
+}

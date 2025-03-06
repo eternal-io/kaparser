@@ -110,38 +110,37 @@ where
 
 //------------------------------------------------------------------------------
 
-// #[cfg(test)]
-// mod tests {
-//     use crate::prelude::*;
+#[cfg(test)]
+mod tests {
+    use crate::prelude::*;
 
-//     #[test]
-//     fn till() {
-//         assert_eq!({ ..'🔥' }.full_match("").unwrap(), ("", None));
-//         assert_eq!({ ..'🔥' }.full_match("Foo").unwrap(), ("Foo", None));
-//         assert_eq!({ ..'🔥' }.full_match("Bar🔥").unwrap(), ("Bar", Some('🔥')));
-//         assert_eq!({ ..'🔥' }.full_match("Bar🔥Baz").unwrap_err(), 7);
-//         assert_eq!({ ..'🔥' }.parse("Bar🔥Baz").unwrap(), (("Bar", Some('🔥')), 7));
+    #[test]
+    fn till() {
+        let pat = __pat::<str, _, ParseError>(..'🔥');
+        assert_eq!(pat.full_match("").unwrap(), ("", None));
+        assert_eq!(pat.full_match("Foo").unwrap(), ("Foo", None));
+        assert_eq!(pat.full_match("Bar🔥").unwrap(), ("Bar", Some('🔥')));
+        assert_eq!(pat.full_match("Bar🔥Baz").unwrap_err().length(), 7);
+        assert_eq!(pat.parse(&mut "Bar🔥Baz").unwrap(), ("Bar", Some('🔥')));
+    }
 
-//         assert_eq!({ ..0 }.full_match(b"").unwrap(), (b"".as_ref(), None));
-//         assert_eq!({ ..0 }.full_match(b"Foo").unwrap(), (b"Foo".as_ref(), None));
-//         assert_eq!({ ..0 }.full_match(b"Bar\0").unwrap(), (b"Bar".as_ref(), Some(0)));
-//         assert_eq!({ ..0 }.full_match(b"Bar\0Baz").unwrap_err(), 4);
-//         assert_eq!({ ..0 }.parse(b"Bar\0Baz").unwrap(), ((b"Bar".as_ref(), Some(0)), 4));
-//     }
+    #[test]
+    fn until() {
+        let pat = __pat::<str, _, ParseError>(..="🚧");
+        assert_eq!(pat.full_match("🚧").unwrap(), ("", "🚧"));
+        assert_eq!(pat.full_match("FooBar🚧").unwrap(), ("FooBar", "🚧"));
 
-//     #[test]
-//     fn until() {
-//         assert_eq!({ ..="🚧" }.full_match("🚧").unwrap(), ("", "🚧"));
-//         assert_eq!({ ..="🚧" }.full_match("FooBar🚧").unwrap(), ("FooBar", "🚧"));
-//         assert_eq!({ ..=[0] }.full_match(b"Quinn\0").unwrap(), (b"Quinn".as_ref(), 0));
+        let pat = __pat::<[u8], _, ParseError>(..=[0]);
+        assert_eq!(pat.full_match(b"Quinn\0").unwrap(), (b"Quinn".as_ref(), 0));
 
-//         // The following is feature.
-//         assert_eq!({ ..="" }.parse("").unwrap_err(), 0);
-//         assert_eq!({ ..="" }.parse("❓").unwrap(), (("", ""), 0));
-//         assert_eq!({ ..=[].as_ref() }.parse(b"").unwrap_err(), 0);
-//         assert_eq!(
-//             { ..=[].as_ref() }.parse(b"??").unwrap(),
-//             ((b"".as_ref(), b"".as_ref()), 0)
-//         );
-//     }
-// }
+        /* The following is feature. */
+
+        let pat = __pat::<str, _, ParseError>(..="");
+        assert_eq!(pat.parse(&mut "").unwrap_err().length(), 0);
+        assert_eq!(pat.parse(&mut "❓").unwrap(), ("", ""));
+
+        let pat = __pat::<[u8], _, ParseError>(..=[].as_ref());
+        assert_eq!(pat.parse(&mut b"".as_ref()).unwrap_err().length(), 0);
+        assert_eq!(pat.parse(&mut b"??".as_ref()).unwrap(), (b"".as_ref(), b"".as_ref()));
+    }
+}
