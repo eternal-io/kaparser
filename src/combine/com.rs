@@ -154,3 +154,20 @@ impl_compoundable_for_tuples! {
     15 ~ 'p16 ~ 16 ~ 15
     16 ~ 'p17 ~ 17 ~ 16
 }
+
+//------------------------------------------------------------------------------
+
+#[cfg(test)]
+mod tests {
+    use crate::prelude::*;
+
+    #[test]
+    fn main() {
+        assert_eq!(
+            __pat::<_, _, ParseError>(com((is_bin.., is_oct.., is_hex..)))
+                .full_match("0123456789abcdefABCDEF")
+                .unwrap(),
+            "0123456789abcdefABCDEF"
+        )
+    }
+}
