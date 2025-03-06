@@ -1,13 +1,26 @@
 use super::*;
 
 #[inline(always)]
-pub const fn cond<'i, U, E, P>(b: bool, body: P) -> Conditionate<'i, U, E, P>
+pub const fn cut<'i, U, E, P>(body: P) -> Cut<'i, U, E, P>
 where
     U: ?Sized + Slice,
     E: Situation,
     P: Pattern<'i, U, E>,
 {
-    Conditionate {
+    Cut {
+        body,
+        phantom: PhantomData,
+    }
+}
+
+#[inline(always)]
+pub const fn cond<'i, U, E, P>(b: bool, body: P) -> Cond<'i, U, E, P>
+where
+    U: ?Sized + Slice,
+    E: Situation,
+    P: Pattern<'i, U, E>,
+{
+    Cond {
         cond: b,
         body,
         phantom: PhantomData,
@@ -16,7 +29,42 @@ where
 
 //------------------------------------------------------------------------------
 
-pub struct Conditionate<'i, U, E, P>
+pub struct Cut<'i, U, E, P>
+where
+    U: ?Sized + Slice,
+    E: Situation,
+    P: Pattern<'i, U, E>,
+{
+    body: P,
+    phantom: PhantomData<(&'i U, E)>,
+}
+
+impl<'i, U, E, P> Pattern<'i, U, E> for Cut<'i, U, E, P>
+where
+    U: ?Sized + Slice,
+    E: Situation,
+    P: Pattern<'i, U, E>,
+{
+    type Captured = P::Captured;
+    type Internal = P::Internal;
+
+    #[inline(always)]
+    fn init(&self) -> Self::Internal {
+        self.body.init()
+    }
+    #[inline(always)]
+    fn precede(&self, slice: &U, entry: &mut Self::Internal, eof: bool) -> Result<usize, E> {
+        self.body.precede(slice, entry, eof).map_err(Situation::cut)
+    }
+    #[inline(always)]
+    fn extract(&self, slice: &'i U, entry: Self::Internal) -> Self::Captured {
+        self.body.extract(slice, entry)
+    }
+}
+
+//------------------------------------------------------------------------------
+
+pub struct Cond<'i, U, E, P>
 where
     U: ?Sized + Slice,
     E: Situation,
@@ -27,7 +75,7 @@ where
     phantom: PhantomData<(&'i U, E)>,
 }
 
-impl<'i, U, E, P> Pattern<'i, U, E> for Conditionate<'i, U, E, P>
+impl<'i, U, E, P> Pattern<'i, U, E> for Cond<'i, U, E, P>
 where
     U: ?Sized + Slice,
     E: Situation,

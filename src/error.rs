@@ -7,6 +7,7 @@ pub trait Situation: Sized + Debug {
     fn reject_at(len: usize) -> Self;
     fn halt_at(len: usize) -> Self;
 
+    fn cut(self) -> Self;
     fn backtrack(self, len: usize) -> Self;
     fn describe(self, desc: Self::Description) -> Self;
 
@@ -62,6 +63,13 @@ impl Situation for ParseError {
         Self::Halted(len)
     }
 
+    #[inline(always)]
+    fn cut(self) -> Self {
+        match self {
+            ParseError::Rejected(n) => ParseError::Halted(n),
+            _ => self,
+        }
+    }
     #[inline(always)]
     fn backtrack(mut self, len: usize) -> Self {
         match &mut self {

@@ -2,15 +2,6 @@ use super::*;
 use core::ops::RangeFrom;
 
 #[inline(always)]
-pub const fn take_one_more<T, P>(start: P) -> RangeFrom<P>
-where
-    T: Copy + PartialEq,
-    P: Predicate<T>,
-{
-    RangeFrom { start }
-}
-
-#[inline(always)]
 pub const fn take<T, P, R>(range: R, predicate: P) -> Take<T, P, R>
 where
     T: Copy + PartialEq,
@@ -22,6 +13,27 @@ where
         predicate,
         phantom: PhantomData,
     }
+}
+
+#[inline(always)]
+pub const fn take0<T, P>(predicate: P) -> Take0<T, P>
+where
+    T: Copy + PartialEq,
+    P: Predicate<T>,
+{
+    Take0 {
+        predicate,
+        phantom: PhantomData,
+    }
+}
+
+#[inline(always)]
+pub const fn take1<T, P>(predicate: P) -> RangeFrom<P>
+where
+    T: Copy + PartialEq,
+    P: Predicate<T>,
+{
+    RangeFrom { start: predicate }
 }
 
 //------------------------------------------------------------------------------
@@ -80,6 +92,57 @@ where
     #[inline(always)]
     fn extract(&self, slice: &'i U, entry: Self::Internal) -> Self::Captured {
         slice.split_at(entry.0).0
+    }
+}
+
+//------------------------------------------------------------------------------
+
+pub struct Take0<T, P>
+where
+    T: Copy + PartialEq,
+    P: Predicate<T>,
+{
+    predicate: P,
+    phantom: PhantomData<T>,
+}
+
+impl<'i, U, E, P> Pattern<'i, U, E> for Take0<U::Item, P>
+where
+    U: ?Sized + Slice + 'i,
+    E: Situation,
+    P: Predicate<U::Item>,
+{
+    type Captured = &'i U;
+    type Internal = usize;
+
+    #[inline(always)]
+    fn init(&self) -> Self::Internal {
+        0
+    }
+    #[inline(always)]
+    fn precede(&self, slice: &U, entry: &mut Self::Internal, eof: bool) -> Result<usize, E> {
+        match slice
+            .split_at(*entry)
+            .1
+            .iter_indices()
+            .find(|(_, item)| !self.predicate.predicate(item))
+        {
+            Some((off, _)) => {
+                *entry += off;
+                Ok(*entry)
+            }
+            None => {
+                *entry = slice.len();
+                match eof {
+                    true => Ok(*entry),
+                    false => E::raise_unfulfilled(None),
+                }
+            }
+        }
+    }
+    #[inline(always)]
+    fn extract(&self, slice: &'i U, entry: Self::Internal) -> Self::Captured {
+        slice.split_at(entry).0
     }
 }
 
@@ -190,23 +253,16 @@ mod tests {
     #[cfg(feature = "std")]
     fn streaming() -> ProviderResult<()> {
         let s = "EFAB6251-2b3e-4395-bfc0-370e268935d1";
-        let pat = __pat::<_, _, ParseError>((
-            take(8, is_hex),
-            "-",
-            take(4, is_hex),
-            "-",
-            take(4, is_hex),
-            "-",
-            take(4, is_hex),
-            "-",
-            is_hex..,
-        ));
-
+        let pat = (take(8, is_hex), rep!(3, ("-", take(4, is_hex))), ("-", is_hex..));
         let mut prv = Provider::from_reader_in_str_with_capacity(s.as_bytes(), 0);
 
         assert_eq!(
             prv.next_str(pat)?,
-            ("EFAB6251", "-", "2b3e", "-", "4395", "-", "bfc0", "-", "370e268935d1")
+            (
+                "EFAB6251",
+                [("-", "2b3e"), ("-", "4395"), ("-", "bfc0")],
+                ("-", "370e268935d1"),
+            )
         );
 
         assert!(prv.exhausted());

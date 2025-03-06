@@ -1,6 +1,21 @@
 use super::*;
 
 #[inline(always)]
+pub const fn and<'i, U, E, P, T>(t: T, body: P) -> And<'i, U, E, P, T>
+where
+    U: ?Sized + Slice,
+    E: Situation,
+    P: Pattern<'i, U, E>,
+    T: Clone,
+{
+    And {
+        body,
+        and: t,
+        phantom: PhantomData,
+    }
+}
+
+#[inline(always)]
 pub const fn map<'i, U, E, P, F, Out>(op: F, body: P) -> Map<'i, U, E, P, F, Out>
 where
     U: ?Sized + Slice,
@@ -112,6 +127,44 @@ where
         body,
         then,
         phantom: PhantomData,
+    }
+}
+
+//==================================================================================================
+
+pub struct And<'i, U, E, P, T>
+where
+    U: ?Sized + Slice,
+    E: Situation,
+    P: Pattern<'i, U, E>,
+    T: Clone,
+{
+    body: P,
+    and: T,
+    phantom: PhantomData<(&'i U, E)>,
+}
+
+impl<'i, U, E, P, T> Pattern<'i, U, E> for And<'i, U, E, P, T>
+where
+    U: ?Sized + Slice,
+    E: Situation,
+    P: Pattern<'i, U, E>,
+    T: Clone,
+{
+    type Captured = T;
+    type Internal = P::Internal;
+
+    #[inline(always)]
+    fn init(&self) -> Self::Internal {
+        self.body.init()
+    }
+    #[inline(always)]
+    fn precede(&self, slice: &U, entry: &mut Self::Internal, eof: bool) -> Result<usize, E> {
+        self.body.precede(slice, entry, eof)
+    }
+    #[inline(always)]
+    fn extract(&self, _lice: &'i U, _ntry: Self::Internal) -> Self::Captured {
+        self.and.clone()
     }
 }
 

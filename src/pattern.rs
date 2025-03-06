@@ -46,6 +46,12 @@ where
     }
 
     #[inline(always)]
+    fn parse_peek(&self, slice: &'i U) -> Result<Self::Captured, E> {
+        let mut sli = slice;
+        self.parse(&mut sli)
+    }
+
+    #[inline(always)]
     fn full_match(&self, slice: &'i U) -> Result<Self::Captured, E> {
         let mut sli = slice;
         let cap = self.parse(&mut sli)?;
@@ -57,6 +63,14 @@ where
 
     //------------------------------------------------------------------------------
 
+    #[inline(always)]
+    fn and<T>(self, t: T) -> convert::And<'i, U, E, Self, T>
+    where
+        Self: Sized,
+        T: Clone,
+    {
+        convert::and(t, self)
+    }
     #[inline(always)]
     fn map<F, Out>(self, op: F) -> convert::Map<'i, U, E, Self, F, Out>
     where
