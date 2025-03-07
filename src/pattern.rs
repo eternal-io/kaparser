@@ -216,22 +216,22 @@ mod tests {
 
     #[test]
     fn slice() {
-        let pat = __pat::<_, _, ParseError>("");
+        let pat = __pat::<_, _, SimpleError>("");
         assert!(pat.full_match("").is_ok());
         assert_eq!(pat.full_match("?").unwrap_err().length(), 0);
         assert_eq!(pat.full_match("??").unwrap_err().length(), 0);
 
-        let pat = __pat::<_, _, ParseError>("A");
+        let pat = __pat::<_, _, SimpleError>("A");
         assert_eq!(pat.full_match("").unwrap_err().length(), 0);
         assert_eq!(pat.full_match("A").unwrap(), "A");
         assert_eq!(pat.full_match("AA").unwrap_err().length(), 1);
 
-        let pat = __pat::<_, _, ParseError>("AB");
+        let pat = __pat::<_, _, SimpleError>("AB");
         assert_eq!(pat.full_match("").unwrap_err().length(), 0);
         assert_eq!(pat.full_match("AB").unwrap(), "AB");
         assert_eq!(pat.full_match("ABCD").unwrap_err().length(), 2);
 
-        let pat = __pat::<_, _, ParseError>("ABCD");
+        let pat = __pat::<_, _, SimpleError>("ABCD");
         assert_eq!(pat.full_match("").unwrap_err().length(), 0);
         assert_eq!(pat.full_match("AB").unwrap_err().length(), 2);
         assert_eq!(pat.full_match("ABCD").unwrap(), "ABCD");

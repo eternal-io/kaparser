@@ -17,9 +17,9 @@ pub mod predicate;
 pub mod prelude;
 pub mod provider;
 pub mod anything {
-    //! This module re-exports all items in kaparser.
+    //! Re-exports all items in kaparser.
     //!
-    //! It can help define `const COMBINATOR`s with type annotations...
+    //! This module can help define `const COMBINATOR`s with type annotations...
     //! if you *really* want.
     //!
     //! Before doing so, please check [`combine::def`] and [`combine::bin`],
@@ -30,7 +30,14 @@ pub mod anything {
     //! [`combine::def`]: crate::combine::def
     //! [`combine::bin`]: crate::combine::bin
     #[doc(hidden)]
-    pub use crate::{combine::*, common::*, error::*, pattern::*, predicate::*, provider::*};
+    pub use crate::{
+        combine::*,
+        common::{alts::*, *},
+        error::*,
+        pattern::*,
+        predicate::*,
+        provider::*,
+    };
     #[doc(hidden)]
     pub use core::ops::{Range, RangeFrom, RangeFull, RangeInclusive, RangeTo, RangeToInclusive};
 }

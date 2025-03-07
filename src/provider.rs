@@ -21,7 +21,7 @@ impl Read for Sliced {
 impl<R: ::std::io::Read> Read for R {
     #[inline(always)]
     fn read<E: Situation>(&mut self, buf: &mut [u8]) -> Result<usize, ProviderError<E>> {
-        Ok(self.read(buf)?)
+        self.read(buf).map_err(Into::into)
     }
 }
 
@@ -46,8 +46,8 @@ where
         phantom: PhantomData<R>,
     },
 
+    /// This can only be constructed by [`Provider::from_reader_in_str`], where `U = str`.
     #[cfg(feature = "std")]
-    /// This can only be constructed by [`Parser::from_reader_in_str`], where `U = str`.
     ReadStr {
         rdr: R,
         eof: bool,
@@ -57,9 +57,9 @@ where
         discarded: usize,
     },
 
-    #[cfg(feature = "std")]
-    /// This can only be constructed by [`Parser::from_reader_in_bytes`], where `U = [u8]`,
+    /// This can only be constructed by [`Provider::from_reader_in_bytes`], where `U = [u8]`,
     /// otherwise UB when calling [`Source::pull`] and [`Source::bump`].
+    #[cfg(feature = "std")]
     ReadBytes {
         rdr: R,
         eof: bool,
@@ -93,14 +93,7 @@ impl<'src> Provider<'src, str, Sliced> {
 #[cfg(feature = "std")]
 impl<R: Read> Provider<'_, str, R> {
     pub fn from_reader_in_str(reader: R) -> Self {
-        Self(Source::ReadStr {
-            rdr: reader,
-            eof: false,
-            buf: ::std::vec::Vec::with_capacity(0x8000),
-            pending: 0,
-            consumed: 0,
-            discarded: 0,
-        })
+        Self::from_reader_in_str_with_capacity(reader, 0x8000)
     }
 
     pub fn from_reader_in_str_with_capacity(reader: R, capacity: usize) -> Self {
@@ -118,13 +111,7 @@ impl<R: Read> Provider<'_, str, R> {
 #[cfg(feature = "std")]
 impl<R: Read> Provider<'_, [u8], R> {
     pub fn from_reader_in_bytes(reader: R) -> Self {
-        Self(Source::ReadBytes {
-            rdr: reader,
-            eof: false,
-            buf: ::std::vec::Vec::with_capacity(0x8000),
-            consumed: 0,
-            discarded: 0,
-        })
+        Self::from_reader_in_bytes_with_capacity(reader, 0x8000)
     }
 
     pub fn from_reader_in_bytes_with_capacity(reader: R, capacity: usize) -> Self {
@@ -175,7 +162,7 @@ where
             Source::Sliced { slice, consumed, .. } => *consumed == slice.len(),
 
             #[cfg(feature = "std")]
-            Source::ReadStr { eof, buf, consumed, .. } | Source::ReadBytes { eof, consumed, buf, .. } => {
+            Source::ReadStr { eof, buf, consumed, .. } | Source::ReadBytes { eof, buf, consumed, .. } => {
                 *eof && *consumed == buf.len()
             }
         }
@@ -632,7 +619,7 @@ mod tests {
         src.inspect();
         loop {
             ctr += 1;
-            let (s, eof) = src.pull_str::<ParseError>(true).unwrap();
+            let (s, eof) = src.pull_str::<SimpleError>(true).unwrap();
             let len = (random(ctr) as usize % s.len()..)
                 .find(|n| s.is_char_boundary(*n))
                 .unwrap();
@@ -659,7 +646,7 @@ mod tests {
         loop {
             ctr += 1;
 
-            match par.next_str::<_, ParseError>(opt(is_ascii..)) {
+            match par.next_str::<_, SimpleError>(opt(is_ascii..)) {
                 Ok(cap) => {
                     if let Some(s) = cap {
                         len += s.len();
@@ -671,7 +658,7 @@ mod tests {
                 },
             }
 
-            match par.next_str::<_, ParseError>(opt(not(is_ascii)..)) {
+            match par.next_str::<_, SimpleError>(opt(not(is_ascii)..)) {
                 Ok(cap) => {
                     if let Some(s) = cap {
                         len += s.len();
@@ -699,9 +686,9 @@ mod tests {
         let bytes = b"asdf\0";
         let mut par = Provider::from_reader_in_bytes_with_capacity(bytes.as_ref(), 2);
 
-        assert_eq!(par.peek::<_, ParseError>(not(0)..).unwrap(), b"asdf");
-        assert_eq!(par.next::<_, ParseError>(not(0)..).unwrap(), b"asdf");
-        assert_eq!(par.next::<_, ParseError>([0]).unwrap(), 0);
+        assert_eq!(par.peek::<_, SimpleError>(not(0)..).unwrap(), b"asdf");
+        assert_eq!(par.next::<_, SimpleError>(not(0)..).unwrap(), b"asdf");
+        assert_eq!(par.next::<_, SimpleError>([0]).unwrap(), 0);
         assert!(par.exhausted());
     }
 }

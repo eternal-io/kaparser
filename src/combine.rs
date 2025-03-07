@@ -1,6 +1,6 @@
 #![doc = include_str!("../docs/combinators.md")]
 use crate::{common::*, error::*, pattern::*, predicate::*};
-use core::{marker::PhantomData, mem::MaybeUninit};
+use core::marker::PhantomData;
 
 macro_rules! import {
     ($($vis:vis mod $name:ident;)*) => { $(

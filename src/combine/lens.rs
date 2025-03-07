@@ -70,7 +70,7 @@ mod tests {
 
     #[test]
     fn main() {
-        let pat = __pat::<[u8], _, ParseError>(len!(3, 0x80..0xAA));
+        let pat = __pat::<[u8], _, SimpleError>(len!(3, 0x80..0xAA));
         assert!(pat.full_match([0x80, 0x80, 0x80].as_ref()).is_ok());
         assert_eq!(pat.full_match([0x80, 0x80, 0x7F].as_ref()).unwrap_err().length(), 2);
         assert_eq!(pat.full_match([0x80, 0x7F, 0x80].as_ref()).unwrap_err().length(), 1);

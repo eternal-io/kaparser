@@ -6,15 +6,16 @@ pub trait Situation: Sized + Debug {
     fn unfulfilled(len: Option<NonZeroUsize>) -> Self;
     fn reject_at(len: usize) -> Self;
     fn halt_at(len: usize) -> Self;
-
     fn cut(self) -> Self;
-    fn backtrack(self, len: usize) -> Self;
-    fn describe(self, desc: Self::Description) -> Self;
 
     fn is_unfulfilled(&self) -> bool;
     fn is_rejected(&self) -> bool;
     fn is_halted(&self) -> bool;
+
+    fn backtrack(self, len: usize) -> Self;
     fn length(&self) -> usize;
+
+    fn describe(self, desc: Self::Description) -> Self;
     fn description(&self) -> Self::Description;
 
     #[inline(always)]
@@ -38,16 +39,16 @@ pub trait Situation: Sized + Debug {
 
 //------------------------------------------------------------------------------
 
-pub type ParseResult<T, E = ParseError> = Result<T, E>;
+pub type ParseResult<T, E = SimpleError> = Result<T, E>;
 
 #[derive(Debug, Clone, Copy)]
-pub enum ParseError {
+pub enum SimpleError {
     Unfulfilled(Option<NonZeroUsize>),
     Rejected(usize),
     Halted(usize),
 }
 
-impl Situation for ParseError {
+impl Situation for SimpleError {
     type Description = ();
 
     #[inline(always)]
@@ -66,22 +67,9 @@ impl Situation for ParseError {
     #[inline(always)]
     fn cut(self) -> Self {
         match self {
-            ParseError::Rejected(n) => ParseError::Halted(n),
+            SimpleError::Rejected(n) => SimpleError::Halted(n),
             _ => self,
         }
-    }
-    #[inline(always)]
-    fn backtrack(mut self, len: usize) -> Self {
-        match &mut self {
-            Self::Unfulfilled(_) => (),
-            Self::Rejected(n) => *n += len,
-            Self::Halted(n) => *n += len,
-        }
-        self
-    }
-    #[inline(always)]
-    fn describe(self, _esc: Self::Description) -> Self {
-        self
     }
 
     #[inline(always)]
@@ -96,6 +84,16 @@ impl Situation for ParseError {
     fn is_halted(&self) -> bool {
         matches!(self, Self::Halted(_))
     }
+
+    #[inline(always)]
+    fn backtrack(mut self, len: usize) -> Self {
+        match &mut self {
+            Self::Unfulfilled(_) => (),
+            Self::Rejected(n) => *n += len,
+            Self::Halted(n) => *n += len,
+        }
+        self
+    }
     #[inline(always)]
     fn length(&self) -> usize {
         match *self {
@@ -104,12 +102,18 @@ impl Situation for ParseError {
             Self::Halted(n) => n,
         }
     }
+
+    #[inline(always)]
+    fn describe(self, _esc: Self::Description) -> Self {
+        self
+    }
+    #[inline(always)]
     fn description(&self) -> Self::Description {}
 }
 
 //------------------------------------------------------------------------------
 
-pub type ProviderResult<T, E = ParseError> = Result<T, ProviderError<E>>;
+pub type ProviderResult<T, E = SimpleError> = Result<T, ProviderError<E>>;
 
 #[derive(Debug)]
 pub enum ProviderError<E: Situation> {

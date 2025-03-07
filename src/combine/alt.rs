@@ -167,7 +167,7 @@ mod tests {
 
     #[test]
     fn main() {
-        let pat = __pat::<str, _, ParseError>(("0", alt((("b", is_bin..), ("o", is_oct..), ("x", is_hex..)))));
+        let pat = __pat::<str, _, SimpleError>(("0", alt((("b", is_bin..), ("o", is_oct..), ("x", is_hex..)))));
         assert_eq!(pat.full_match("0b101010").unwrap().1, Alt3::Var1(("b", "101010")));
         assert_eq!(pat.full_match("0o234567").unwrap().1, Alt3::Var2(("o", "234567")));
         assert_eq!(pat.full_match("0xabcdef").unwrap().1, Alt3::Var3(("x", "abcdef")));

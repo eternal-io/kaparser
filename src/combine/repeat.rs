@@ -1,4 +1,5 @@
 use super::*;
+use core::mem::MaybeUninit;
 
 #[doc(inline)]
 pub use crate::rep;
@@ -228,7 +229,7 @@ mod tests {
 
     #[test]
     fn main() {
-        let pat = __pat::<str, _, ParseError>(rep!(2..=4, [is_alpha]));
+        let pat = __pat::<str, _, SimpleError>(rep!(2..=4, [is_alpha]));
         assert_eq!(pat.full_match("z").unwrap_err().length(), 1);
         assert_eq!(pat.full_match("zx").unwrap(), (['z', 'x'], [None, None]));
         assert_eq!(pat.full_match("zxc").unwrap(), (['z', 'x'], [Some('c'), None]));

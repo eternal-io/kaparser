@@ -262,53 +262,57 @@ gen_checkpoints! {
 
 //------------------------------------------------------------------------------
 
-/// `Lens1X` means `LenX - 1`. `Gen` means "Generic". Always `N < K < M`.
-macro_rules! gen_alternates {
-    (      $Lens1K:literal ~ $GenK:ident ~ $OrdK:tt
-        $( $Lens1M:literal ~ $GenM:ident ~ $OrdM:tt )*
-    ) => {
-        gen_alternates! { @
-              $Lens1K ~ $GenK ~ $OrdK ;
-            $($Lens1M ~ $GenM ~ $OrdM)*
-        }
-    };
+pub(crate) use alts::*;
 
-    ( @ $( $Lens1N:literal ~ $GenN:ident ~ $OrdN:tt )+ ;
-           $Lens1K:literal ~ $GenK:ident ~ $OrdK:tt
-        $( $Lens1M:literal ~ $GenM:ident ~ $OrdM:tt )*
-    ) => { paste::paste! {
-        #[derive(Debug, Clone, PartialEq, Eq, PartialOrd, Ord)]
-        pub enum [<Alt $Lens1K>]<$($GenN),+> { $(
-           #[doc = "Variant " $OrdN " of " $Lens1K "."]
-            [<Var $OrdN>]($GenN),
-        )+ }
+pub mod alts {
+    /// `Lens1X` means `LenX - 1`. `Gen` means "Generic". Always `N < K < M`.
+    macro_rules! gen_alternates {
+        (      $Lens1K:literal ~ $GenK:ident ~ $OrdK:tt
+            $( $Lens1M:literal ~ $GenM:ident ~ $OrdM:tt )*
+        ) => {
+            gen_alternates! { @
+                $Lens1K ~ $GenK ~ $OrdK ;
+                $($Lens1M ~ $GenM ~ $OrdM)*
+            }
+        };
 
-        gen_alternates! { @
-            $($Lens1N ~ $GenN ~ $OrdN)+
-              $Lens1K ~ $GenK ~ $OrdK ;
-            $($Lens1M ~ $GenM ~ $OrdM)*
-        }
-    } };
+        ( @ $( $Lens1N:literal ~ $GenN:ident ~ $OrdN:tt )+ ;
+            $Lens1K:literal ~ $GenK:ident ~ $OrdK:tt
+            $( $Lens1M:literal ~ $GenM:ident ~ $OrdM:tt )*
+        ) => { paste::paste! {
+            #[derive(Debug, Clone, PartialEq, Eq, PartialOrd, Ord)]
+            pub enum [<Alt $Lens1K>]<$($GenN),+> { $(
+            #[doc = "Variant " $OrdN " of " $Lens1K "."]
+                [<Var $OrdN>]($GenN),
+            )+ }
 
-    ( @ $( $Lens1N:literal ~ $GenN:ident ~ $OrdN:tt )+ ; ) => {};
-}
+            gen_alternates! { @
+                $($Lens1N ~ $GenN ~ $OrdN)+
+                $Lens1K ~ $GenK ~ $OrdK ;
+                $($Lens1M ~ $GenM ~ $OrdM)*
+            }
+        } };
 
-gen_alternates! {
-    0  ~ A ~ 1
-    1  ~ B ~ 2
-    2  ~ C ~ 3
-    3  ~ D ~ 4
-    4  ~ E ~ 5
-    5  ~ F ~ 6
-    6  ~ G ~ 7
-    7  ~ H ~ 8
-    8  ~ I ~ 9
-    9  ~ J ~ 10
-    10 ~ K ~ 11
-    11 ~ L ~ 12
-    12 ~ M ~ 13
-    13 ~ N ~ 14
-    14 ~ O ~ 15
-    15 ~ P ~ 16
-    16 ~ Q ~ 17
+        ( @ $( $Lens1N:literal ~ $GenN:ident ~ $OrdN:tt )+ ; ) => {};
+    }
+
+    gen_alternates! {
+        0  ~ A ~ 1
+        1  ~ B ~ 2
+        2  ~ C ~ 3
+        3  ~ D ~ 4
+        4  ~ E ~ 5
+        5  ~ F ~ 6
+        6  ~ G ~ 7
+        7  ~ H ~ 8
+        8  ~ I ~ 9
+        9  ~ J ~ 10
+        10 ~ K ~ 11
+        11 ~ L ~ 12
+        12 ~ M ~ 13
+        13 ~ N ~ 14
+        14 ~ O ~ 15
+        15 ~ P ~ 16
+        16 ~ Q ~ 17
+    }
 }
