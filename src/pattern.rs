@@ -1,7 +1,7 @@
 use crate::{combine::convert, common::*, error::*, predicate::*};
 
 #[doc(inline)]
-pub use crate::{token, token_set};
+pub use crate::{token_set, tokens};
 
 pub fn __pat<'i, U, Cap, E>(pat: impl Pattern<'i, U, E, Captured = Cap>) -> impl Pattern<'i, U, E, Captured = Cap>
 where

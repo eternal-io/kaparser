@@ -38,8 +38,54 @@ macro_rules! rep {
 /// Generate structures, implement [`Pattern`](crate::pattern::Pattern) for a single token conveniently.
 #[doc(hidden)]
 #[macro_export]
-macro_rules! token {
-    () => {};
+macro_rules! tokens {
+    ( $(
+        $(#[$attr:meta])*
+        $name:ident: $sli:ty = $word:literal
+    );* $(;)? ) => { $( $crate::common::paste! {
+      $(#[$attr:meta])*
+        #[doc = "\n\nGenerated token pattern, associates `` " $word " ``"]
+        #[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash)]
+        pub(crate) struct $name;
+
+        impl<'i, E> Pattern<'i, $sli, E> for $name
+        where
+            E: $crate::error::Situation,
+        {
+            type Captured = Self;
+            type Internal = ();
+
+            #[inline(always)]
+            fn init(&self) -> Self::Internal {
+                ()
+            }
+
+            #[inline(always)]
+            fn precede(&self, slice: &$sli, _ntry: &mut Self::Internal, eof: bool) -> Result<usize, E> {
+                use $crate::common::Slice;
+
+                let the_len = const { $word.len() };
+                if slice.len() < the_len {
+                    match eof {
+                        true => E::raise_reject_at(slice.len()),
+                        false => E::raise_unfulfilled(Some((the_len - slice.len()).try_into().unwrap())),
+                    }
+                } else {
+                    for ((off, expected), item) in $word.iter_indices().zip(slice.iter()) {
+                        if item != expected {
+                            return E::raise_reject_at(off);
+                        }
+                    }
+                    Ok(the_len)
+                }
+            }
+
+            #[inline(always)]
+            fn extract(&self, _lice: &'i $sli, _ntry: Self::Internal) -> Self::Captured {
+                Self
+            }
+        }
+    } )* };
 }
 
 //------------------------------------------------------------------------------
@@ -64,8 +110,7 @@ macro_rules! token_set {
             $key,
         )* }
 
-        #[doc = "Generated tokens pattern with [`" $name "`] discriminant."
-                "\n\nZST type by [`token_set!`] macro."]
+        #[doc = "\n\nGenerated tokens pattern with [`" $name "`] discriminant."]
         pub(crate) struct [<$name T>];
 
         impl<'i, E> Pattern<'i, $sli, E> for [<$name T>]
@@ -118,15 +163,23 @@ macro_rules! token_set {
 mod tests {
     use crate::prelude::*;
 
+    tokens! {
+        Hello: str = "Hello";
+        World: str = "World";
+    }
+
+    #[test]
+    fn tk() {
+        let pat = __pat::<_, _, SimpleError>((Hello, is_ws.., World));
+        assert_eq!(pat.full_match("Hello \n World").unwrap(), (Hello, " \n ", World));
+    }
+
     token_set! {
         Boolean<str> {
             False = "false",
             True = "true",
         }
     }
-
-    #[test]
-    fn tk() {}
 
     #[test]
     fn tkst() {

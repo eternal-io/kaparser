@@ -14,7 +14,7 @@ pub use crate::{
     },
     common::alts::*,
     error::*,
-    pattern::{__pat, Pattern, token_set},
+    pattern::{__pat, Pattern, token_set, tokens},
     predicate::*,
     provider::*,
 };
