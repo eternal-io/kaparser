@@ -1,7 +1,12 @@
 use crate::{combine::convert, common::*, error::*, predicate::*};
+use core::marker::PhantomData;
 
 #[doc(inline)]
 pub use crate::{token_set, tokens};
+
+pub mod impls;
+
+use impls::*;
 
 pub fn __pat<'i, U, Cap, E>(pat: impl Pattern<'i, U, E, Captured = Cap>) -> impl Pattern<'i, U, E, Captured = Cap>
 where
@@ -58,6 +63,35 @@ where
         match sli.len() {
             0 => Ok(cap),
             n => E::raise_reject_at(slice.len() - n),
+        }
+    }
+
+    //------------------------------------------------------------------------------
+
+    #[inline(always)]
+    fn reiter<'p>(&'p self, slice: &'p mut &'i U) -> Reiter<'p, 'i, U, E, Self>
+    where
+        Self: Sized,
+    {
+        Reiter {
+            body: self,
+            src: slice,
+            phantom: PhantomData,
+        }
+    }
+
+    #[inline(always)]
+    fn joined<'p, Q>(&'p self, sep: &'p Q, slice: &'p mut &'i U) -> Joined<'p, 'i, U, E, Self, Q>
+    where
+        Self: Sized,
+        Q: Pattern<'i, U, E>,
+    {
+        Joined {
+            body: self,
+            sep,
+            src: slice,
+            end: false,
+            phantom: PhantomData,
         }
     }
 
