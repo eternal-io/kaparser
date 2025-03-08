@@ -105,6 +105,7 @@ where
     {
         convert::and(t, self)
     }
+
     #[inline(always)]
     fn map<F, Out>(self, op: F) -> convert::Map<'i, U, E, Self, F, Out>
     where
@@ -147,21 +148,30 @@ where
     {
         convert::unwrap(self)
     }
+
     #[inline(always)]
-    fn unwrap_or(self, default: Self::Captured) -> convert::UnwrapOr<'i, U, E, Self>
+    fn or(self, default: Self::Captured) -> convert::Or<'i, U, E, Self>
     where
         Self: Sized,
         Self::Captured: Clone,
     {
-        convert::unwrap_or(default, self)
+        convert::or(default, self)
     }
     #[inline(always)]
-    fn unwrap_or_default(self) -> convert::UnwrapOrDefault<'i, U, E, Self>
+    fn or_else<F>(self, f: F) -> convert::OrElse<'i, U, E, Self, F>
+    where
+        Self: Sized,
+        F: Fn() -> Self::Captured,
+    {
+        convert::or_else(f, self)
+    }
+    #[inline(always)]
+    fn or_default(self) -> convert::OrDefault<'i, U, E, Self>
     where
         Self: Sized,
         Self::Captured: Default,
     {
-        convert::unwrap_or_default(self)
+        convert::or_default(self)
     }
 
     #[inline(always)]

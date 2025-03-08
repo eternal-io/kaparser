@@ -86,29 +86,44 @@ where
         phantom: PhantomData,
     }
 }
+
 #[inline(always)]
-pub const fn unwrap_or<'i, U, E, P>(default: P::Captured, body: P) -> UnwrapOr<'i, U, E, P>
+pub const fn or<'i, U, E, P>(default: P::Captured, body: P) -> Or<'i, U, E, P>
 where
     U: ?Sized + Slice,
     E: Situation,
     P: Pattern<'i, U, E>,
     P::Captured: Clone,
 {
-    UnwrapOr {
+    Or {
         body,
         default,
         phantom: PhantomData,
     }
 }
 #[inline(always)]
-pub const fn unwrap_or_default<'i, U, E, P>(body: P) -> UnwrapOrDefault<'i, U, E, P>
+pub const fn or_else<'i, U, E, P, F>(f: F, body: P) -> OrElse<'i, U, E, P, F>
+where
+    U: ?Sized + Slice,
+    E: Situation,
+    P: Pattern<'i, U, E>,
+    F: Fn() -> P::Captured,
+{
+    OrElse {
+        body,
+        f,
+        phantom: PhantomData,
+    }
+}
+#[inline(always)]
+pub const fn or_default<'i, U, E, P>(body: P) -> OrDefault<'i, U, E, P>
 where
     U: ?Sized + Slice,
     E: Situation,
     P: Pattern<'i, U, E>,
     P::Captured: Default,
 {
-    UnwrapOrDefault {
+    OrDefault {
         body,
         phantom: PhantomData,
     }
@@ -364,7 +379,7 @@ where
 
 //------------------------------------------------------------------------------
 
-pub struct UnwrapOr<'i, U, E, P>
+pub struct Or<'i, U, E, P>
 where
     U: ?Sized + Slice,
     E: Situation,
@@ -376,7 +391,7 @@ where
     phantom: PhantomData<(&'i U, E)>,
 }
 
-impl<'i, U, E, P> Pattern<'i, U, E> for UnwrapOr<'i, U, E, P>
+impl<'i, U, E, P> Pattern<'i, U, E> for Or<'i, U, E, P>
 where
     U: ?Sized + Slice,
     E: Situation,
@@ -416,7 +431,59 @@ where
 
 //------------------------------------------------------------------------------
 
-pub struct UnwrapOrDefault<'i, U, E, P>
+pub struct OrElse<'i, U, E, P, F>
+where
+    U: ?Sized + Slice,
+    E: Situation,
+    P: Pattern<'i, U, E>,
+    F: Fn() -> P::Captured,
+{
+    body: P,
+    f: F,
+    phantom: PhantomData<(&'i U, E)>,
+}
+
+impl<'i, U, E, P, F> Pattern<'i, U, E> for OrElse<'i, U, E, P, F>
+where
+    U: ?Sized + Slice,
+    E: Situation,
+    P: Pattern<'i, U, E>,
+    F: Fn() -> P::Captured,
+{
+    type Captured = P::Captured;
+    type Internal = Option<P::Internal>;
+
+    #[inline(always)]
+    fn init(&self) -> Self::Internal {
+        Some(self.body.init())
+    }
+    #[inline(always)]
+    fn precede(&self, slice: &U, entry: &mut Self::Internal, eof: bool) -> Result<usize, E> {
+        match entry {
+            None => Ok(0),
+            Some(state) => {
+                let res = self.body.precede(slice, state, eof); // TODO: optimization?
+                if let Err(ref e) = res {
+                    if !e.is_unfulfilled() {
+                        *entry = None;
+                    }
+                }
+                res
+            }
+        }
+    }
+    #[inline(always)]
+    fn extract(&self, slice: &'i U, entry: Self::Internal) -> Self::Captured {
+        match entry {
+            None => (self.f)(),
+            Some(state) => self.body.extract(slice, state),
+        }
+    }
+}
+
+//------------------------------------------------------------------------------
+
+pub struct OrDefault<'i, U, E, P>
 where
     U: ?Sized + Slice,
     E: Situation,
@@ -427,7 +494,7 @@ where
     phantom: PhantomData<(&'i U, E)>,
 }
 
-impl<'i, U, E, P> Pattern<'i, U, E> for UnwrapOrDefault<'i, U, E, P>
+impl<'i, U, E, P> Pattern<'i, U, E> for OrDefault<'i, U, E, P>
 where
     U: ?Sized + Slice,
     E: Situation,
