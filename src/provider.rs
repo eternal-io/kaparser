@@ -35,6 +35,11 @@ where
     U: ?Sized + Slice,
     R: Read;
 
+/*
+    Implementation notes:
+    This interface cannot provide `reiter` or `joined` functionality.
+*/
+
 enum Source<'src, U, R>
 where
     U: ?Sized + Slice,
@@ -181,7 +186,7 @@ where
 //==================================================================================================
 
 impl<R: Read> Provider<'_, str, R> {
-    pub fn next_str<'i, P, E>(&'i mut self, pat: P) -> ProviderResult<P::Captured, E>
+    pub fn next_str<'i, P, E>(&'i mut self, pat: &P) -> ProviderResult<P::Captured, E>
     where
         P: Pattern<'i, str, E>,
         E: Situation,
@@ -205,7 +210,7 @@ impl<R: Read> Provider<'_, str, R> {
         Ok(pat.extract(self.0.bump_str(len), entry))
     }
 
-    pub fn peek_str<'i, P, E>(&'i mut self, pat: P) -> ProviderResult<P::Captured, E>
+    pub fn peek_str<'i, P, E>(&'i mut self, pat: &P) -> ProviderResult<P::Captured, E>
     where
         P: Pattern<'i, str, E>,
         E: Situation,
@@ -315,9 +320,12 @@ impl<R: Read> Source<'_, str, R> {
             Source::ReadBytes { .. } => unreachable!(),
 
             #[cfg(feature = "std")]
-            Source::ReadStr { buf, consumed, .. } => {
+            Source::ReadStr {
+                buf, pending, consumed, ..
+            } => {
                 let left = unsafe {
-                    from_utf8_unchecked(&buf[*consumed..])
+                    // Safety: already verified by simdutf8.
+                    from_utf8_unchecked(&buf[*consumed..buf.len() - *pending as usize])
                         .split_at_checked(n)
                         .expect("implementation: invalid bump")
                         .0
@@ -343,8 +351,11 @@ impl<R: Read> Source<'_, str, R> {
             Source::ReadBytes { .. } => unreachable!(),
 
             #[cfg(feature = "std")]
-            Source::ReadStr { buf, consumed, .. } => unsafe {
-                from_utf8_unchecked(&buf[*consumed..])
+            Source::ReadStr {
+                buf, pending, consumed, ..
+            } => unsafe {
+                // Safety: already verified by simdutf8.
+                from_utf8_unchecked(&buf[*consumed..buf.len() - *pending as usize])
                     .split_at_checked(n)
                     .expect("implementation: invalid slice")
                     .0
@@ -361,7 +372,7 @@ where
     R: Read,
 {
     #[allow(clippy::should_implement_trait)]
-    pub fn next<'i, P, E>(&'i mut self, pat: P) -> ProviderResult<P::Captured, E>
+    pub fn next<'i, P, E>(&'i mut self, pat: &P) -> ProviderResult<P::Captured, E>
     where
         P: Pattern<'i, [T], E>,
         E: Situation,
@@ -385,7 +396,7 @@ where
         Ok(pat.extract(self.0.bump(len), entry))
     }
 
-    pub fn peek<'i, P, E>(&'i mut self, pat: P) -> ProviderResult<P::Captured, E>
+    pub fn peek<'i, P, E>(&'i mut self, pat: &P) -> ProviderResult<P::Captured, E>
     where
         P: Pattern<'i, [T], E>,
         E: Situation,
@@ -646,7 +657,7 @@ mod tests {
         loop {
             ctr += 1;
 
-            match par.next_str::<_, SimpleError>(opt(is_ascii..)) {
+            match par.next_str::<_, SimpleError>(&opt(is_ascii..)) {
                 Ok(cap) => {
                     if let Some(s) = cap {
                         len += s.len();
@@ -658,7 +669,7 @@ mod tests {
                 },
             }
 
-            match par.next_str::<_, SimpleError>(opt(not(is_ascii)..)) {
+            match par.next_str::<_, SimpleError>(&opt(not(is_ascii)..)) {
                 Ok(cap) => {
                     if let Some(s) = cap {
                         len += s.len();
@@ -686,9 +697,9 @@ mod tests {
         let bytes = b"asdf\0";
         let mut par = Provider::from_reader_in_bytes_with_capacity(bytes.as_ref(), 2);
 
-        assert_eq!(par.peek::<_, SimpleError>(not(0)..).unwrap(), b"asdf");
-        assert_eq!(par.next::<_, SimpleError>(not(0)..).unwrap(), b"asdf");
-        assert_eq!(par.next::<_, SimpleError>([0]).unwrap(), 0);
+        assert_eq!(par.peek::<_, SimpleError>(&(not(0)..)).unwrap(), b"asdf");
+        assert_eq!(par.next::<_, SimpleError>(&(not(0)..)).unwrap(), b"asdf");
+        assert_eq!(par.next::<_, SimpleError>(&[0]).unwrap(), 0);
         assert!(par.exhausted());
     }
 }

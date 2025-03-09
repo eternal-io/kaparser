@@ -257,7 +257,7 @@ mod tests {
         let mut prv = Provider::from_reader_in_str_with_capacity(s.as_bytes(), 0);
 
         assert_eq!(
-            prv.next_str(pat)?,
+            prv.next_str(&pat)?,
             (
                 "EFAB6251",
                 [("-", "2b3e"), ("-", "4395"), ("-", "bfc0")],
