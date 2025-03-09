@@ -48,7 +48,7 @@ where
     pub(super) phantom: PhantomData<E>,
 }
 
-impl<'p, 'i, U, E, P, Q> Iterator for Joined<'p, 'i, U, E, P, Q>
+impl<'i, U, E, P, Q> Iterator for Joined<'_, 'i, U, E, P, Q>
 where
     U: ?Sized + Slice,
     E: Situation,
