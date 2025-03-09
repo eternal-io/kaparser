@@ -12,6 +12,7 @@ mod macros;
 pub mod common;
 pub mod combine;
 pub mod error;
+pub mod line_col;
 pub mod pattern;
 pub mod predicate;
 pub mod prelude;
