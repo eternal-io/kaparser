@@ -13,9 +13,10 @@ readme = false
 
 [features]
 default = ["std"]
-std = []
+std = ["memchr/std", "simdutf8/std"]
 
 [dependencies]
 paste = "1.0.15"
-simdutf8 = "0.1.5"
 unicode-ident = "1.0.16"
+memchr = { version = "2.7.4", default-features = false }
+simdutf8 = { version = "0.1.5", default-features = false }
