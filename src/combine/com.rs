@@ -164,7 +164,7 @@ mod tests {
     #[test]
     fn main() {
         assert_eq!(
-            __pat::<_, _, SimpleError>(com((is_bin.., is_oct.., is_hex..)))
+            opaque::<_, _, SimpleError>(com((is_bin.., is_oct.., is_hex..)))
                 .full_match("0123456789abcdefABCDEF")
                 .unwrap(),
             "0123456789abcdefABCDEF"

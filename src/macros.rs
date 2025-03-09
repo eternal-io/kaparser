@@ -170,7 +170,7 @@ mod tests {
 
     #[test]
     fn tk() {
-        let pat = __pat::<_, _, SimpleError>((Hello, is_ws.., World));
+        let pat = opaque::<_, _, SimpleError>((Hello, is_ws.., World));
         assert_eq!(pat.full_match("Hello \n World").unwrap(), (Hello, " \n ", World));
     }
 
@@ -183,7 +183,7 @@ mod tests {
 
     #[test]
     fn tkst() {
-        let pat = __pat::<_, _, SimpleError>(BooleanT);
+        let pat = opaque::<_, _, SimpleError>(BooleanT);
         assert_eq!(pat.full_match("true").unwrap(), Boolean::True);
         assert_eq!(pat.full_match("false").unwrap(), Boolean::False);
         assert!(pat.full_match("False").is_err());
