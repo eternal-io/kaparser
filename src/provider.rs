@@ -1,5 +1,5 @@
-use crate::{common::*, error::*, pattern::*};
-use core::marker::PhantomData;
+use crate::{common::*, error::*, line_col::*, pattern::*};
+use core::{marker::PhantomData, num::NonZeroUsize};
 #[cfg(feature = "std")]
 use core::{
     mem::{self, MaybeUninit},
@@ -233,6 +233,53 @@ impl<R: Read> Provider<'_, str, R> {
 
         Ok(pat.extract(self.0.slice_str(len), entry))
     }
+
+    #[allow(unsafe_code)]
+    pub fn content(&self) -> (usize, &str, &str) {
+        match &self.0 {
+            Source::Sliced { slice, consumed, .. } => {
+                let (left, right) = slice.split_at(*consumed);
+                (0, left, right)
+            }
+
+            #[cfg(feature = "std")]
+            Source::ReadBytes { .. } => unreachable!(),
+
+            #[cfg(feature = "std")]
+            Source::ReadStr {
+                buf,
+                pending,
+                consumed,
+                discarded,
+                ..
+            } => {
+                let (left, right) =
+                    unsafe { from_utf8_unchecked(&buf[..buf.len() - *pending as usize]) }.split_at(*consumed);
+                (*discarded, left, right)
+            }
+        }
+    }
+
+    pub fn line_col(&self) -> Option<(NonZeroUsize, NonZeroUsize)> {
+        let (discarded, consumed, _) = self.content();
+        if discarded != 0 {
+            return None;
+        }
+
+        line_col(consumed, consumed.len())
+    }
+
+    pub fn line_col_span(&self, length: usize) -> Option<((NonZeroUsize, NonZeroUsize), (NonZeroUsize, NonZeroUsize))> {
+        let (discarded, consumed, avail) = self.content();
+        if discarded != 0 {
+            return None;
+        }
+
+        let loc2 = line_col(avail, length)?;
+        let loc1 = line_col(consumed, consumed.len())?;
+
+        Some((loc1, series_locate(loc1, loc2)))
+    }
 }
 
 impl<R: Read> Source<'_, str, R> {
@@ -414,6 +461,30 @@ where
         };
 
         Ok(pat.extract(self.0.slice(len), entry))
+    }
+
+    #[allow(unsafe_code)]
+    pub fn content(&self) -> (usize, &[T], &[T]) {
+        match &self.0 {
+            Source::Sliced { slice, consumed, .. } => {
+                let (left, right) = slice.split_at(*consumed);
+                (0, left, right)
+            }
+
+            #[cfg(feature = "std")]
+            Source::ReadStr { .. } => unreachable!(),
+
+            #[cfg(feature = "std")]
+            Source::ReadBytes {
+                buf,
+                consumed,
+                discarded,
+                ..
+            } => {
+                let (left, right) = unsafe { mem::transmute::<&[u8], &[T]>(buf.as_ref()) }.split_at(*consumed);
+                (*discarded, left, right)
+            }
+        }
     }
 }
 
