@@ -320,12 +320,10 @@ impl<R: Read> Source<'_, str, R> {
             Source::ReadBytes { .. } => unreachable!(),
 
             #[cfg(feature = "std")]
-            Source::ReadStr {
-                buf, pending, consumed, ..
-            } => {
+            Source::ReadStr { buf, consumed, .. } => {
                 let left = unsafe {
                     // Safety: already verified by simdutf8.
-                    from_utf8_unchecked(&buf[*consumed..buf.len() - *pending as usize])
+                    from_utf8_unchecked(&buf[*consumed..])
                         .split_at_checked(n)
                         .expect("implementation: invalid bump")
                         .0
@@ -351,11 +349,9 @@ impl<R: Read> Source<'_, str, R> {
             Source::ReadBytes { .. } => unreachable!(),
 
             #[cfg(feature = "std")]
-            Source::ReadStr {
-                buf, pending, consumed, ..
-            } => unsafe {
+            Source::ReadStr { buf, consumed, .. } => unsafe {
                 // Safety: already verified by simdutf8.
-                from_utf8_unchecked(&buf[*consumed..buf.len() - *pending as usize])
+                from_utf8_unchecked(&buf[*consumed..])
                     .split_at_checked(n)
                     .expect("implementation: invalid slice")
                     .0
