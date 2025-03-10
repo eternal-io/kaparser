@@ -1,15 +1,15 @@
-#![allow(non_snake_case)]
 use crate::anything::*;
 
 macro_rules! gen_binary_patterns {
     ( $(
       $(#[$attr:meta])*
-      $f:ident, $ty:ty, $len:tt;
+        $f:ident, $ty:ty, $len:tt;
     )* ) => { paste::paste! { $(
       $(#[$attr])*
         #[inline(always)]
-        pub const fn [<$f:upper _ $ty:upper>]<'i, E: Situation>()
-        -> Map<'i, [u8], E, Lens<u8, RangeFull, E, $len>, fn([u8; $len]) -> $ty, $ty> {
+        pub const fn [<$f _ $ty>]<'i, E: Situation>()
+            -> Map<'i, [u8], E, Lens<u8, RangeFull, E, $len>, fn([u8; $len]) -> $ty, $ty>
+        {
             map($ty::[<from_ $f _bytes>], len!($len, ..))
         }
     )* } };

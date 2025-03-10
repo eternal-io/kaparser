@@ -35,7 +35,7 @@ pub mod anything {
         combine::*,
         common::{alts::*, *},
         error::*,
-        pattern::*,
+        pattern::{impls::*, *},
         predicate::*,
         provider::*,
     };

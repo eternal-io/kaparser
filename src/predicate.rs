@@ -179,7 +179,7 @@ gen_ascii_predicates! {
     /// Note that this is different from [`char::is_ascii_whitespace`].
     /// This includes U+000B VERTICAL TAB.
     r"whitespace"                           is_ws(ch)    => matches!(ch, '\x20' | '\t' | '\r' | '\x0c' | '\x0b' | '\n'),
-    "[whitespace](is_ws) with No Newline."  is_ws_nn(ch) => matches!(ch, '\x20' | '\t' | '\r' | '\x0c' | '\x0b' ),
+    "[whitespace](is_ws) with No Newline"   is_ws_nn(ch) => matches!(ch, '\x20' | '\t' | '\r' | '\x0c' | '\x0b' ),
     r"newline `\n`"                         is_nl(ch)    => matches!(ch, '\n'),
 
     r"any"                                  is_ascii(ch) => ch.is_ascii(),
