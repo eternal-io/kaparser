@@ -4,6 +4,8 @@ use core::marker::PhantomData;
 #[doc(inline)]
 pub use crate::{token_set, tokens};
 
+pub mod bin;
+pub mod def;
 pub mod impls;
 
 use impls::*;

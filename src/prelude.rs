@@ -1,10 +1,9 @@
 pub use crate::{
     combine::{
         alt::alt,
-        bin,
         com::com,
         control::{cond, cut},
-        convert, def,
+        convert,
         lens::len,
         not::not,
         opt::opt,
@@ -15,7 +14,7 @@ pub use crate::{
     common::alts::*,
     error::*,
     line_col::*,
-    pattern::{Pattern, impls::opaque, token_set, tokens},
+    pattern::{Pattern, bin, def, impls::opaque, token_set, tokens},
     predicate::*,
     provider::*,
 };

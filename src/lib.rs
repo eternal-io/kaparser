@@ -20,16 +20,16 @@ pub mod provider;
 pub mod anything {
     //! Re-exports all items in kaparser.
     //!
-    //! This module can help define `const COMBINATOR`s with type annotations...
+    //! This module can help define `fn combinator`s with type annotations...
     //! if you *really* want.
     //!
-    //! Before doing so, please check [`combine::def`] and [`combine::bin`],
-    //! maybe the patterns you want are already defined.
+    //! Before doing so, please check [`pattern::def`] and [`pattern::bin`],
+    //! maybe the patterns you want are already predefined.
     //! If they're not there and you're sure these patterns are commonly used,
     //! feel free to open an issue.
     //!
-    //! [`combine::def`]: crate::combine::def
-    //! [`combine::bin`]: crate::combine::bin
+    //! [`pattern::def`]: crate::pattern::def
+    //! [`pattern::bin`]: crate::pattern::bin
     #[doc(hidden)]
     pub use crate::{
         combine::*,
