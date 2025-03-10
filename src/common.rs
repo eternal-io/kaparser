@@ -26,7 +26,6 @@ pub(crate) const fn cold_path() {}
 pub trait Slice {
     type Item: Copy + PartialEq;
 
-    fn empty<'i>() -> &'i Self;
     fn len(&self) -> usize;
     fn len_of(&self, item: Self::Item) -> usize;
     fn starts_with(&self, prefix: &Self) -> bool;
@@ -45,10 +44,6 @@ pub trait Slice {
 impl Slice for str {
     type Item = char;
 
-    #[inline(always)]
-    fn empty<'i>() -> &'i Self {
-        ""
-    }
     #[inline(always)]
     fn len(&self) -> usize {
         (*self).len()
@@ -82,10 +77,6 @@ where
 {
     type Item = T;
 
-    #[inline(always)]
-    fn empty<'i>() -> &'i Self {
-        [].as_ref()
-    }
     #[inline(always)]
     fn len(&self) -> usize {
         (*self).len()
