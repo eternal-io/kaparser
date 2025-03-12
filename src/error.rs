@@ -16,7 +16,7 @@ pub trait Situation: Sized + Debug {
     fn length(&self) -> usize;
 
     fn describe(self, desc: Self::Description) -> Self;
-    fn description(&self) -> Self::Description;
+    fn description(self) -> Self::Description;
 
     #[inline(always)]
     fn raise_unfulfilled<T>(len: Option<NonZeroUsize>) -> Result<T, Self> {
@@ -41,74 +41,102 @@ pub trait Situation: Sized + Debug {
 
 pub type ParseResult<T, E = SimpleError> = Result<T, E>;
 
+#[derive(Debug)]
+pub struct SimpleError<D = ()>
+where
+    D: Default + Debug,
+{
+    kind: SimpleErrorKind,
+    desc: D,
+}
+
 #[derive(Debug, Clone, Copy)]
-pub enum SimpleError {
+enum SimpleErrorKind {
     Unfulfilled(Option<NonZeroUsize>),
     Rejected(usize),
     Halted(usize),
 }
 
-impl Situation for SimpleError {
-    type Description = ();
+impl<D> Situation for SimpleError<D>
+where
+    D: Default + Debug,
+{
+    type Description = D;
 
     #[inline(always)]
     fn unfulfilled(len: Option<NonZeroUsize>) -> Self {
-        Self::Unfulfilled(len)
+        Self {
+            kind: SimpleErrorKind::Unfulfilled(len),
+            desc: Default::default(),
+        }
     }
     #[inline(always)]
     fn reject_at(len: usize) -> Self {
-        Self::Rejected(len)
+        Self {
+            kind: SimpleErrorKind::Rejected(len),
+            desc: Default::default(),
+        }
     }
     #[inline(always)]
     fn halt_at(len: usize) -> Self {
-        Self::Halted(len)
+        Self {
+            kind: SimpleErrorKind::Halted(len),
+            desc: Default::default(),
+        }
     }
 
     #[inline(always)]
     fn cut(self) -> Self {
-        match self {
-            SimpleError::Rejected(n) => SimpleError::Halted(n),
-            _ => self,
+        let Self { kind, desc } = self;
+        match kind {
+            SimpleErrorKind::Rejected(n) => Self {
+                kind: SimpleErrorKind::Halted(n),
+                desc,
+            },
+            _ => Self { kind, desc },
         }
     }
 
     #[inline(always)]
     fn is_unfulfilled(&self) -> bool {
-        matches!(self, Self::Unfulfilled(_))
+        matches!(self.kind, SimpleErrorKind::Unfulfilled(_))
     }
     #[inline(always)]
     fn is_rejected(&self) -> bool {
-        matches!(self, Self::Rejected(_))
+        matches!(self.kind, SimpleErrorKind::Rejected(_))
     }
     #[inline(always)]
     fn is_halted(&self) -> bool {
-        matches!(self, Self::Halted(_))
+        matches!(self.kind, SimpleErrorKind::Halted(_))
     }
 
     #[inline(always)]
     fn backtrack(mut self, len: usize) -> Self {
-        match &mut self {
-            Self::Unfulfilled(_) => (),
-            Self::Rejected(n) => *n += len,
-            Self::Halted(n) => *n += len,
+        match &mut self.kind {
+            SimpleErrorKind::Unfulfilled(_) => (),
+            SimpleErrorKind::Rejected(n) => *n += len,
+            SimpleErrorKind::Halted(n) => *n += len,
         }
         self
     }
     #[inline(always)]
     fn length(&self) -> usize {
-        match *self {
-            Self::Unfulfilled(n) => n.map(usize::from).unwrap_or(0),
-            Self::Rejected(n) => n,
-            Self::Halted(n) => n,
+        match self.kind {
+            SimpleErrorKind::Unfulfilled(n) => n.map(usize::from).unwrap_or(0),
+            SimpleErrorKind::Rejected(n) => n,
+            SimpleErrorKind::Halted(n) => n,
         }
     }
 
     #[inline(always)]
-    fn describe(self, _esc: Self::Description) -> Self {
+    fn describe(mut self, desc: Self::Description) -> Self {
+        self.desc = desc;
         self
     }
     #[inline(always)]
-    fn description(&self) -> Self::Description {}
+    fn description(self) -> Self::Description {
+        self.desc
+    }
 }
 
 //------------------------------------------------------------------------------
