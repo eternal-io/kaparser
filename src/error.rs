@@ -143,12 +143,23 @@ where
 
 pub type ProviderResult<T, E = SimpleError> = Result<T, ProviderError<E>>;
 
-#[derive(Debug)]
 pub enum ProviderError<E: Situation> {
     #[cfg(feature = "std")]
     Io(::std::io::Error),
     InvalidUtf8,
     Mismatched(E),
+    Customized(E::Description),
+}
+
+impl<E: Situation> ProviderError<E> {
+    #[inline(always)]
+    pub const fn custom(e: E::Description) -> Self {
+        Self::Customized(e)
+    }
+    #[inline(always)]
+    pub const fn raise_custom<T>(e: E::Description) -> Result<T, Self> {
+        Err(Self::Customized(e))
+    }
 }
 
 #[cfg(feature = "std")]
