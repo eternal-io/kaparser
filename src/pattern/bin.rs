@@ -1,4 +1,8 @@
-use crate::anything::*;
+use crate::{
+    combine::{Lens, Map, map},
+    error::Situation,
+};
+use core::ops::RangeFull;
 
 macro_rules! gen_binary_patterns {
     ( $(

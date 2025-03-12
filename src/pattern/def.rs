@@ -1,5 +1,11 @@
 #![allow(clippy::type_complexity)]
-use crate::anything::*;
+use crate::{
+    combine::{Compound, Optional, Take0, com, opt, take0, take1},
+    error::Situation,
+    pattern::{Opaque, opaque},
+    predicate::*,
+};
+use core::ops::RangeFrom;
 
 #[inline(always)]
 pub const fn line_end<'i, E: Situation>() -> Compound<'i, str, E, (Optional<'i, str, E, &'i str>, &'i str)> {
