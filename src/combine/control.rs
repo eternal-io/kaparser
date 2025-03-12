@@ -53,8 +53,8 @@ where
         self.body.init()
     }
     #[inline(always)]
-    fn precede(&self, slice: &U, entry: &mut Self::Internal, eof: bool) -> Result<usize, E> {
-        self.body.precede(slice, entry, eof).map_err(Situation::cut)
+    fn advance(&self, slice: &U, entry: &mut Self::Internal, eof: bool) -> Result<usize, E> {
+        self.body.advance(slice, entry, eof).map_err(Situation::cut)
     }
     #[inline(always)]
     fn extract(&self, slice: &'i U, entry: Self::Internal) -> Self::Captured {
@@ -89,9 +89,9 @@ where
         self.body.init()
     }
     #[inline(always)]
-    fn precede(&self, slice: &U, entry: &mut Self::Internal, eof: bool) -> Result<usize, E> {
+    fn advance(&self, slice: &U, entry: &mut Self::Internal, eof: bool) -> Result<usize, E> {
         match self.cond {
-            true => self.body.precede(slice, entry, eof),
+            true => self.body.advance(slice, entry, eof),
             false => Ok(0),
         }
     }

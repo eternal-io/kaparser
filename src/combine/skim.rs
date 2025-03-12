@@ -36,7 +36,7 @@ where
         0
     }
     #[inline(always)]
-    fn precede(&self, slice: &U, entry: &mut Self::Internal, eof: bool) -> Result<usize, E> {
+    fn advance(&self, slice: &U, entry: &mut Self::Internal, eof: bool) -> Result<usize, E> {
         match slice
             .split_at(*entry)
             .1
@@ -76,11 +76,11 @@ where
         (0, self.end.init())
     }
     #[inline(always)]
-    fn precede(&self, slice: &U, entry: &mut Self::Internal, eof: bool) -> Result<usize, E> {
+    fn advance(&self, slice: &U, entry: &mut Self::Internal, eof: bool) -> Result<usize, E> {
         let (offset, state) = entry;
         for item in slice.split_at(*offset).1.iter() {
             let mut st = self.end.init();
-            let res = self.end.precede(slice.split_at(*offset).1, &mut st, eof);
+            let res = self.end.advance(slice.split_at(*offset).1, &mut st, eof);
             match res {
                 Ok(len) => {
                     *state = st;

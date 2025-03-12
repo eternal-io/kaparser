@@ -16,12 +16,12 @@ macro_rules! impl_pattern_for_tuple {
             }
 
             #[inline(always)]
-            fn precede(&self, slice: &U, entry: &mut Self::Internal, eof: bool) -> Result<usize, E> {
+            fn advance(&self, slice: &U, entry: &mut Self::Internal, eof: bool) -> Result<usize, E> {
                 use [<Check $Len>]::*;
                 let (checkpoint, states) = entry;
                 let mut offset = 0usize;
 
-                resume_precede! {
+                resume_advance! {
                     *checkpoint => { $(
                         $LabN: [<Point $OrdN>] => [{
                             *checkpoint = [<Point $OrdN>];
@@ -31,7 +31,7 @@ macro_rules! impl_pattern_for_tuple {
                                 *off = offset;
                             }
 
-                            match self.$IdxN.precede(slice.split_at(*off).1, state, eof) {
+                            match self.$IdxN.advance(slice.split_at(*off).1, state, eof) {
                                 Ok(len) => offset = *off + len,
                                 Err(e) => return e.raise_backtrack(*off),
                             }

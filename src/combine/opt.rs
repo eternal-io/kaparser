@@ -39,8 +39,8 @@ where
         Some(self.opt.init())
     }
     #[inline(always)]
-    fn precede(&self, slice: &U, entry: &mut Self::Internal, eof: bool) -> Result<usize, E> {
-        let res = self.opt.precede(slice, entry.as_mut().unwrap(), eof);
+    fn advance(&self, slice: &U, entry: &mut Self::Internal, eof: bool) -> Result<usize, E> {
+        let res = self.opt.advance(slice, entry.as_mut().unwrap(), eof);
         if let Err(e) = &res {
             if e.is_rejected() {
                 *entry = None;

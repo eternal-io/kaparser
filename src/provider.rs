@@ -195,7 +195,7 @@ impl<R: Read> Provider<'_, str, R> {
         let mut first_time = true;
         let len = loop {
             let (slice, eof) = self.0.pull_str(first_time)?;
-            match pat.precede(slice, &mut entry, eof) {
+            match pat.advance(slice, &mut entry, eof) {
                 Ok(len) => break len,
                 Err(e) => match e.is_unfulfilled() {
                     false => return Err(ProviderError::Mismatched(e)),
@@ -219,7 +219,7 @@ impl<R: Read> Provider<'_, str, R> {
         let mut first_time = true;
         let len = loop {
             let (slice, eof) = self.0.pull_str(first_time)?;
-            match pat.precede(slice, &mut entry, eof) {
+            match pat.advance(slice, &mut entry, eof) {
                 Ok(len) => break len,
                 Err(e) => match e.is_unfulfilled() {
                     false => return Err(ProviderError::Mismatched(e)),
@@ -424,7 +424,7 @@ where
         let mut first_time = true;
         let len = loop {
             let (slice, eof) = self.0.pull(first_time)?;
-            match pat.precede(slice, &mut entry, eof) {
+            match pat.advance(slice, &mut entry, eof) {
                 Ok(len) => break len,
                 Err(e) => match e.is_unfulfilled() {
                     false => return Err(ProviderError::Mismatched(e)),
@@ -448,7 +448,7 @@ where
         let mut first_time = true;
         let len = loop {
             let (slice, eof) = self.0.pull(first_time)?;
-            match pat.precede(slice, &mut entry, eof) {
+            match pat.advance(slice, &mut entry, eof) {
                 Ok(len) => break len,
                 Err(e) => match e.is_unfulfilled() {
                     false => return Err(ProviderError::Mismatched(e)),

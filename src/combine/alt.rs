@@ -35,7 +35,7 @@ where
 
     fn init_alt(&self) -> Self::Internal;
 
-    fn precede_alt(&self, slice: &U, entry: &mut Self::Internal, eof: bool) -> Result<usize, E>;
+    fn advance_alt(&self, slice: &U, entry: &mut Self::Internal, eof: bool) -> Result<usize, E>;
 
     fn extract_alt(&self, slice: &'i U, entry: Self::Internal) -> Self::Captured;
 }
@@ -54,8 +54,8 @@ where
         self.alt.init_alt()
     }
     #[inline(always)]
-    fn precede(&self, slice: &U, entry: &mut Self::Internal, eof: bool) -> Result<usize, E> {
-        self.alt.precede_alt(slice, entry, eof)
+    fn advance(&self, slice: &U, entry: &mut Self::Internal, eof: bool) -> Result<usize, E> {
+        self.alt.advance_alt(slice, entry, eof)
     }
     #[inline(always)]
     fn extract(&self, slice: &'i U, entry: Self::Internal) -> Self::Captured {
@@ -80,16 +80,16 @@ macro_rules! impl_alternatable_for_tuple {
 
             #[inline(always)]
             #[allow(irrefutable_let_patterns)]
-            fn precede_alt(&self, slice: &U, entry: &mut Self::Internal, eof: bool) -> Result<usize, E> {
+            fn advance_alt(&self, slice: &U, entry: &mut Self::Internal, eof: bool) -> Result<usize, E> {
                 use $Alt::*;
 
-                resume_precede! {
+                resume_advance! {
                     entry => { $(
                         $LabN: $VarN(_) => [{
                             *entry = $VarN(self.$IdxN.init());
                         }] {
                             let $VarN(state) = entry else { unreachable!() };
-                            match self.$IdxN.precede(slice, state, eof) {
+                            match self.$IdxN.advance(slice, state, eof) {
                                 Ok(len) => return Ok(len),
                                 Err(e) => if !e.is_rejected() {
                                     return Err(e);

@@ -20,7 +20,7 @@ where
 
     fn init(&self) -> Self::Internal;
 
-    fn precede(&self, slice: &U, entry: &mut Self::Internal, eof: bool) -> Result<usize, E>;
+    fn advance(&self, slice: &U, entry: &mut Self::Internal, eof: bool) -> Result<usize, E>;
 
     fn extract(&self, slice: &'i U, entry: Self::Internal) -> Self::Captured;
 
@@ -29,7 +29,7 @@ where
     #[inline(always)]
     fn parse(&self, slice: &mut &'i U) -> Result<Self::Captured, E> {
         let mut state = self.init();
-        match self.precede(*slice, &mut state, true) {
+        match self.advance(*slice, &mut state, true) {
             Ok(len) => {
                 let (left, right) = slice.split_at(len);
                 *slice = right;
@@ -192,7 +192,7 @@ where
     fn init(&self) -> Self::Internal {}
 
     #[inline(always)]
-    fn precede(&self, slice: &U, _ntry: &mut Self::Internal, eof: bool) -> Result<usize, E> {
+    fn advance(&self, slice: &U, _ntry: &mut Self::Internal, eof: bool) -> Result<usize, E> {
         if slice.len() < self.len() {
             match eof {
                 true => E::raise_reject_at(slice.len()),
@@ -227,7 +227,7 @@ where
     fn init(&self) -> Self::Internal {}
 
     #[inline(always)]
-    fn precede(&self, slice: &U, _ntry: &mut Self::Internal, eof: bool) -> Result<usize, E> {
+    fn advance(&self, slice: &U, _ntry: &mut Self::Internal, eof: bool) -> Result<usize, E> {
         match slice.first() {
             Some(item) => match self[0].predicate(&item) {
                 true => Ok(slice.len_of(item)),

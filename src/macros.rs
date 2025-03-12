@@ -61,7 +61,7 @@ macro_rules! tokens {
             }
 
             #[inline(always)]
-            fn precede(&self, slice: &$sli, _ntry: &mut Self::Internal, eof: bool) -> Result<usize, E> {
+            fn advance(&self, slice: &$sli, _ntry: &mut Self::Internal, eof: bool) -> Result<usize, E> {
                 use $crate::common::Slice;
 
                 let the_len = const { $word.len() };
@@ -126,7 +126,7 @@ macro_rules! token_set {
             }
 
             #[inline(always)]
-            fn precede(&self, slice: &$sli, entry: &mut Self::Internal, eof: bool) -> Result<usize, E> {
+            fn advance(&self, slice: &$sli, entry: &mut Self::Internal, eof: bool) -> ::core::result::Result<usize, E> {
                 let max_len = const { token_set!( @max $($word.len(),)* 0 ) };
                 if !eof && slice.len() < max_len {
                     return E::raise_unfulfilled(Some((max_len - slice.len()).try_into().unwrap()));

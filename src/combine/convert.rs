@@ -174,8 +174,8 @@ where
         self.body.init()
     }
     #[inline(always)]
-    fn precede(&self, slice: &U, entry: &mut Self::Internal, eof: bool) -> Result<usize, E> {
-        self.body.precede(slice, entry, eof)
+    fn advance(&self, slice: &U, entry: &mut Self::Internal, eof: bool) -> Result<usize, E> {
+        self.body.advance(slice, entry, eof)
     }
     #[inline(always)]
     fn extract(&self, _lice: &'i U, _ntry: Self::Internal) -> Self::Captured {
@@ -212,8 +212,8 @@ where
         self.body.init()
     }
     #[inline(always)]
-    fn precede(&self, slice: &U, entry: &mut Self::Internal, eof: bool) -> Result<usize, E> {
-        self.body.precede(slice, entry, eof)
+    fn advance(&self, slice: &U, entry: &mut Self::Internal, eof: bool) -> Result<usize, E> {
+        self.body.advance(slice, entry, eof)
     }
     #[inline(always)]
     fn extract(&self, slice: &'i U, entry: Self::Internal) -> Self::Captured {
@@ -252,8 +252,8 @@ where
         self.body.init()
     }
     #[inline(always)]
-    fn precede(&self, slice: &U, entry: &mut Self::Internal, eof: bool) -> Result<usize, E2> {
-        self.body.precede(slice, entry, eof).map_err(|e| (self.op)(e))
+    fn advance(&self, slice: &U, entry: &mut Self::Internal, eof: bool) -> Result<usize, E2> {
+        self.body.advance(slice, entry, eof).map_err(|e| (self.op)(e))
     }
     #[inline(always)]
     fn extract(&self, slice: &'i U, entry: Self::Internal) -> Self::Captured {
@@ -290,9 +290,9 @@ where
         self.body.init()
     }
     #[inline(always)]
-    fn precede(&self, slice: &U, entry: &mut Self::Internal, eof: bool) -> Result<usize, E> {
+    fn advance(&self, slice: &U, entry: &mut Self::Internal, eof: bool) -> Result<usize, E> {
         self.body
-            .precede(slice, entry, eof)
+            .advance(slice, entry, eof)
             .map_err(|e| e.describe(self.desc.clone()))
     }
     #[inline(always)]
@@ -330,8 +330,8 @@ where
         self.body.init()
     }
     #[inline(always)]
-    fn precede(&self, slice: &U, entry: &mut Self::Internal, eof: bool) -> Result<usize, E> {
-        self.body.precede(slice, entry, eof).map_err(|e| {
+    fn advance(&self, slice: &U, entry: &mut Self::Internal, eof: bool) -> Result<usize, E> {
+        self.body.advance(slice, entry, eof).map_err(|e| {
             let desc = (self.f)(&e);
             e.describe(desc)
         })
@@ -368,8 +368,8 @@ where
         self.body.init()
     }
     #[inline(always)]
-    fn precede(&self, slice: &U, entry: &mut Self::Internal, eof: bool) -> Result<usize, E> {
-        Ok(self.body.precede(slice, entry, eof).expect("unexpected input"))
+    fn advance(&self, slice: &U, entry: &mut Self::Internal, eof: bool) -> Result<usize, E> {
+        Ok(self.body.advance(slice, entry, eof).expect("unexpected input"))
     }
     #[inline(always)]
     fn extract(&self, slice: &'i U, entry: Self::Internal) -> Self::Captured {
@@ -406,11 +406,11 @@ where
         Some(self.body.init())
     }
     #[inline(always)]
-    fn precede(&self, slice: &U, entry: &mut Self::Internal, eof: bool) -> Result<usize, E> {
+    fn advance(&self, slice: &U, entry: &mut Self::Internal, eof: bool) -> Result<usize, E> {
         match entry {
             None => Ok(0),
             Some(state) => {
-                let res = self.body.precede(slice, state, eof); // TODO: optimization?
+                let res = self.body.advance(slice, state, eof); // TODO: optimization?
                 if let Err(ref e) = res {
                     if !e.is_unfulfilled() {
                         *entry = None;
@@ -458,11 +458,11 @@ where
         Some(self.body.init())
     }
     #[inline(always)]
-    fn precede(&self, slice: &U, entry: &mut Self::Internal, eof: bool) -> Result<usize, E> {
+    fn advance(&self, slice: &U, entry: &mut Self::Internal, eof: bool) -> Result<usize, E> {
         match entry {
             None => Ok(0),
             Some(state) => {
-                let res = self.body.precede(slice, state, eof); // TODO: optimization?
+                let res = self.body.advance(slice, state, eof); // TODO: optimization?
                 if let Err(ref e) = res {
                     if !e.is_unfulfilled() {
                         *entry = None;
@@ -509,11 +509,11 @@ where
         Some(self.body.init())
     }
     #[inline(always)]
-    fn precede(&self, slice: &U, entry: &mut Self::Internal, eof: bool) -> Result<usize, E> {
+    fn advance(&self, slice: &U, entry: &mut Self::Internal, eof: bool) -> Result<usize, E> {
         match entry {
             None => Ok(0),
             Some(state) => {
-                let res = self.body.precede(slice, state, eof);
+                let res = self.body.advance(slice, state, eof);
                 if let Err(ref e) = res {
                     if !e.is_unfulfilled() {
                         *entry = None;
@@ -561,16 +561,16 @@ where
         Alt2::Var1(self.body.init())
     }
     #[inline(always)]
-    fn precede(&self, slice: &U, entry: &mut Self::Internal, eof: bool) -> Result<usize, E> {
+    fn advance(&self, slice: &U, entry: &mut Self::Internal, eof: bool) -> Result<usize, E> {
         let Alt2::Var1(state) = entry else {
             panic!("contract violation")
         };
-        let len = self.body.precede(slice, state, eof)?;
+        let len = self.body.advance(slice, state, eof)?;
 
         *entry = Alt2::Var2(self.then.init());
 
         let Alt2::Var2(state) = entry else { unreachable!() };
-        self.then.precede(slice.split_at(len).0, state, true)
+        self.then.advance(slice.split_at(len).0, state, true)
     }
     #[inline(always)]
     fn extract(&self, slice: &'i U, entry: Self::Internal) -> Self::Captured {
