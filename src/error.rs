@@ -143,6 +143,7 @@ where
 
 pub type ProviderResult<T, E = SimpleError> = Result<T, ProviderError<E>>;
 
+#[derive(Debug)]
 pub enum ProviderError<E: Situation> {
     #[cfg(feature = "std")]
     Io(::std::io::Error),
