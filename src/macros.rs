@@ -22,14 +22,14 @@ macro_rules! rep {
     };
 
     ($n:tt..$m:tt, $p:expr) => {
-        compile_error!("use `n..=m` instead")
+        ::core::compile_error!("use `n..=m` instead")
     };
     (..$m:tt, $p:expr) => {
-        compile_error!("use `..=m` instead")
+        ::core::compile_error!("use `..=m` instead")
     };
 
     ($n:tt.., $p:expr) => {
-        compile_error!("consider use `reiter` instead")
+        ::core::compile_error!("consider use `reiter` instead")
     };
 }
 
@@ -61,7 +61,7 @@ macro_rules! tokens {
             }
 
             #[inline(always)]
-            fn advance(&self, slice: &$sli, _ntry: &mut Self::Internal, eof: bool) -> Result<usize, E> {
+            fn advance(&self, slice: &$sli, _ntry: &mut Self::Internal, eof: bool) -> ::core::result::Result<usize, E> {
                 use $crate::common::Slice;
 
                 let the_len = const { $word.len() };
