@@ -30,7 +30,7 @@ impl<R: ::std::io::Read> Read for R {
 /// Uninhabited generic placeholder.
 pub enum Sliced {}
 
-pub struct Provider<'src, U, R>(Source<'src, U, R>)
+pub struct Provider<'i, U, R>(Source<'i, U, R>)
 where
     U: ?Sized + Slice,
     R: Read;
@@ -40,13 +40,13 @@ where
     This interface cannot provide `reiter` or `joined` functionality.
 */
 
-enum Source<'src, U, R>
+enum Source<'i, U, R>
 where
     U: ?Sized + Slice,
     R: Read,
 {
     Sliced {
-        slice: &'src U,
+        slice: &'i U,
         consumed: usize,
         phantom: PhantomData<R>,
     },
@@ -76,9 +76,9 @@ where
 
 //==================================================================================================
 
-impl<'src> Provider<'src, str, Sliced> {
+impl<'i> Provider<'i, str, Sliced> {
     #[allow(clippy::should_implement_trait)]
-    pub fn from_str(s: &'src str) -> Self {
+    pub fn from_str(s: &'i str) -> Self {
         Self(Source::Sliced {
             slice: s,
             consumed: 0,
@@ -86,7 +86,7 @@ impl<'src> Provider<'src, str, Sliced> {
         })
     }
 
-    pub fn from_bstr(bytes: &'src [u8]) -> Option<Self> {
+    pub fn from_bstr(bytes: &'i [u8]) -> Option<Self> {
         Some(Self(Source::Sliced {
             slice: simdutf8::basic::from_utf8(bytes).ok()?,
             consumed: 0,
@@ -130,11 +130,11 @@ impl<R: Read> Provider<'_, [u8], R> {
     }
 }
 
-impl<'src, T> Provider<'src, [T], Sliced>
+impl<'i, T> Provider<'i, [T], Sliced>
 where
     T: Copy + PartialEq,
 {
-    pub fn from_slice(slice: &'src [T]) -> Self {
+    pub fn from_slice(slice: &'i [T]) -> Self {
         Self(Source::Sliced {
             slice,
             consumed: 0,
@@ -186,9 +186,9 @@ where
 //==================================================================================================
 
 impl<R: Read> Provider<'_, str, R> {
-    pub fn next_str<'i, P, E>(&'i mut self, pat: &P) -> ProviderResult<P::Captured, E>
+    pub fn next_str<'j, P, E>(&'j mut self, pat: &P) -> ProviderResult<P::Captured, E>
     where
-        P: Pattern<'i, str, E>,
+        P: Pattern<'j, str, E>,
         E: Situation,
     {
         let mut entry = pat.init();
@@ -210,9 +210,9 @@ impl<R: Read> Provider<'_, str, R> {
         Ok(pat.extract(self.0.bump_str(len), entry))
     }
 
-    pub fn peek_str<'i, P, E>(&'i mut self, pat: &P) -> ProviderResult<P::Captured, E>
+    pub fn peek_str<'j, P, E>(&'j mut self, pat: &P) -> ProviderResult<P::Captured, E>
     where
-        P: Pattern<'i, str, E>,
+        P: Pattern<'j, str, E>,
         E: Situation,
     {
         let mut entry = pat.init();
@@ -415,9 +415,9 @@ where
     R: Read,
 {
     #[allow(clippy::should_implement_trait)]
-    pub fn next<'i, P, E>(&'i mut self, pat: &P) -> ProviderResult<P::Captured, E>
+    pub fn next<'j, P, E>(&'j mut self, pat: &P) -> ProviderResult<P::Captured, E>
     where
-        P: Pattern<'i, [T], E>,
+        P: Pattern<'j, [T], E>,
         E: Situation,
     {
         let mut entry = pat.init();
@@ -439,9 +439,9 @@ where
         Ok(pat.extract(self.0.bump(len), entry))
     }
 
-    pub fn peek<'i, P, E>(&'i mut self, pat: &P) -> ProviderResult<P::Captured, E>
+    pub fn peek<'j, P, E>(&'j mut self, pat: &P) -> ProviderResult<P::Captured, E>
     where
-        P: Pattern<'i, [T], E>,
+        P: Pattern<'j, [T], E>,
         E: Situation,
     {
         let mut entry = pat.init();
