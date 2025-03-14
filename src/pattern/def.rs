@@ -12,6 +12,18 @@ pub const fn line_end<'i, E: Situation>() -> Compound<'i, str, E, (Optional<'i, 
     com((opt("\r"), "\n"))
 }
 
+pub const fn ident<'i, E: Situation>() -> Compound<'i, str, E, ([fn(&char) -> bool; 1], Take0<char, fn(&char) -> bool>)>
+{
+    com(([all!(is_alpha, '_')], take0(is_alnum)))
+}
+
+#[inline(always)]
+#[cfg(feature = "unicode")]
+pub const fn unc_ident<'i, E: Situation>()
+-> Compound<'i, str, E, ([fn(&char) -> bool; 1], Take0<char, fn(&char) -> bool>)> {
+    com(([unc::xid_start], take0(unc::xid_conti)))
+}
+
 macro_rules! gen_string_patterns {
     ( $(
       $(#[$attr:meta])*
