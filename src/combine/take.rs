@@ -248,25 +248,4 @@ mod tests {
         assert_eq!(pat.parse(&mut b"0123\0".as_ref()).unwrap(), b"0123");
         assert_eq!(pat.parse(&mut b"7890".as_ref()).unwrap(), b"7890");
     }
-
-    #[test]
-    #[cfg(feature = "std")]
-    fn streaming() -> ProviderResult<()> {
-        let s = "EFAB6251-2b3e-4395-bfc0-370e268935d1";
-        let pat = (take(8, is_hex), rep!(3, ("-", take(4, is_hex))), ("-", is_hex..));
-        let mut prv = Provider::from_reader_in_str_with_capacity(s.as_bytes(), 0);
-
-        assert_eq!(
-            prv.next_str(&pat)?,
-            (
-                "EFAB6251",
-                [("-", "2b3e"), ("-", "4395"), ("-", "bfc0")],
-                ("-", "370e268935d1"),
-            )
-        );
-
-        assert!(prv.exhausted());
-
-        Ok(())
-    }
 }

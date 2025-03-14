@@ -18,7 +18,7 @@ pub const fn ident<'i, E: Situation>() -> Compound<'i, str, E, ([fn(&char) -> bo
 }
 
 #[inline(always)]
-#[cfg(feature = "unicode")]
+#[cfg(feature = "unicode-ident")]
 pub const fn unc_ident<'i, E: Situation>()
 -> Compound<'i, str, E, ([fn(&char) -> bool; 1], Take0<char, fn(&char) -> bool>)> {
     com(([unc::xid_start], take0(unc::xid_conti)))

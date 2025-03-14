@@ -4,11 +4,10 @@ version = 4
 
 [[package]]
 name = "kaparser"
-version = "0.0.1"
+version = "0.0.2"
 dependencies = [
  "memchr",
  "paste",
- "simdutf8",
  "unicode-ident",
  "unicode-segmentation",
 ]
@@ -24,12 +23,6 @@ name = "paste"
 version = "1.0.15"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "57c0d7b74b563b49d38dae00a0c37d4d6de9b432382b2892f0574ddcae73fd0a"
-
-[[package]]
-name = "simdutf8"
-version = "0.1.5"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "e3a9fe34e3e7a50316060351f37187a3f546bce95496156754b601a5fa71b76e"
 
 [[package]]
 name = "unicode-ident"

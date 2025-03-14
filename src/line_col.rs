@@ -15,9 +15,9 @@ pub fn line_col(slice: &str, offset: usize) -> Option<(NonZeroUsize, NonZeroUsiz
         Some((line, off)) => (line + 1, slice.get(off + 1..offset)?),
     };
 
-    #[cfg(feature = "unicode")]
+    #[cfg(feature = "unicode-segmentation")]
     let col = unicode_segmentation::UnicodeSegmentation::graphemes(rest, true).count();
-    #[cfg(not(feature = "unicode"))]
+    #[cfg(not(feature = "unicode-segmentation"))]
     let col = rest.chars().count();
 
     Some((

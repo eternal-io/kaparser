@@ -200,8 +200,8 @@ gen_ascii_predicates! {
 
 pub mod unc {
     gen_unicode_predicates! {
-        #[cfg(feature = "unicode")] "with `XID_Start` property"     xid_start(ch) => unicode_ident::is_xid_start(*ch),
-        #[cfg(feature = "unicode")] "with `XID_Continue` property"  xid_conti(ch) => unicode_ident::is_xid_continue(*ch),
+        #[cfg(feature = "unicode-ident")] "with `XID_Start` property"     xid_start(ch) => unicode_ident::is_xid_start(*ch),
+        #[cfg(feature = "unicode-ident")] "with `XID_Continue` property"  xid_conti(ch) => unicode_ident::is_xid_continue(*ch),
 
         "with `White_Space` property"             ws(ch) => ch.is_whitespace(),
         "with `Lowercase` property"            lower(ch) => ch.is_lowercase(),

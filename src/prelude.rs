@@ -16,5 +16,4 @@ pub use crate::{
     line_col::*,
     pattern::{Pattern, bin, def, impls::opaque, token_set, tokens},
     predicate::*,
-    provider::*,
 };
