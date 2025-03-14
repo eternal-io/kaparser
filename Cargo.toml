@@ -12,8 +12,9 @@ license = "MIT OR Apache-2.0"
 readme = false
 
 [features]
-default = ["std", "unicode-ident", "unicode-segmentation"]
+default = ["std", "unicode"]
 std = ["memchr/std"]
+unicode = ["unicode-ident", "unicode-segmentation"]
 
 [dependencies]
 paste = "1.0.15"
