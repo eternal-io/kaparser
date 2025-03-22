@@ -106,6 +106,24 @@ where
 
 //------------------------------------------------------------------------------
 
+pub trait SliceHelper {
+    fn bump(&mut self, mid: usize);
+}
+
+impl SliceHelper for &str {
+    fn bump(&mut self, len: usize) {
+        *self = self.split_at(len).1;
+    }
+}
+
+impl<T> SliceHelper for &[T] {
+    fn bump(&mut self, len: usize) {
+        *self = self.split_at(len).1;
+    }
+}
+
+//------------------------------------------------------------------------------
+
 /// You can abbreviate `n..=n` to `n`.
 pub trait URangeBounds {
     fn contains(&self, times: usize) -> bool;

@@ -19,10 +19,11 @@ import! {
     pub mod take;
     pub mod lens;
     pub mod repeat;
-
     pub mod skim;
 
     pub mod opt;
+    pub mod peek;
+    pub mod wrap;
     pub mod control;
     pub mod convert;
 

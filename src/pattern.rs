@@ -45,12 +45,6 @@ where
     }
 
     #[inline(always)]
-    fn parse_peek(&self, slice: &'i U) -> Result<Self::Captured, E> {
-        let mut sli = slice;
-        self.parse(&mut sli)
-    }
-
-    #[inline(always)]
     fn full_match(&self, slice: &'i U) -> Result<Self::Captured, E> {
         let mut sli = slice;
         let cap = self.parse(&mut sli)?;
