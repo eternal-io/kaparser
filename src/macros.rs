@@ -19,13 +19,29 @@ macro_rules! all {
 
 #[doc(hidden)]
 #[macro_export]
+macro_rules! alt {
+    ( $($p:expr),* $(,)? ) => {
+        $crate::combine::alt::alternate::<_, _, _>(($($p,)*))
+    };
+}
+
+#[doc(hidden)]
+#[macro_export]
+macro_rules! com {
+    ( $($p:expr),* $(,)? ) => {
+        $crate::combine::com::compound::<_, _, _>(($($p,)*))
+    };
+}
+
+//------------------------------------------------------------------------------
+
+#[doc(hidden)]
+#[macro_export]
 macro_rules! len {
     ($n:expr, $p:expr) => {
         $crate::combine::lens::lens::<_, _, _, { $n }>($p)
     };
 }
-
-//------------------------------------------------------------------------------
 
 #[doc(hidden)]
 #[macro_export]
@@ -106,8 +122,6 @@ macro_rules! tokens {
         }
     } )* };
 }
-
-//------------------------------------------------------------------------------
 
 /// Generate structures, implement [`Pattern`](crate::pattern::Pattern) for a set of tokens conveniently.
 #[doc(hidden)]

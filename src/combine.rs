@@ -23,7 +23,7 @@ import! {
 
     pub mod opt;
     pub mod peek;
-    pub mod wrap;
+    pub mod parallel;
     pub mod control;
     pub mod convert;
 

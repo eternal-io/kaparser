@@ -1,5 +1,6 @@
 use super::*;
 
+/// Note the generic parameter order.
 pub const fn opaque<'i, U, P, E>(body: P) -> Opaque<'i, U, E, P>
 where
     U: ?Sized + Slice,

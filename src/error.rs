@@ -1,6 +1,6 @@
 use core::{fmt::Debug, num::NonZeroUsize};
 
-pub trait Situation: Sized + Debug {
+pub trait Situation: Debug {
     type Description;
 
     fn unfulfilled(len: Option<NonZeroUsize>) -> Self;
@@ -19,20 +19,32 @@ pub trait Situation: Sized + Debug {
     fn description(self) -> Self::Description;
 
     #[inline(always)]
-    fn raise_unfulfilled<T>(len: Option<NonZeroUsize>) -> Result<T, Self> {
+    fn raise_unfulfilled<T>(len: Option<NonZeroUsize>) -> Result<T, Self>
+    where
+        Self: Sized,
+    {
         Err(Self::unfulfilled(len))
     }
     #[inline(always)]
-    fn raise_reject_at<T>(len: usize) -> Result<T, Self> {
+    fn raise_reject_at<T>(len: usize) -> Result<T, Self>
+    where
+        Self: Sized,
+    {
         Err(Self::reject_at(len))
     }
     #[inline(always)]
-    fn raise_halt_at<T>(len: usize) -> Result<T, Self> {
+    fn raise_halt_at<T>(len: usize) -> Result<T, Self>
+    where
+        Self: Sized,
+    {
         Err(Self::halt_at(len))
     }
 
     #[inline(always)]
-    fn raise_backtrack<T>(self, len: usize) -> Result<T, Self> {
+    fn raise_backtrack<T>(self, len: usize) -> Result<T, Self>
+    where
+        Self: Sized,
+    {
         Err(self.backtrack(len))
     }
 }

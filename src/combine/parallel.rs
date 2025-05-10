@@ -1,13 +1,13 @@
 use super::*;
 
 #[inline(always)]
-pub const fn wrap<'i, U, E, P>(body: P) -> Wrapper<'i, U, E, P>
+pub const fn parallel<'i, U, E, P>(body: P) -> Parallel<'i, U, E, P>
 where
     U: ?Sized + Slice,
     E: Situation,
     P: Pattern<'i, U, E>,
 {
-    Wrapper {
+    Parallel {
         body,
         phantom: PhantomData,
     }
@@ -15,7 +15,7 @@ where
 
 //------------------------------------------------------------------------------
 
-pub struct Wrapper<'i, U, E, P>
+pub struct Parallel<'i, U, E, P>
 where
     U: ?Sized + Slice,
     E: Situation,
@@ -25,7 +25,7 @@ where
     phantom: PhantomData<(&'i U, E)>,
 }
 
-impl<'i, U, E, P> Pattern<'i, U, E> for Wrapper<'i, U, E, P>
+impl<'i, U, E, P> Pattern<'i, U, E> for Parallel<'i, U, E, P>
 where
     U: ?Sized + Slice,
     E: Situation,

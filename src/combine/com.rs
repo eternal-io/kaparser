@@ -1,7 +1,10 @@
 use super::*;
 
+#[doc(inline)]
+pub use crate::com;
+
 #[inline(always)]
-pub const fn com<'i, U, E, C>(com: C) -> Compound<'i, U, E, C>
+pub const fn compound<'i, U, E, C>(com: C) -> Compound<'i, U, E, C>
 where
     U: ?Sized + Slice,
     E: Situation,
@@ -154,7 +157,7 @@ mod tests {
     #[test]
     fn main() {
         assert_eq!(
-            opaque::<_, _, SimpleError>(com((is_bin.., is_oct.., is_hex..)))
+            opaque::<_, _, SimpleError>(com!(is_bin.., is_oct.., is_hex..))
                 .full_match("0123456789abcdefABCDEF")
                 .unwrap(),
             "0123456789abcdefABCDEF"

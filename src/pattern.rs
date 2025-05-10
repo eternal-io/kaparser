@@ -3,11 +3,12 @@ use core::marker::PhantomData;
 
 #[doc(inline)]
 pub use crate::{token_set, tokens};
+pub use impls::opaque;
 
 pub mod bin;
 pub mod def;
-pub mod impls;
 
+mod impls;
 use impls::*;
 
 pub trait Pattern<'i, U, E>
@@ -163,6 +164,7 @@ where
     }
 
     #[inline(always)]
+    #[doc(alias = "and_then")]
     fn complex<Q>(self, then: Q) -> convert::Complex<'i, U, E, Self, Q>
     where
         Self: Sized,
