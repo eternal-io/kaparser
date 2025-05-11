@@ -185,6 +185,57 @@ where
 
 //------------------------------------------------------------------------------
 
+pub struct AndThen<'i, U, E, P, F, T>
+where
+    U: ?Sized + Slice,
+    E: Situation,
+    P: Pattern<'i, U, E>,
+    F: Fn(P::Captured) -> Result<T, E>,
+    T: Clone,
+{
+    body: P,
+    op: F,
+    phantom: PhantomData<(&'i U, E)>,
+}
+
+impl<'i, U, E, P, F, T> Pattern<'i, U, E> for AndThen<'i, U, E, P, F, T>
+where
+    U: ?Sized + Slice,
+    E: Situation,
+    P: Pattern<'i, U, E>,
+    F: Fn(P::Captured) -> Result<T, E>,
+    T: Clone + 'static,
+{
+    type Captured = T;
+    type Internal = Alt2<P::Internal, T>; // TODO: 这玩意得是三态的
+
+    #[inline(always)]
+    fn init(&self) -> Self::Internal {
+        Alt2::Var1(self.body.init())
+    }
+    #[inline(always)]
+    fn advance(&self, slice: &U, entry: &mut Self::Internal, eof: bool) -> Result<usize, E> {
+        if let Alt2::Var2(_) = entry {
+            *entry = self.init();
+        }
+
+        let Alt2::Var1(state) = entry else { unreachable!() };
+        let offset = self.body.advance(slice, state, eof)?;
+
+        // self.body.advance(slice, entry, eof)
+        Ok(offset)
+    }
+    #[inline(always)]
+    fn extract(&self, _lice: &'i U, entry: Self::Internal) -> Self::Captured {
+        let Alt2::Var2(state) = entry else {
+            panic!("contract violation")
+        };
+        state
+    }
+}
+
+//------------------------------------------------------------------------------
+
 pub struct Map<'i, U, E, P, F, Out>
 where
     U: ?Sized + Slice,
