@@ -148,64 +148,85 @@ mod urange_bounds {
 
 //------------------------------------------------------------------------------
 
-macro_rules! resume_advance {
-    (
-        $switch:expr => {
-            $( $LabN:lifetime: $CaseN:pat => $([$InitN:block])? $ProcN:block )+
-        }
+#[doc(hidden)]
+#[macro_export]
+macro_rules! __resume_advance {
+    (      $Ent:expr ;
+        $( $CaseN:pat => $TurnN:block $ProcN:block )+
     ) => {
-        resume_advance!( @REARRANGE $switch => ; $($LabN: $CaseN => $([$InitN])? $ProcN)+ );
-    };
-
-    ( @REARRANGE $switch:expr =>
-        $( $LabN:lifetime: $CaseN:pat => $([$InitN:block])? $ProcN:block )* ;
-           $LabK:lifetime: $CaseK:pat => $([$InitK:block])? $ProcK:block
-        $( $LabM:lifetime: $CaseM:pat => $([$InitM:block])? $ProcM:block )*
-    ) => {
-        resume_advance! {
-            @REARRANGE $switch =>
-              $LabK: $CaseK => $([$InitK])? $ProcK
-            $($LabN: $CaseN => $([$InitN])? $ProcN)* ;
-            $($LabM: $CaseM => $([$InitM])? $ProcM)*
+        __resume_advance! {
+            @LABELING $Ent ;
+            'p1  'p2  'p3  'p4  'p5  'p6  'p7  'p8
+            'p9  'p10 'p11 'p12 'p13 'p14 'p15 'p16
+            'p17 'p18 'p19 'p20 'p21 'p22 'p23 'p24
+            'p25 'p26 'p27 'p28 'p29 'p30 'p31 'p32 ;
+            $( $CaseN => $TurnN $ProcN )+ ;
         }
     };
 
-    ( @REARRANGE $switch:expr =>
-        $( $LabN:lifetime: $CaseN:pat => $([$InitN:block])? $ProcN:block )+ ;
+    ( @LABELING $Ent:expr ;
+           $LabK:lifetime
+        $( $LabM:lifetime )* ;
+           $CaseK:pat => $TurnK:block $ProcK:block
+        $( $CaseM:pat => $TurnM:block $ProcM:block )* ;
+        $( $LabN:lifetime:
+           $CaseN:pat => $TurnN:block $ProcN:block )*
     ) => {
-        resume_advance!( @ENTER $switch => ; $($LabN: $CaseN => $([$InitN])? $ProcN)+ );
+        __resume_advance! {
+            @LABELING $Ent ;
+            $( $LabM )* ;
+            $( $CaseM => $TurnM $ProcM )* ;
+               $LabK:
+               $CaseK => $TurnK $ProcK // cases then appear in reverse order.
+            $( $LabN:
+               $CaseN => $TurnN $ProcN )*
+        }
     };
 
-    ( @ENTER $switch:expr =>
-        $( $LabN:lifetime: $CaseN:pat => $([$InitN:block])? $ProcN:block )* ;
-           $LabK:lifetime: $CaseK:pat => $([$InitK:block])? $ProcK:block
-        $( $LabM:lifetime: $CaseM:pat => $([$InitM:block])? $ProcM:block )+
+    ( @LABELING $Ent:expr ;
+        /* not enough labels */ ;
+        $CaseX:pat => $( $tt:tt )*
     ) => {
-        $LabK: loop {
-            resume_advance! {
-                @ENTER $switch =>
-                  $LabK: $CaseK => $([$InitK])? $ProcK
-                $($LabN: $CaseN => $([$InitN])? $ProcN)* ;
-                $($LabM: $CaseM => $([$InitM])? $ProcM)+
+        ::core::compile_error!("too many cases, only 32 at most")
+    };
+
+    ( @LABELING $Ent:expr ;
+        $( $LabN:lifetime )* ;
+        /* no more unlabeled cases */ ;
+        $( $tt:tt )*
+    ) => {
+        __resume_advance! { @ENTERING $Ent ; ; $( $tt )* }
+    };
+
+    ( @ENTERING $Ent:expr ;
+        $( $LabN:lifetime: $CaseN:pat => $TurnN:block $ProcN:block )* ;
+           $LabK:lifetime: $CaseK:pat => $TurnK:block $ProcK:block
+        $( $LabM:lifetime: $CaseM:pat => $TurnM:block $ProcM:block )+
+    ) => {
+        $LabK: {
+            __resume_advance! {
+                @ENTERING $Ent ;
+                   $LabK: $CaseK => $TurnK $ProcK // reverse again, but not so important.
+                $( $LabN: $CaseN => $TurnN $ProcN )* ;
+                $( $LabM: $CaseM => $TurnM $ProcM )+
             }
-            $($InitK)?
-            break;
+            $TurnK
         }
         $ProcK
     };
 
-    ( @ENTER $switch:expr =>
-        $( $LabN:lifetime: $CaseN:pat => $([$InitN:block])? $ProcN:block )* ;
-           $LabK:lifetime: $CaseK:pat => $([$InitK:block])? $ProcK:block
+    ( @ENTERING $Ent:expr ;
+        $( $LabN:lifetime: $CaseN:pat => $TurnN:block $ProcN:block )* ;
+           $LabK:lifetime: $CaseK:pat => $TurnK:block $ProcK:block
     ) => {
-        $LabK: loop {
-            match $switch {
+        $LabK: {
+            match $Ent {
                 $CaseK => break $LabK,
               $($CaseN => break $LabN,)*
             }
         }
         $ProcK
-    };
+    }
 }
 
 //------------------------------------------------------------------------------

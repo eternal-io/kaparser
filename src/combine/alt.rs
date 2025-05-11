@@ -67,7 +67,7 @@ where
 }
 
 macro_rules! impl_alternatable_for_tuple {
-    ( $Alt:ident, $( $LabN:lifetime ~ $GenN:ident ~ $VarN:ident ~ $OrdN:literal ~ $IdxN:tt )+ ) => { paste::paste! {
+    ( $Alt:ident, $( $GenN:ident ~ $VarN:ident ~ $OrdN:literal ~ $IdxN:tt )+ ) => { paste::paste! {
         impl<'i, U, E, $($GenN: Pattern<'i, U, E>),+> Alternatable<'i, U, E> for ($($GenN,)+)
         where
             U: ?Sized + Slice,
@@ -86,21 +86,19 @@ macro_rules! impl_alternatable_for_tuple {
             fn advance_alt(&self, slice: &U, entry: &mut Self::Internal, eof: bool) -> Result<usize, E> {
                 use $Alt::*;
 
-                resume_advance! {
-                    entry => { $(
-                        $LabN: $VarN(_) => [{
-                            *entry = $VarN(self.$IdxN.init());
-                        }] {
-                            let $VarN(state) = entry else { unreachable!() };
-                            match self.$IdxN.advance(slice, state, eof) {
-                                Ok(len) => return Ok(len),
-                                Err(e) => if !e.is_rejected() {
-                                    return Err(e);
-                                }
+                __resume_advance! { entry ; $(
+                    $VarN(_) => {
+                        *entry = $VarN(self.$IdxN.init());
+                    } {
+                        let $VarN(state) = entry else { unreachable!() };
+                        match self.$IdxN.advance(slice, state, eof) {
+                            Ok(len) => return Ok(len),
+                            Err(e) => if !e.is_rejected() {
+                                return Err(e);
                             }
                         }
-                    )+ }
-                }
+                    }
+                )+ }
 
                 E::raise_reject_at(0)
             }
@@ -117,49 +115,49 @@ macro_rules! impl_alternatable_for_tuple {
 }
 
 macro_rules! impl_alternatable_for_tuples {
-    (      $Lens1K:literal ~ $LabK:lifetime ~ $OrdK:literal ~ $IdxK:tt
-        $( $Lens1M:literal ~ $LabM:lifetime ~ $OrdM:literal ~ $IdxM:tt )*
+    (      $Lens1K:literal ~ $OrdK:literal ~ $IdxK:tt
+        $( $Lens1M:literal ~ $OrdM:literal ~ $IdxM:tt )*
     ) => {
         impl_alternatable_for_tuples! { @
-              $Lens1K ~ $LabK ~ $OrdK ~ $IdxK ;
-            $($Lens1M ~ $LabM ~ $OrdM ~ $IdxM)*
+              $Lens1K ~ $OrdK ~ $IdxK ;
+            $($Lens1M ~ $OrdM ~ $IdxM)*
         }
     };
 
-    ( @ $( $Lens1N:literal ~ $LabN:lifetime ~ $OrdN:literal ~ $IdxN:tt )+ ;
-           $Lens1K:literal ~ $LabK:lifetime ~ $OrdK:literal ~ $IdxK:tt
-        $( $Lens1M:literal ~ $LabM:lifetime ~ $OrdM:literal ~ $IdxM:tt )*
+    ( @ $( $Lens1N:literal ~ $OrdN:literal ~ $IdxN:tt )+ ;
+           $Lens1K:literal ~ $OrdK:literal ~ $IdxK:tt
+        $( $Lens1M:literal ~ $OrdM:literal ~ $IdxM:tt )*
     ) => { paste::paste! {
-        impl_alternatable_for_tuple!( [<Alt $Lens1K>], $($LabN ~ [<P $OrdN>] ~ [<Var $OrdN>] ~ $OrdN ~ $IdxN)+ );
+        impl_alternatable_for_tuple!( [<Alt $Lens1K>], $([<P $OrdN>] ~ [<Var $OrdN>] ~ $OrdN ~ $IdxN)+ );
 
         impl_alternatable_for_tuples! { @
-            $($Lens1N ~ $LabN ~ $OrdN ~ $IdxN)+
-              $Lens1K ~ $LabK ~ $OrdK ~ $IdxK ;
-            $($Lens1M ~ $LabM ~ $OrdM ~ $IdxM)*
+            $($Lens1N ~ $OrdN ~ $IdxN)+
+              $Lens1K ~ $OrdK ~ $IdxK ;
+            $($Lens1M ~ $OrdM ~ $IdxM)*
         }
     } };
 
-    ( @ $( $Lens1N:literal ~ $LabN:lifetime ~ $OrdN:literal ~ $IdxN:tt )+ ; ) => {};
+    ( @ $( $Lens1N:literal ~ $OrdN:literal ~ $IdxN:tt )+ ; ) => {};
 }
 
 impl_alternatable_for_tuples! {
-    0  ~ 'p1  ~ 1  ~ 0
-    1  ~ 'p2  ~ 2  ~ 1
-    2  ~ 'p3  ~ 3  ~ 2
-    3  ~ 'p4  ~ 4  ~ 3
-    4  ~ 'p5  ~ 5  ~ 4
-    5  ~ 'p6  ~ 6  ~ 5
-    6  ~ 'p7  ~ 7  ~ 6
-    7  ~ 'p8  ~ 8  ~ 7
-    8  ~ 'p9  ~ 9  ~ 8
-    9  ~ 'p10 ~ 10 ~ 9
-    10 ~ 'p11 ~ 11 ~ 10
-    11 ~ 'p12 ~ 12 ~ 11
-    12 ~ 'p13 ~ 13 ~ 12
-    13 ~ 'p14 ~ 14 ~ 13
-    14 ~ 'p15 ~ 15 ~ 14
-    15 ~ 'p16 ~ 16 ~ 15
-    16 ~ 'p17 ~ 17 ~ 16
+    0  ~ 1  ~ 0
+    1  ~ 2  ~ 1
+    2  ~ 3  ~ 2
+    3  ~ 4  ~ 3
+    4  ~ 5  ~ 4
+    5  ~ 6  ~ 5
+    6  ~ 7  ~ 6
+    7  ~ 8  ~ 7
+    8  ~ 9  ~ 8
+    9  ~ 10 ~ 9
+    10 ~ 11 ~ 10
+    11 ~ 12 ~ 11
+    12 ~ 13 ~ 12
+    13 ~ 14 ~ 13
+    14 ~ 15 ~ 14
+    15 ~ 16 ~ 15
+    16 ~ 17 ~ 16
 }
 
 //------------------------------------------------------------------------------

@@ -2,8 +2,8 @@ use crate::{combine::convert, common::*, error::*, predicate::*};
 use core::marker::PhantomData;
 
 #[doc(inline)]
-pub use crate::{token_set, tokens};
-pub use impls::opaque;
+pub use crate::{rules, tokens};
+pub use impls::{opaque, simple_opaque};
 
 pub mod bin;
 pub mod def;

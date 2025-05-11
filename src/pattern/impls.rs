@@ -13,6 +13,17 @@ where
     }
 }
 
+pub const fn simple_opaque<'i, U, P>(body: P) -> Opaque<'i, U, SimpleError, P>
+where
+    U: ?Sized + Slice,
+    P: Pattern<'i, U, SimpleError>,
+{
+    Opaque {
+        body,
+        phantom: PhantomData,
+    }
+}
+
 //------------------------------------------------------------------------------
 
 pub struct Opaque<'i, U, E, P>
