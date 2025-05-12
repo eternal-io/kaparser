@@ -15,6 +15,6 @@ pub use crate::{
     common::alts::*,
     error::*,
     line_col::*,
-    pattern::{Pattern, bin, def, opaque, simple_opaque},
+    pattern::{Pattern, bin, def, opaque, simple_opaque, token_set},
     predicate::*,
 };

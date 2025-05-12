@@ -72,147 +72,9 @@ macro_rules! rep {
 
 #[doc(hidden)]
 #[macro_export]
-macro_rules! rules {
+macro_rules! token_set {
     ( $(#[$attr:meta])*
-        struct $name:ident<$sli:ty> {
-            $($(#[$bttr:meta])*
-                $field:ident: $pat:expr
-            ),* $(,)?
-        }
-      $($rest:tt)*
-    ) => {};
-
-    ( $(#[$attr:meta])*
-        enum $name:ident<$sli:ty> {
-            $($(#[$bttr:meta])*
-                $discr:ident = $pat:expr
-            ),+ $(,)?
-        }
-      $($rest:tt)*
-    ) => { $crate::common::paste! {
-      $(#[$attr])*
-        #[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash)]
-        pub(crate) enum $name { $(
-          $(#[$bttr])*
-            $discr($pat::Captured),
-        )+ }
-
-        pub(crate) struct [<$name T>]; // TODO: doc
-
-        #[doc(hidden)]
-        enum [<$name __>] { $(
-            $discr($pat::Internal),
-        )+ }
-
-        impl<'i, E> Pattern<'i, $sli, E> for [<$name T>]
-        where
-            E: $crate::error::Situation,
-        {
-            type Captured = $name;
-            type Internal = [<$name __>];
-
-            #[inline(always)]
-            fn init(&self) -> Self::Internal {
-                rules! { @init_alt [<$name __>] $($discr = $pat,)+ }
-            }
-
-            #[inline(always)]
-            fn advance(&self, slice: &U, entry: &mut Self::Internal, eof: bool) -> ::core::result::Result<usize, E> {
-                use [<$name __>]::*;
-
-                resume_advance! {
-                    entry => { $(
-
-                    )+ }
-                }
-            }
-
-            #[inline(always)]
-            fn extract(&self, slice: &'i U, entry: Self::Internal) -> Self::Captured {
-                use [<$name __>]::*;
-                match entry { $(
-                    $discr(state) => $name::$discr($pat.extract(slice, state)),
-                )+ }
-            }
-        }
-    } };
-
-    () => {};
-
-    (   @init_alt
-        $name__:ident
-        $discr0:ident = $pat0:expr,
-     $( $discrs:ident = $pats:expr, )*
-    ) => {
-        $name__::$discr0($pat0::init())
-    };
-}
-
-//------------------------------------------------------------------------------
-
-#[doc(hidden)]
-#[macro_export]
-macro_rules! define_alternative {
-    ( $(#[$attr:meta])*
-        $name:ident<$sli:ty> --
-        $($(#[$bttr:meta])*
-            $discr:ident = $patt:expr
-        ),* $(,)?
-    ) => { $crate::common::paste! {
-        // TODO!
-    } }
-}
-
-//------------------------------------------------------------------------------
-
-#[doc(hidden)]
-#[macro_export]
-macro_rules! define_dispatch {
-    ( $(#[$attr:meta])*
-        $name:ident<$sli:ty> --
-        $($(#[$bttr:meta])*
-            $discr:ident = $head:expr => $body:expr
-        ),* $(,)?
-    ) => { $crate::common::paste! {
-        // TODO!
-    } }
-}
-
-//------------------------------------------------------------------------------
-
-#[doc(hidden)]
-#[macro_export]
-macro_rules! define_sequence {
-    ( $(#[$attr:meta])*
-        $name:ident<$sli:ty> --
-        $($(#[$bttr:meta])*
-            $field:ident: $patt:expr
-        ),* $(,)?
-    ) => { $crate::common::paste! {
-        // TODO!
-    } }
-}
-
-//------------------------------------------------------------------------------
-
-#[doc(hidden)]
-#[macro_export]
-macro_rules! define_compound {
-    ( $(#[$attr:meta])*
-        $name:ident<$sli:ty> --
-      $($patt:expr),* $(,)?
-    ) => { $crate::common::paste! {
-        // TODO!
-    } }
-}
-
-//------------------------------------------------------------------------------
-
-#[doc(hidden)]
-#[macro_export]
-macro_rules! define_token_set {
-    ( $(#[$attr:meta])*
-        $name:ident<$sli:ty> --
+        $name:ident<$sli:ty>;
         $($(#[$bttr:meta])*
             $discr:ident = $token:expr
         ),* $(,)?
@@ -229,6 +91,16 @@ macro_rules! define_token_set {
         #[doc = "\n\nGenerated token set pattern with [`" $name "`] discriminant."]
         pub(crate) struct [<$name T>];
 
+        #[allow(non_upper_case_globals)]
+        impl [<$name T>] {
+        $(
+            const $discr: &$sli = $token;
+        )*
+            const fn max_len() -> usize {
+                token_set!( @MAX $($token.len(),)* 0 )
+            }
+        }
+
         impl<'i, E> $crate::pattern::Pattern<'i, $sli, E> for [<$name T>]
         where
             E: $crate::error::Situation,
@@ -243,17 +115,13 @@ macro_rules! define_token_set {
 
             #[inline(always)]
             fn advance(&self, slice: &$sli, entry: &mut Self::Internal, eof: bool) -> ::core::result::Result<usize, E> {
-                use ::core::prelude::v1::*;
-
-                let max_len = const { define_token_set!( @MAX $($token.len(),)* 0 ) };
-
-                if !eof && slice.len() < max_len {
-                    return E::raise_unfulfilled(Some((max_len - slice.len()).try_into().unwrap()));
+                if !eof && slice.len() < Self::max_len() {
+                    return E::raise_unfulfilled((Self::max_len() - slice.len()).try_into().ok());
                 }
             $(
-                if slice.starts_with($token) {
-                    *entry = Some($name::$discr);
-                    return const { Ok($token.len()) };
+                if slice.starts_with(Self::$discr) {
+                    *entry = ::core::option::Option::Some($name::$discr);
+                    return ::core::result::Result::Ok(Self::$discr.len());
                 }
             )*
                 E::raise_reject_at(0)
@@ -261,7 +129,7 @@ macro_rules! define_token_set {
 
             #[inline(always)]
             fn extract(&self, _lice: &'i $sli, entry: Self::Internal) -> Self::Captured {
-                entry.unwrap()
+                entry.expect("contract violation")
             }
         }
     } };
@@ -270,7 +138,7 @@ macro_rules! define_token_set {
 
     ( @MAX $expr:expr, $($exprs:expr),+ ) => { {
         let a = $expr;
-        let b = define_token_set!( @MAX $($exprs),+ );
+        let b = token_set!( @MAX $($exprs),+ );
 
         if a > b { a } else { b }
     } };
@@ -282,10 +150,13 @@ macro_rules! define_token_set {
 mod tests {
     use crate::prelude::*;
 
-    define_token_set! {
-        Boolean<str> --
-        False = "false",
-        True = "true",
+    const TK_TRUE: &str = "true";
+    const TK_FALSE: &str = "false";
+
+    token_set! {
+        Boolean<str>;
+        False = TK_FALSE,
+        True = TK_TRUE,
     }
 
     #[test]
