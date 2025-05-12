@@ -21,7 +21,7 @@ macro_rules! all {
 #[macro_export]
 macro_rules! alt {
     ( $($p:expr),* $(,)? ) => {
-        $crate::combine::alt::alternate::<_, _, _>(($($p,)*))
+        $crate::combine::alt::alternative::<_, _, _>(($($p,)*))
     };
 }
 
@@ -122,7 +122,7 @@ macro_rules! rules {
 
                 resume_advance! {
                     entry => { $(
-                        
+
                     )+ }
                 }
             }
@@ -152,99 +152,108 @@ macro_rules! rules {
 
 #[doc(hidden)]
 #[macro_export]
-macro_rules! tokens {
+macro_rules! define_alternative {
     ( $(#[$attr:meta])*
-        $name:ident: $sli:ty = $lit:literal;
-      $($rest:tt)*
+        $name:ident<$sli:ty> --
+        $($(#[$bttr:meta])*
+            $discr:ident = $patt:expr
+        ),* $(,)?
     ) => { $crate::common::paste! {
-      $(#[$attr:meta])*
-        #[doc = "\n\nGenerated token pattern, associates `` " $lit " ``"]
-        #[derive(Debug, Clone, Copy, PartialEq, Eq)]
-        pub(crate) struct $name;
+        // TODO!
+    } }
+}
 
-        impl<'i, E> Pattern<'i, $sli, E> for $name
-        where
-            E: $crate::error::Situation,
-        {
-            type Captured = Self;
-            type Internal = ();
+//------------------------------------------------------------------------------
 
-            #[inline(always)]
-            fn init(&self) -> Self::Internal {
-                ()
-            }
-
-            #[inline(always)]
-            fn advance(&self, slice: &$sli, _ntry: &mut Self::Internal, eof: bool) -> ::core::result::Result<usize, E> {
-                use $crate::common::Slice;
-
-                let the_len = const { $lit.len() };
-                if slice.len() < the_len {
-                    match eof {
-                        true => E::raise_reject_at(slice.len()),
-                        false => E::raise_unfulfilled(Some((the_len - slice.len()).try_into().unwrap())),
-                    }
-                } else {
-                    for ((off, expected), item) in $lit.iter_indices().zip(slice.iter()) {
-                        if item != expected {
-                            return E::raise_reject_at(off);
-                        }
-                    }
-                    Ok(the_len)
-                }
-            }
-
-            #[inline(always)]
-            fn extract(&self, _lice: &'i $sli, _ntry: Self::Internal) -> Self::Captured {
-                Self
-            }
-        }
-
-        tokens! { $($rest)* }
-    } };
-
+#[doc(hidden)]
+#[macro_export]
+macro_rules! define_dispatch {
     ( $(#[$attr:meta])*
-        $name:ident<$sli:ty> {
-            $($(#[$bttr:meta])*
-                $discr:ident = $lit:literal
-            ),* $(,)?
-        }
-      $($rest:tt)*
+        $name:ident<$sli:ty> --
+        $($(#[$bttr:meta])*
+            $discr:ident = $head:expr => $body:expr
+        ),* $(,)?
+    ) => { $crate::common::paste! {
+        // TODO!
+    } }
+}
+
+//------------------------------------------------------------------------------
+
+#[doc(hidden)]
+#[macro_export]
+macro_rules! define_sequence {
+    ( $(#[$attr:meta])*
+        $name:ident<$sli:ty> --
+        $($(#[$bttr:meta])*
+            $field:ident: $patt:expr
+        ),* $(,)?
+    ) => { $crate::common::paste! {
+        // TODO!
+    } }
+}
+
+//------------------------------------------------------------------------------
+
+#[doc(hidden)]
+#[macro_export]
+macro_rules! define_compound {
+    ( $(#[$attr:meta])*
+        $name:ident<$sli:ty> --
+      $($patt:expr),* $(,)?
+    ) => { $crate::common::paste! {
+        // TODO!
+    } }
+}
+
+//------------------------------------------------------------------------------
+
+#[doc(hidden)]
+#[macro_export]
+macro_rules! define_token_set {
+    ( $(#[$attr:meta])*
+        $name:ident<$sli:ty> --
+        $($(#[$bttr:meta])*
+            $discr:ident = $token:expr
+        ),* $(,)?
     ) => { $crate::common::paste! {
       $(#[$attr])*
-        #[doc = "\n\n*(generated token discriminant)*"]
+        #[doc = "\n\n*(generated token set discriminant)*"]
         #[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash)]
         pub(crate) enum $name { $(
           $(#[$bttr])*
-            #[doc = "\n\nAssociates `` " $lit " ``"]
+            #[doc = "\n\nAssociates `` " $token " ``"]
             $discr,
         )* }
 
-        #[doc = "\n\nGenerated tokens pattern with [`" $name "`] discriminant."]
+        #[doc = "\n\nGenerated token set pattern with [`" $name "`] discriminant."]
         pub(crate) struct [<$name T>];
 
-        impl<'i, E> Pattern<'i, $sli, E> for [<$name T>]
+        impl<'i, E> $crate::pattern::Pattern<'i, $sli, E> for [<$name T>]
         where
             E: $crate::error::Situation,
         {
             type Captured = $name;
-            type Internal = Option<$name>;
+            type Internal = ::core::option::Option<$name>;
 
             #[inline(always)]
             fn init(&self) -> Self::Internal {
-                None
+                ::core::option::Option::None
             }
 
             #[inline(always)]
             fn advance(&self, slice: &$sli, entry: &mut Self::Internal, eof: bool) -> ::core::result::Result<usize, E> {
-                let max_len = const { tokens!( @max $($lit.len(),)* 0 ) };
+                use ::core::prelude::v1::*;
+
+                let max_len = const { define_token_set!( @MAX $($token.len(),)* 0 ) };
+
                 if !eof && slice.len() < max_len {
                     return E::raise_unfulfilled(Some((max_len - slice.len()).try_into().unwrap()));
                 }
             $(
-                if slice.starts_with($lit) {
+                if slice.starts_with($token) {
                     *entry = Some($name::$discr);
-                    return const { Ok($lit.len()) };
+                    return const { Ok($token.len()) };
                 }
             )*
                 E::raise_reject_at(0)
@@ -255,20 +264,16 @@ macro_rules! tokens {
                 entry.unwrap()
             }
         }
-
-        tokens! { $($rest)* }
     } };
 
-    () => {};
+    ( @MAX $expr:expr ) => { $expr };
 
-    ( @max $expr:expr ) => { $expr };
-
-    ( @max $expr:expr, $( $exprs:expr ),+ ) => {{
+    ( @MAX $expr:expr, $($exprs:expr),+ ) => { {
         let a = $expr;
-        let b = tokens!( @max $($exprs),+ );
+        let b = define_token_set!( @MAX $($exprs),+ );
 
         if a > b { a } else { b }
-    }};
+    } };
 }
 
 //------------------------------------------------------------------------------
@@ -277,20 +282,10 @@ macro_rules! tokens {
 mod tests {
     use crate::prelude::*;
 
-    tokens! {
-        Hello: str = "Hello";
-        World: str = "World";
-
-        Boolean<str> {
-            False = "false",
-            True = "true",
-        }
-    }
-
-    #[test]
-    fn tk() {
-        let pat = simple_opaque((Hello, is_ws.., World));
-        assert_eq!(pat.full_match("Hello \n World").unwrap(), (Hello, " \n ", World));
+    define_token_set! {
+        Boolean<str> --
+        False = "false",
+        True = "true",
     }
 
     #[test]

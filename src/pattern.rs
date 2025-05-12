@@ -1,8 +1,6 @@
 use crate::{combine::convert, common::*, error::*, predicate::*};
 use core::marker::PhantomData;
 
-#[doc(inline)]
-pub use crate::{rules, tokens};
 pub use impls::{opaque, simple_opaque};
 
 pub mod bin;

@@ -4,13 +4,13 @@ use super::*;
 pub use crate::alt;
 
 #[inline(always)]
-pub const fn alternate<'i, U, E, A>(alt: A) -> Alternate<'i, U, E, A>
+pub const fn alternative<'i, U, E, A>(alt: A) -> Alternative<'i, U, E, A>
 where
     U: ?Sized + Slice,
     E: Situation,
     A: Alternatable<'i, U, E>,
 {
-    Alternate {
+    Alternative {
         alt,
         phantom: PhantomData,
     }
@@ -18,7 +18,7 @@ where
 
 //------------------------------------------------------------------------------
 
-pub struct Alternate<'i, U, E, A>
+pub struct Alternative<'i, U, E, A>
 where
     U: ?Sized + Slice,
     E: Situation,
@@ -43,7 +43,7 @@ where
     fn extract_alt(&self, slice: &'i U, entry: Self::Internal) -> Self::Captured;
 }
 
-impl<'i, U, E, A> Pattern<'i, U, E> for Alternate<'i, U, E, A>
+impl<'i, U, E, A> Pattern<'i, U, E> for Alternative<'i, U, E, A>
 where
     U: ?Sized + Slice,
     E: Situation,
