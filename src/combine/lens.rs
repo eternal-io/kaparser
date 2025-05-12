@@ -72,9 +72,9 @@ mod tests {
     fn main() {
         let pat = opaque::<[u8], _, SimpleError>(len!(3, 0x80..0xAA));
         assert!(pat.full_match([0x80, 0x80, 0x80].as_ref()).is_ok());
-        assert_eq!(pat.full_match([0x80, 0x80, 0x7F].as_ref()).unwrap_err().length(), 2);
-        assert_eq!(pat.full_match([0x80, 0x7F, 0x80].as_ref()).unwrap_err().length(), 1);
-        assert_eq!(pat.full_match([0x80, 0x80, 0xAA].as_ref()).unwrap_err().length(), 2);
+        assert_eq!(pat.full_match([0x80, 0x80, 0x7F].as_ref()).unwrap_err().offset(), 2);
+        assert_eq!(pat.full_match([0x80, 0x7F, 0x80].as_ref()).unwrap_err().offset(), 1);
+        assert_eq!(pat.full_match([0x80, 0x80, 0xAA].as_ref()).unwrap_err().offset(), 2);
         assert!(pat.full_match([0x80, 0x80, 0xA9].as_ref()).is_ok());
     }
 }

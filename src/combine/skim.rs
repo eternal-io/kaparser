@@ -120,7 +120,7 @@ mod tests {
         assert_eq!(pat.full_match("").unwrap(), ("", None));
         assert_eq!(pat.full_match("Foo").unwrap(), ("Foo", None));
         assert_eq!(pat.full_match("Bar🔥").unwrap(), ("Bar", Some('🔥')));
-        assert_eq!(pat.full_match("Bar🔥Baz").unwrap_err().length(), 7);
+        assert_eq!(pat.full_match("Bar🔥Baz").unwrap_err().offset(), 7);
         assert_eq!(pat.parse(&mut "Bar🔥Baz").unwrap(), ("Bar", Some('🔥')));
     }
 
@@ -136,11 +136,11 @@ mod tests {
         /* The following is feature. */
 
         let pat = opaque::<str, _, SimpleError>(..="");
-        assert_eq!(pat.parse(&mut "").unwrap_err().length(), 0);
+        assert_eq!(pat.parse(&mut "").unwrap_err().offset(), 0);
         assert_eq!(pat.parse(&mut "❓").unwrap(), ("", ""));
 
         let pat = opaque::<[u8], _, SimpleError>(..=[].as_ref());
-        assert_eq!(pat.parse(&mut b"".as_ref()).unwrap_err().length(), 0);
+        assert_eq!(pat.parse(&mut b"".as_ref()).unwrap_err().offset(), 0);
         assert_eq!(pat.parse(&mut b"??".as_ref()).unwrap(), (b"".as_ref(), b"".as_ref()));
     }
 }

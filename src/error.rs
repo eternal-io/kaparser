@@ -1,51 +1,51 @@
 use core::{fmt::Debug, num::NonZeroUsize};
 
-pub trait Situation: Debug {
+pub trait Situation: Sized + Debug {
     type Description;
 
-    fn unfulfilled(len: Option<NonZeroUsize>) -> Self;
-    fn reject_at(len: usize) -> Self;
-    fn halt_at(len: usize) -> Self;
+    /// Indicates the current pattern requires longer input. This only occurs if the `eof` flag is `false`.
+    ///
+    /// A `None` value indicates that it is not possible to determine how long the "longer" is, but just requires longer input.
+    fn unfulfilled(ext: Option<NonZeroUsize>) -> Self;
+    /// Indicates the current pattern does not match the input.
+    fn reject_at(off: usize) -> Self;
+    /// Indicates the current pattern does not match the input, and no other alternative branches should be tried.
+    fn halt_at(off: usize) -> Self;
+    /// Turn `REJECT` to `HALT`.
     fn cut(self) -> Self;
 
     fn is_unfulfilled(&self) -> bool;
     fn is_rejected(&self) -> bool;
     fn is_halted(&self) -> bool;
 
-    fn backtrack(self, len: usize) -> Self;
-    fn length(&self) -> usize;
+    /// Record the offset of the current situation on the current input.
+    ///
+    /// This is done for all nested patterns, so the correct offset of the situation relative to the original input is known.
+    fn backtrack(self, off: usize) -> Self;
+    /// Get the offset of the situation relative to the starting position of the input.
+    fn offset(&self) -> usize;
 
+    /// Set the description for the situation.
     fn describe(self, desc: Self::Description) -> Self;
+    /// Get the description of the situation.
     fn description(self) -> Self::Description;
 
     #[inline(always)]
-    fn raise_unfulfilled<T>(len: Option<NonZeroUsize>) -> Result<T, Self>
-    where
-        Self: Sized,
-    {
-        Err(Self::unfulfilled(len))
+    fn raise_unfulfilled<T>(ext: Option<NonZeroUsize>) -> Result<T, Self> {
+        Err(Self::unfulfilled(ext))
     }
     #[inline(always)]
-    fn raise_reject_at<T>(len: usize) -> Result<T, Self>
-    where
-        Self: Sized,
-    {
-        Err(Self::reject_at(len))
+    fn raise_reject_at<T>(off: usize) -> Result<T, Self> {
+        Err(Self::reject_at(off))
     }
     #[inline(always)]
-    fn raise_halt_at<T>(len: usize) -> Result<T, Self>
-    where
-        Self: Sized,
-    {
-        Err(Self::halt_at(len))
+    fn raise_halt_at<T>(off: usize) -> Result<T, Self> {
+        Err(Self::halt_at(off))
     }
 
     #[inline(always)]
-    fn raise_backtrack<T>(self, len: usize) -> Result<T, Self>
-    where
-        Self: Sized,
-    {
-        Err(self.backtrack(len))
+    fn raise_backtrack<T>(self, off: usize) -> Result<T, Self> {
+        Err(self.backtrack(off))
     }
 }
 
@@ -76,23 +76,23 @@ where
     type Description = D;
 
     #[inline(always)]
-    fn unfulfilled(len: Option<NonZeroUsize>) -> Self {
+    fn unfulfilled(ext: Option<NonZeroUsize>) -> Self {
         Self {
-            kind: SimpleErrorKind::Unfulfilled(len),
+            kind: SimpleErrorKind::Unfulfilled(ext),
             desc: Default::default(),
         }
     }
     #[inline(always)]
-    fn reject_at(len: usize) -> Self {
+    fn reject_at(off: usize) -> Self {
         Self {
-            kind: SimpleErrorKind::Rejected(len),
+            kind: SimpleErrorKind::Rejected(off),
             desc: Default::default(),
         }
     }
     #[inline(always)]
-    fn halt_at(len: usize) -> Self {
+    fn halt_at(off: usize) -> Self {
         Self {
-            kind: SimpleErrorKind::Halted(len),
+            kind: SimpleErrorKind::Halted(off),
             desc: Default::default(),
         }
     }
@@ -123,16 +123,16 @@ where
     }
 
     #[inline(always)]
-    fn backtrack(mut self, len: usize) -> Self {
+    fn backtrack(mut self, off: usize) -> Self {
         match &mut self.kind {
             SimpleErrorKind::Unfulfilled(_) => (),
-            SimpleErrorKind::Rejected(n) => *n += len,
-            SimpleErrorKind::Halted(n) => *n += len,
+            SimpleErrorKind::Rejected(n) => *n += off,
+            SimpleErrorKind::Halted(n) => *n += off,
         }
         self
     }
     #[inline(always)]
-    fn length(&self) -> usize {
+    fn offset(&self) -> usize {
         match self.kind {
             SimpleErrorKind::Unfulfilled(n) => n.map(usize::from).unwrap_or(0),
             SimpleErrorKind::Rejected(n) => n,

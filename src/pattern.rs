@@ -252,22 +252,22 @@ mod tests {
     fn slice() {
         let pat = opaque::<_, _, SimpleError>("");
         assert!(pat.full_match("").is_ok());
-        assert_eq!(pat.full_match("?").unwrap_err().length(), 0);
-        assert_eq!(pat.full_match("??").unwrap_err().length(), 0);
+        assert_eq!(pat.full_match("?").unwrap_err().offset(), 0);
+        assert_eq!(pat.full_match("??").unwrap_err().offset(), 0);
 
         let pat = opaque::<_, _, SimpleError>("A");
-        assert_eq!(pat.full_match("").unwrap_err().length(), 0);
+        assert_eq!(pat.full_match("").unwrap_err().offset(), 0);
         assert_eq!(pat.full_match("A").unwrap(), "A");
-        assert_eq!(pat.full_match("AA").unwrap_err().length(), 1);
+        assert_eq!(pat.full_match("AA").unwrap_err().offset(), 1);
 
         let pat = opaque::<_, _, SimpleError>("AB");
-        assert_eq!(pat.full_match("").unwrap_err().length(), 0);
+        assert_eq!(pat.full_match("").unwrap_err().offset(), 0);
         assert_eq!(pat.full_match("AB").unwrap(), "AB");
-        assert_eq!(pat.full_match("ABCD").unwrap_err().length(), 2);
+        assert_eq!(pat.full_match("ABCD").unwrap_err().offset(), 2);
 
         let pat = opaque::<_, _, SimpleError>("ABCD");
-        assert_eq!(pat.full_match("").unwrap_err().length(), 0);
-        assert_eq!(pat.full_match("AB").unwrap_err().length(), 2);
+        assert_eq!(pat.full_match("").unwrap_err().offset(), 0);
+        assert_eq!(pat.full_match("AB").unwrap_err().offset(), 2);
         assert_eq!(pat.full_match("ABCD").unwrap(), "ABCD");
     }
 }

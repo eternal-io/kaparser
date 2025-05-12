@@ -230,15 +230,15 @@ mod tests {
     #[test]
     fn main() {
         let pat = opaque::<str, _, SimpleError>(rep!(2..=4, [is_alpha]));
-        assert_eq!(pat.full_match("z").unwrap_err().length(), 1);
+        assert_eq!(pat.full_match("z").unwrap_err().offset(), 1);
         assert_eq!(pat.full_match("zx").unwrap(), (['z', 'x'], [None, None]));
         assert_eq!(pat.full_match("zxc").unwrap(), (['z', 'x'], [Some('c'), None]));
         assert_eq!(pat.full_match("zxcv").unwrap(), (['z', 'x'], [Some('c'), Some('v')]));
-        assert_eq!(pat.full_match("zxcvb").unwrap_err().length(), 4);
+        assert_eq!(pat.full_match("zxcvb").unwrap_err().offset(), 4);
         assert!(pat.parse(&mut "zxcvb").is_ok());
 
-        assert_eq!(pat.full_match("z0").unwrap_err().length(), 1);
+        assert_eq!(pat.full_match("z0").unwrap_err().offset(), 1);
         assert_eq!(pat.parse(&mut "zx0").unwrap(), (['z', 'x'], [None, None]));
-        assert_eq!(pat.full_match("zx00").unwrap_err().length(), 2);
+        assert_eq!(pat.full_match("zx00").unwrap_err().offset(), 2);
     }
 }

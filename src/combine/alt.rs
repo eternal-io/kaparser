@@ -172,8 +172,8 @@ mod tests {
         assert_eq!(pat.full_match("0b101010").unwrap().1, Alt3::Var1(("b", "101010")));
         assert_eq!(pat.full_match("0o234567").unwrap().1, Alt3::Var2(("o", "234567")));
         assert_eq!(pat.full_match("0xabcdef").unwrap().1, Alt3::Var3(("x", "abcdef")));
-        assert_eq!(pat.full_match("0x").unwrap_err().length(), 1);
-        assert_eq!(pat.full_match("0").unwrap_err().length(), 1);
-        assert_eq!(pat.full_match("").unwrap_err().length(), 0);
+        assert_eq!(pat.full_match("0x").unwrap_err().offset(), 1);
+        assert_eq!(pat.full_match("0").unwrap_err().offset(), 1);
+        assert_eq!(pat.full_match("").unwrap_err().offset(), 0);
     }
 }
