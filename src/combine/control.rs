@@ -29,6 +29,33 @@ where
 
 //------------------------------------------------------------------------------
 
+pub struct EOF;
+
+impl<'i, U, E> Pattern<'i, U, E> for EOF
+where
+    U: ?Sized + Slice,
+    E: Situation,
+{
+    type Captured = ();
+    type Internal = ();
+
+    #[inline(always)]
+    fn init(&self) -> Self::Internal {}
+
+    #[inline(always)]
+    fn advance(&self, slice: &U, _ntry: &mut Self::Internal, eof: bool) -> Result<usize, E> {
+        match slice.is_empty() && eof {
+            true => Ok(0),
+            false => E::raise_reject_at(0),
+        }
+    }
+
+    #[inline(always)]
+    fn extract(&self, _lice: &'i U, _ntry: Self::Internal) -> Self::Captured {}
+}
+
+//------------------------------------------------------------------------------
+
 pub struct Cut<'i, U, E, P>
 where
     U: ?Sized + Slice,
