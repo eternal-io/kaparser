@@ -1,4 +1,9 @@
-use crate::{combine::convert, common::*, error::*, predicate::*};
+use crate::{
+    combine::{convert, modifier},
+    common::*,
+    error::*,
+    predicate::*,
+};
 use core::marker::PhantomData;
 
 #[doc(inline)]
@@ -87,19 +92,46 @@ where
     //------------------------------------------------------------------------------
 
     #[inline(always)]
-    fn and<T>(self, t: T) -> convert::And<'i, U, E, Self, T>
+    fn verify<F>(self, filter: F) -> convert::Verify<'i, U, E, Self, F>
+    where
+        Self: Sized,
+        F: Fn(Self::Captured) -> bool,
+    {
+        convert::verify(filter, self)
+    }
+    #[inline(always)]
+    fn verify_map<F, T>(self, pred: F) -> convert::VerifyMap<'i, U, E, Self, F, T>
+    where
+        Self: Sized,
+        F: Fn(Self::Captured) -> Option<T>,
+        T: 'static + Clone,
+    {
+        convert::verify_map(pred, self)
+    }
+
+    #[inline(always)]
+    fn and_then<F, T>(self, op: F) -> convert::AndThen<'i, U, E, Self, F, T>
+    where
+        Self: Sized,
+        F: Fn(Self::Captured) -> Result<T, E>,
+        T: 'static + Clone,
+    {
+        convert::and_then(op, self)
+    }
+    #[inline(always)]
+    fn then_some<T>(self, value: T) -> convert::ThenSome<'i, U, E, Self, T>
     where
         Self: Sized,
         T: Clone,
     {
-        convert::and(t, self)
+        convert::then_some(value, self)
     }
 
     #[inline(always)]
-    fn map<F, Out>(self, op: F) -> convert::Map<'i, U, E, Self, F, Out>
+    fn map<F, T>(self, op: F) -> convert::Map<'i, U, E, Self, F, T>
     where
         Self: Sized,
-        F: Fn(Self::Captured) -> Out,
+        F: Fn(Self::Captured) -> T,
     {
         convert::map(op, self)
     }
@@ -114,22 +146,12 @@ where
     }
 
     #[inline(always)]
-    fn desc(self, desc: E::Description) -> convert::Describe<'i, U, E, Self>
+    fn expect(self, msg: &'static str) -> convert::Expect<'i, U, E, Self>
     where
         Self: Sized,
-        E::Description: Clone,
     {
-        convert::desc(desc, self)
+        convert::expect(msg, self)
     }
-    #[inline(always)]
-    fn desc_with<F>(self, f: F) -> convert::DescribeWith<'i, U, E, Self, F>
-    where
-        Self: Sized,
-        F: Fn(&E) -> E::Description,
-    {
-        convert::desc_with(f, self)
-    }
-
     #[inline(always)]
     fn unwrap(self) -> convert::Unwrap<'i, U, E, Self>
     where
@@ -139,38 +161,64 @@ where
     }
 
     #[inline(always)]
-    fn or(self, default: Self::Captured) -> convert::Or<'i, U, E, Self>
+    fn unwrap_or(self, default: Self::Captured) -> convert::UnwrapOr<'i, U, E, Self>
     where
         Self: Sized,
         Self::Captured: Clone,
     {
-        convert::or(default, self)
+        convert::unwrap_or(default, self)
     }
     #[inline(always)]
-    fn or_else<F>(self, f: F) -> convert::OrElse<'i, U, E, Self, F>
+    fn unwrap_or_else<F>(self, f: F) -> convert::UnwrapOrElse<'i, U, E, Self, F>
     where
         Self: Sized,
         F: Fn() -> Self::Captured,
     {
-        convert::or_else(f, self)
+        convert::unwrap_or_else(f, self)
     }
     #[inline(always)]
-    fn or_default(self) -> convert::OrDefault<'i, U, E, Self>
+    fn unwrap_or_default(self) -> convert::UnwrapOrDefault<'i, U, E, Self>
     where
         Self: Sized,
         Self::Captured: Default,
     {
-        convert::or_default(self)
+        convert::unwrap_or_default(self)
+    }
+
+    //------------------------------------------------------------------------------
+
+    #[inline(always)]
+    fn parallel(self) -> modifier::Parallel<'i, U, E, Self>
+    where
+        Self: Sized,
+    {
+        modifier::parallel(self)
     }
 
     #[inline(always)]
-    #[doc(alias = "and_then")]
-    fn complex<Q>(self, then: Q) -> convert::Complex<'i, U, E, Self, Q>
+    fn complex<Q>(self, then: Q) -> modifier::Complex<'i, U, E, Self, Q>
     where
         Self: Sized,
         Q: Pattern<'i, U, E>,
     {
-        convert::complex(self, then)
+        modifier::complex(self, then)
+    }
+
+    #[inline(always)]
+    fn desc(self, desc: E::Description) -> modifier::Describe<'i, U, E, Self>
+    where
+        Self: Sized,
+        E::Description: Clone,
+    {
+        modifier::desc(desc, self)
+    }
+    #[inline(always)]
+    fn desc_with<F>(self, f: F) -> modifier::DescribeWith<'i, U, E, Self, F>
+    where
+        Self: Sized,
+        F: Fn(&E) -> E::Description,
+    {
+        modifier::desc_with(f, self)
     }
 }
 

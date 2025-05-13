@@ -6,7 +6,6 @@ pub use crate::{
         lens::len,
         not::not,
         opt::opt,
-        parallel::parallel,
         peek::peek,
         repeat::rep,
         skim::{till, until},

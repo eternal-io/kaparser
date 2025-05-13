@@ -2,27 +2,72 @@ use super::*;
 use core::mem;
 
 #[inline(always)]
-pub const fn and<'i, U, E, P, T>(t: T, body: P) -> And<'i, U, E, P, T>
+pub const fn verify<'i, U, E, P, F>(filter: F, body: P) -> Verify<'i, U, E, P, F>
+where
+    U: ?Sized + Slice,
+    E: Situation,
+    P: Pattern<'i, U, E>,
+    F: Fn(P::Captured) -> bool,
+{
+    Verify {
+        body,
+        filter,
+        phantom: PhantomData,
+    }
+}
+#[inline(always)]
+pub const fn verify_map<'i, U, E, P, F, T>(pred: F, body: P) -> VerifyMap<'i, U, E, P, F, T>
+where
+    U: ?Sized + Slice,
+    E: Situation,
+    P: Pattern<'i, U, E>,
+    F: Fn(P::Captured) -> Option<T>,
+    T: 'static + Clone,
+{
+    VerifyMap {
+        body,
+        pred,
+        phantom: PhantomData,
+    }
+}
+
+#[inline(always)]
+pub const fn and_then<'i, U, E, P, F, T>(op: F, body: P) -> AndThen<'i, U, E, P, F, T>
+where
+    U: ?Sized + Slice,
+    E: Situation,
+    P: Pattern<'i, U, E>,
+    F: Fn(P::Captured) -> Result<T, E>,
+    T: 'static + Clone,
+{
+    AndThen {
+        body,
+        op,
+        phantom: PhantomData,
+    }
+}
+#[inline(always)]
+pub const fn then_some<'i, U, E, P, T>(value: T, body: P) -> ThenSome<'i, U, E, P, T>
 where
     U: ?Sized + Slice,
     E: Situation,
     P: Pattern<'i, U, E>,
     T: Clone,
 {
-    And {
+    ThenSome {
         body,
-        res: t,
+        value,
         phantom: PhantomData,
     }
 }
 
 #[inline(always)]
-pub const fn map<'i, U, E, P, F, Out>(op: F, body: P) -> Map<'i, U, E, P, F, Out>
+pub const fn map<'i, U, E, P, F, T>(op: F, body: P) -> Map<'i, U, E, P, F, T>
 where
     U: ?Sized + Slice,
     E: Situation,
     P: Pattern<'i, U, E>,
-    F: Fn(P::Captured) -> Out,
+    F: Fn(P::Captured) -> T,
 {
     Map {
         body,
@@ -47,34 +92,18 @@ where
 }
 
 #[inline(always)]
-pub const fn desc<'i, U, E, P>(desc: E::Description, body: P) -> Describe<'i, U, E, P>
-where
-    U: ?Sized + Slice,
-    E: Situation,
-    E::Description: Clone,
-    P: Pattern<'i, U, E>,
-{
-    Describe {
-        body,
-        desc,
-        phantom: PhantomData,
-    }
-}
-#[inline(always)]
-pub const fn desc_with<'i, U, E, P, F>(f: F, body: P) -> DescribeWith<'i, U, E, P, F>
+pub const fn expect<'i, U, E, P>(msg: &'static str, body: P) -> Expect<'i, U, E, P>
 where
     U: ?Sized + Slice,
     E: Situation,
     P: Pattern<'i, U, E>,
-    F: Fn(&E) -> E::Description,
 {
-    DescribeWith {
+    Expect {
         body,
-        f,
+        msg,
         phantom: PhantomData,
     }
 }
-
 #[inline(always)]
 pub const fn unwrap<'i, U, E, P>(body: P) -> Unwrap<'i, U, E, P>
 where
@@ -89,85 +118,68 @@ where
 }
 
 #[inline(always)]
-pub const fn or<'i, U, E, P>(default: P::Captured, body: P) -> Or<'i, U, E, P>
+pub const fn unwrap_or<'i, U, E, P>(default: P::Captured, body: P) -> UnwrapOr<'i, U, E, P>
 where
     U: ?Sized + Slice,
     E: Situation,
     P: Pattern<'i, U, E>,
     P::Captured: Clone,
 {
-    Or {
+    UnwrapOr {
         body,
         default,
         phantom: PhantomData,
     }
 }
 #[inline(always)]
-pub const fn or_else<'i, U, E, P, F>(f: F, body: P) -> OrElse<'i, U, E, P, F>
+pub const fn unwrap_or_else<'i, U, E, P, F>(f: F, body: P) -> UnwrapOrElse<'i, U, E, P, F>
 where
     U: ?Sized + Slice,
     E: Situation,
     P: Pattern<'i, U, E>,
     F: Fn() -> P::Captured,
 {
-    OrElse {
+    UnwrapOrElse {
         body,
         f,
         phantom: PhantomData,
     }
 }
 #[inline(always)]
-pub const fn or_default<'i, U, E, P>(body: P) -> OrDefault<'i, U, E, P>
+pub const fn unwrap_or_default<'i, U, E, P>(body: P) -> UnwrapOrDefault<'i, U, E, P>
 where
     U: ?Sized + Slice,
     E: Situation,
     P: Pattern<'i, U, E>,
     P::Captured: Default,
 {
-    OrDefault {
+    UnwrapOrDefault {
         body,
-        phantom: PhantomData,
-    }
-}
-
-#[inline(always)]
-#[doc(alias = "and_then")]
-pub const fn complex<'i, U, E, P, Q>(body: P, then: Q) -> Complex<'i, U, E, P, Q>
-where
-    U: ?Sized + Slice,
-    E: Situation,
-    P: Pattern<'i, U, E>,
-    Q: Pattern<'i, U, E>,
-{
-    Complex {
-        body,
-        then,
         phantom: PhantomData,
     }
 }
 
 //==================================================================================================
 
-pub struct Then<'i, U, E, P, T>
+pub struct Verify<'i, U, E, P, F>
 where
     U: ?Sized + Slice,
     E: Situation,
     P: Pattern<'i, U, E>,
-    T: Clone,
+    F: Fn(P::Captured) -> bool,
 {
     body: P,
-    out: T,
+    filter: F,
     phantom: PhantomData<(&'i U, E)>,
 }
-
-impl<'i, U, E, P, T> Pattern<'i, U, E> for Then<'i, U, E, P, T>
+impl<'i, U, E, P, F> Pattern<'i, U, E> for Verify<'i, U, E, P, F>
 where
     U: ?Sized + Slice,
     E: Situation,
     P: Pattern<'i, U, E>,
-    T: Clone,
+    F: Fn(P::Captured) -> bool,
 {
-    type Captured = T;
+    type Captured = P::Captured;
     type Internal = P::Internal;
 
     #[inline(always)]
@@ -175,75 +187,42 @@ where
         self.body.init()
     }
     #[inline(always)]
+    #[allow(unsafe_code)]
     fn advance(&self, slice: &U, entry: &mut Self::Internal, eof: bool) -> Result<usize, E> {
-        self.body.advance(slice, entry, eof)
+        let offset = self.body.advance(slice, entry, eof)?;
+
+        // SAFETY: The captured is only used temporarily in this function.
+        //         No leaks can occur without internal mutability.
+        match unsafe { (self.filter)(self.body.extract(mem::transmute::<&U, &'i U>(slice), entry.clone())) } {
+            true => Ok(offset),
+            false => E::raise_reject_at(0),
+        }
     }
     #[inline(always)]
-    fn extract(&self, _lice: &'i U, _ntry: Self::Internal) -> Self::Captured {
-        self.out.clone()
+    fn extract(&self, slice: &'i U, entry: Self::Internal) -> Self::Captured {
+        self.body.extract(slice, entry)
     }
 }
 
-//------------------------------------------------------------------------------
-
-pub struct And<'i, U, E, P, T>
+pub struct VerifyMap<'i, U, E, P, F, T>
 where
     U: ?Sized + Slice,
     E: Situation,
     P: Pattern<'i, U, E>,
-    T: Clone,
+    F: Fn(P::Captured) -> Option<T>,
+    T: 'static + Clone,
 {
     body: P,
-    res: T,
+    pred: F,
     phantom: PhantomData<(&'i U, E)>,
 }
-
-impl<'i, U, E, P, T> Pattern<'i, U, E> for And<'i, U, E, P, T>
+impl<'i, U, E, P, F, T> Pattern<'i, U, E> for VerifyMap<'i, U, E, P, F, T>
 where
     U: ?Sized + Slice,
     E: Situation,
     P: Pattern<'i, U, E>,
-    T: Clone,
-{
-    type Captured = T;
-    type Internal = P::Internal;
-
-    #[inline(always)]
-    fn init(&self) -> Self::Internal {
-        self.body.init()
-    }
-    #[inline(always)]
-    fn advance(&self, slice: &U, entry: &mut Self::Internal, eof: bool) -> Result<usize, E> {
-        self.body.advance(slice, entry, eof)
-    }
-    #[inline(always)]
-    fn extract(&self, _lice: &'i U, _ntry: Self::Internal) -> Self::Captured {
-        self.res.clone()
-    }
-}
-
-//------------------------------------------------------------------------------
-
-pub struct TryMap<'i, U, E, P, F, T>
-where
-    U: ?Sized + Slice,
-    E: Situation,
-    P: Pattern<'i, U, E>,
-    F: Fn(P::Captured) -> Result<T, E>,
-    T: Clone + 'static,
-{
-    body: P,
-    op: F,
-    phantom: PhantomData<(&'i U, E)>,
-}
-
-impl<'i, U, E, P, F, T> Pattern<'i, U, E> for TryMap<'i, U, E, P, F, T>
-where
-    U: ?Sized + Slice,
-    E: Situation,
-    P: Pattern<'i, U, E>,
-    F: Fn(P::Captured) -> Result<T, E>,
-    T: Clone + 'static,
+    F: Fn(P::Captured) -> Option<T>,
+    T: 'static + Clone,
 {
     type Captured = T;
     type Internal = Alt3<P::Internal, (), T>;
@@ -266,8 +245,69 @@ where
             unreachable!()
         };
 
-        // SAFETY: The captured is only temporary used in this function, and
-        //         `T` is `'static` that outlives `'i`, so nothing will leak.
+        // SAFETY: The captured is only used temporarily in this function.
+        //         `T` is `'static` that outlives `'i`. No leaks can occur without internal mutability.
+        *entry = Alt3::Var3(
+            (self.pred)(self.body.extract(unsafe { mem::transmute::<&U, &'i U>(slice) }, state))
+                .ok_or_else(|| E::reject_at(0))?,
+        );
+
+        Ok(offset)
+    }
+    #[inline(always)]
+    fn extract(&self, _lice: &'i U, entry: Self::Internal) -> Self::Captured {
+        let Alt3::Var3(output) = entry else {
+            panic!("contract violation")
+        };
+        output
+    }
+}
+
+//--------------------------------------------------------------------------------------------------
+
+pub struct AndThen<'i, U, E, P, F, T>
+where
+    U: ?Sized + Slice,
+    E: Situation,
+    P: Pattern<'i, U, E>,
+    F: Fn(P::Captured) -> Result<T, E>,
+    T: 'static + Clone,
+{
+    body: P,
+    op: F,
+    phantom: PhantomData<(&'i U, E)>,
+}
+impl<'i, U, E, P, F, T> Pattern<'i, U, E> for AndThen<'i, U, E, P, F, T>
+where
+    U: ?Sized + Slice,
+    E: Situation,
+    P: Pattern<'i, U, E>,
+    F: Fn(P::Captured) -> Result<T, E>,
+    T: 'static + Clone,
+{
+    type Captured = T;
+    type Internal = Alt3<P::Internal, (), T>;
+
+    #[inline(always)]
+    fn init(&self) -> Self::Internal {
+        Alt3::Var2(())
+    }
+    #[inline(always)]
+    #[allow(unsafe_code)]
+    fn advance(&self, slice: &U, entry: &mut Self::Internal, eof: bool) -> Result<usize, E> {
+        if !matches!(entry, Alt3::Var1(_)) {
+            *entry = Alt3::Var1(self.body.init());
+        }
+
+        let Alt3::Var1(state) = entry else { unreachable!() };
+        let offset = self.body.advance(slice, state, eof)?;
+
+        let Alt3::Var1(state) = mem::replace(entry, Alt3::Var2(())) else {
+            unreachable!()
+        };
+
+        // SAFETY: The captured is only used temporarily in this function.
+        //         `T` is `'static` that outlives `'i`. No leaks can occur without internal mutability.
         *entry = Alt3::Var3((self.op)(
             self.body.extract(unsafe { mem::transmute::<&U, &'i U>(slice) }, state),
         )?);
@@ -283,7 +323,42 @@ where
     }
 }
 
-//------------------------------------------------------------------------------
+pub struct ThenSome<'i, U, E, P, T>
+where
+    U: ?Sized + Slice,
+    E: Situation,
+    P: Pattern<'i, U, E>,
+    T: Clone,
+{
+    body: P,
+    value: T,
+    phantom: PhantomData<(&'i U, E)>,
+}
+impl<'i, U, E, P, T> Pattern<'i, U, E> for ThenSome<'i, U, E, P, T>
+where
+    U: ?Sized + Slice,
+    E: Situation,
+    P: Pattern<'i, U, E>,
+    T: Clone,
+{
+    type Captured = T;
+    type Internal = P::Internal;
+
+    #[inline(always)]
+    fn init(&self) -> Self::Internal {
+        self.body.init()
+    }
+    #[inline(always)]
+    fn advance(&self, slice: &U, entry: &mut Self::Internal, eof: bool) -> Result<usize, E> {
+        self.body.advance(slice, entry, eof)
+    }
+    #[inline(always)]
+    fn extract(&self, _lice: &'i U, _ntry: Self::Internal) -> Self::Captured {
+        self.value.clone()
+    }
+}
+
+//--------------------------------------------------------------------------------------------------
 
 pub struct Map<'i, U, E, P, F, T>
 where
@@ -296,7 +371,6 @@ where
     op: F,
     phantom: PhantomData<(&'i U, E)>,
 }
-
 impl<'i, U, E, P, F, T> Pattern<'i, U, E> for Map<'i, U, E, P, F, T>
 where
     U: ?Sized + Slice,
@@ -321,8 +395,6 @@ where
     }
 }
 
-//------------------------------------------------------------------------------
-
 pub struct MapErr<'i, U, E1, P, F, E2>
 where
     U: ?Sized + Slice,
@@ -335,7 +407,6 @@ where
     op: F,
     phantom: PhantomData<(&'i U, E1, E2)>,
 }
-
 impl<'i, U, E1, P, F, E2> Pattern<'i, U, E2> for MapErr<'i, U, E1, P, F, E2>
 where
     U: ?Sized + Slice,
@@ -361,25 +432,22 @@ where
     }
 }
 
-//------------------------------------------------------------------------------
+//--------------------------------------------------------------------------------------------------
 
-pub struct Describe<'i, U, E, P>
+pub struct Expect<'i, U, E, P>
 where
     U: ?Sized + Slice,
     E: Situation,
-    E::Description: Clone,
     P: Pattern<'i, U, E>,
 {
     body: P,
-    desc: E::Description,
+    msg: &'static str,
     phantom: PhantomData<(&'i U, E)>,
 }
-
-impl<'i, U, E, P> Pattern<'i, U, E> for Describe<'i, U, E, P>
+impl<'i, U, E, P> Pattern<'i, U, E> for Expect<'i, U, E, P>
 where
     U: ?Sized + Slice,
     E: Situation,
-    E::Description: Clone,
     P: Pattern<'i, U, E>,
 {
     type Captured = P::Captured;
@@ -391,58 +459,13 @@ where
     }
     #[inline(always)]
     fn advance(&self, slice: &U, entry: &mut Self::Internal, eof: bool) -> Result<usize, E> {
-        self.body
-            .advance(slice, entry, eof)
-            .map_err(|e| e.describe(self.desc.clone()))
+        Ok(self.body.advance(slice, entry, eof).expect(self.msg))
     }
     #[inline(always)]
     fn extract(&self, slice: &'i U, entry: Self::Internal) -> Self::Captured {
         self.body.extract(slice, entry)
     }
 }
-
-//------------------------------------------------------------------------------
-
-pub struct DescribeWith<'i, U, E, P, F>
-where
-    U: ?Sized + Slice,
-    E: Situation,
-    P: Pattern<'i, U, E>,
-    F: Fn(&E) -> E::Description,
-{
-    body: P,
-    f: F,
-    phantom: PhantomData<(&'i U, E)>,
-}
-
-impl<'i, U, E, P, F> Pattern<'i, U, E> for DescribeWith<'i, U, E, P, F>
-where
-    U: ?Sized + Slice,
-    E: Situation,
-    P: Pattern<'i, U, E>,
-    F: Fn(&E) -> E::Description,
-{
-    type Captured = P::Captured;
-    type Internal = P::Internal;
-
-    #[inline(always)]
-    fn init(&self) -> Self::Internal {
-        self.body.init()
-    }
-    #[inline(always)]
-    fn advance(&self, slice: &U, entry: &mut Self::Internal, eof: bool) -> Result<usize, E> {
-        self.body.advance(slice, entry, eof).map_err(|e| {
-            let desc = (self.f)(&e);
-            e.describe(desc)
-        })
-    }
-    #[inline(always)]
-    fn extract(&self, slice: &'i U, entry: Self::Internal) -> Self::Captured {
-        self.body.extract(slice, entry)
-    }
-}
-
-//------------------------------------------------------------------------------
 
 pub struct Unwrap<'i, U, E, P>
 where
@@ -453,7 +476,6 @@ where
     body: P,
     phantom: PhantomData<(&'i U, E)>,
 }
-
 impl<'i, U, E, P> Pattern<'i, U, E> for Unwrap<'i, U, E, P>
 where
     U: ?Sized + Slice,
@@ -477,9 +499,9 @@ where
     }
 }
 
-//------------------------------------------------------------------------------
+//--------------------------------------------------------------------------------------------------
 
-pub struct Or<'i, U, E, P>
+pub struct UnwrapOr<'i, U, E, P>
 where
     U: ?Sized + Slice,
     E: Situation,
@@ -490,8 +512,7 @@ where
     default: P::Captured,
     phantom: PhantomData<(&'i U, E)>,
 }
-
-impl<'i, U, E, P> Pattern<'i, U, E> for Or<'i, U, E, P>
+impl<'i, U, E, P> Pattern<'i, U, E> for UnwrapOr<'i, U, E, P>
 where
     U: ?Sized + Slice,
     E: Situation,
@@ -507,18 +528,15 @@ where
     }
     #[inline(always)]
     fn advance(&self, slice: &U, entry: &mut Self::Internal, eof: bool) -> Result<usize, E> {
-        match entry {
-            None => Ok(0),
-            Some(state) => {
-                let res = self.body.advance(slice, state, eof); // TODO: optimization?
-                if let Err(ref e) = res {
-                    if !e.is_unfulfilled() {
-                        *entry = None;
-                    }
-                }
-                res
+        let res = self
+            .body
+            .advance(slice, entry.as_mut().expect("contract violation"), eof);
+        if let Err(e) = &res {
+            if !e.is_unfulfilled() {
+                *entry = None;
             }
         }
+        res
     }
     #[inline(always)]
     fn extract(&self, slice: &'i U, entry: Self::Internal) -> Self::Captured {
@@ -529,9 +547,7 @@ where
     }
 }
 
-//------------------------------------------------------------------------------
-
-pub struct OrElse<'i, U, E, P, F>
+pub struct UnwrapOrElse<'i, U, E, P, F>
 where
     U: ?Sized + Slice,
     E: Situation,
@@ -542,8 +558,7 @@ where
     f: F,
     phantom: PhantomData<(&'i U, E)>,
 }
-
-impl<'i, U, E, P, F> Pattern<'i, U, E> for OrElse<'i, U, E, P, F>
+impl<'i, U, E, P, F> Pattern<'i, U, E> for UnwrapOrElse<'i, U, E, P, F>
 where
     U: ?Sized + Slice,
     E: Situation,
@@ -559,18 +574,15 @@ where
     }
     #[inline(always)]
     fn advance(&self, slice: &U, entry: &mut Self::Internal, eof: bool) -> Result<usize, E> {
-        match entry {
-            None => Ok(0),
-            Some(state) => {
-                let res = self.body.advance(slice, state, eof); // TODO: optimization?
-                if let Err(ref e) = res {
-                    if !e.is_unfulfilled() {
-                        *entry = None;
-                    }
-                }
-                res
+        let res = self
+            .body
+            .advance(slice, entry.as_mut().expect("contract violation"), eof);
+        if let Err(e) = &res {
+            if !e.is_unfulfilled() {
+                *entry = None;
             }
         }
+        res
     }
     #[inline(always)]
     fn extract(&self, slice: &'i U, entry: Self::Internal) -> Self::Captured {
@@ -581,9 +593,7 @@ where
     }
 }
 
-//------------------------------------------------------------------------------
-
-pub struct OrDefault<'i, U, E, P>
+pub struct UnwrapOrDefault<'i, U, E, P>
 where
     U: ?Sized + Slice,
     E: Situation,
@@ -593,8 +603,7 @@ where
     body: P,
     phantom: PhantomData<(&'i U, E)>,
 }
-
-impl<'i, U, E, P> Pattern<'i, U, E> for OrDefault<'i, U, E, P>
+impl<'i, U, E, P> Pattern<'i, U, E> for UnwrapOrDefault<'i, U, E, P>
 where
     U: ?Sized + Slice,
     E: Situation,
@@ -610,18 +619,15 @@ where
     }
     #[inline(always)]
     fn advance(&self, slice: &U, entry: &mut Self::Internal, eof: bool) -> Result<usize, E> {
-        match entry {
-            None => Ok(0),
-            Some(state) => {
-                let res = self.body.advance(slice, state, eof);
-                if let Err(ref e) = res {
-                    if !e.is_unfulfilled() {
-                        *entry = None;
-                    }
-                }
-                res
+        let res = self
+            .body
+            .advance(slice, entry.as_mut().expect("contract violation"), eof);
+        if let Err(e) = &res {
+            if !e.is_unfulfilled() {
+                *entry = None;
             }
         }
+        res
     }
     #[inline(always)]
     fn extract(&self, slice: &'i U, entry: Self::Internal) -> Self::Captured {
@@ -629,54 +635,5 @@ where
             None => Default::default(),
             Some(state) => self.body.extract(slice, state),
         }
-    }
-}
-
-//------------------------------------------------------------------------------
-
-pub struct Complex<'i, U, E, P, Q>
-where
-    U: ?Sized + Slice,
-    E: Situation,
-    P: Pattern<'i, U, E>,
-    Q: Pattern<'i, U, E>,
-{
-    body: P,
-    then: Q,
-    phantom: PhantomData<(&'i U, E)>,
-}
-
-impl<'i, U, E, P, Q> Pattern<'i, U, E> for Complex<'i, U, E, P, Q>
-where
-    U: ?Sized + Slice,
-    E: Situation,
-    P: Pattern<'i, U, E>,
-    Q: Pattern<'i, U, E>,
-{
-    type Captured = Q::Captured;
-    type Internal = Alt2<P::Internal, Q::Internal>;
-
-    #[inline(always)]
-    fn init(&self) -> Self::Internal {
-        Alt2::Var1(self.body.init())
-    }
-    #[inline(always)]
-    fn advance(&self, slice: &U, entry: &mut Self::Internal, eof: bool) -> Result<usize, E> {
-        let Alt2::Var1(state) = entry else {
-            panic!("contract violation")
-        };
-        let len = self.body.advance(slice, state, eof)?;
-
-        *entry = Alt2::Var2(self.then.init());
-
-        let Alt2::Var2(state) = entry else { unreachable!() };
-        self.then.advance(slice.split_at(len).0, state, true)
-    }
-    #[inline(always)]
-    fn extract(&self, slice: &'i U, entry: Self::Internal) -> Self::Captured {
-        let Alt2::Var2(state) = entry else {
-            panic!("contract violation")
-        };
-        self.then.extract(slice, state)
     }
 }

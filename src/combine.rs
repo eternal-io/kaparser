@@ -23,9 +23,9 @@ import! {
 
     pub mod opt;
     pub mod peek;
-    pub mod parallel;
     pub mod control;
     pub mod convert;
+    pub mod modifier;
 
     pub mod not;
 }
