@@ -33,6 +33,14 @@ macro_rules! com {
     };
 }
 
+#[doc(hidden)]
+#[macro_export]
+macro_rules! ixs {
+    ( $($p:expr),* $(,)? ) => {
+        $crate::combine::seq::indexed_seq::<_, _, _>(($($p,)*))
+    };
+}
+
 //------------------------------------------------------------------------------
 
 #[doc(hidden)]

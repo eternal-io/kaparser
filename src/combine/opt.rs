@@ -63,13 +63,13 @@ mod tests {
 
     #[test]
     fn main() {
-        let pat = opaque::<str, _, SimpleError>(opt(is_alpha..));
+        let pat = simple_opaque(opt(is_alpha..));
         assert_eq!(pat.full_match("qwer").unwrap(), Some("qwer"));
         assert_eq!(pat.full_match("7890").unwrap_err().offset(), 0);
         assert_eq!(pat.parse(&mut "7890").unwrap(), None);
         assert_eq!(pat.parse(&mut "LB90").unwrap(), Some("LB"));
 
-        let pat = opaque::<str, _, SimpleError>(opt(..=[is_ctrl]));
+        let pat = simple_opaque(opt(..=[is_ctrl]));
         assert_eq!(pat.full_match("xyz\n").unwrap(), Some(("xyz", '\n')));
         assert_eq!(pat.full_match("xyzww").unwrap_err().offset(), 5);
     }

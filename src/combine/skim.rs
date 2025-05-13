@@ -116,7 +116,7 @@ mod tests {
 
     #[test]
     fn till() {
-        let pat = opaque::<str, _, SimpleError>(..'🔥');
+        let pat = simple_opaque(..'🔥');
         assert_eq!(pat.full_match("").unwrap(), ("", None));
         assert_eq!(pat.full_match("Foo").unwrap(), ("Foo", None));
         assert_eq!(pat.full_match("Bar🔥").unwrap(), ("Bar", Some('🔥')));
@@ -126,20 +126,20 @@ mod tests {
 
     #[test]
     fn until() {
-        let pat = opaque::<str, _, SimpleError>(..="🚧");
+        let pat = simple_opaque(..="🚧");
         assert_eq!(pat.full_match("🚧").unwrap(), ("", "🚧"));
         assert_eq!(pat.full_match("FooBar🚧").unwrap(), ("FooBar", "🚧"));
 
-        let pat = opaque::<[u8], _, SimpleError>(..=[0]);
+        let pat = simple_opaque::<[u8], _>(..=[0]);
         assert_eq!(pat.full_match(b"Quinn\0").unwrap(), (b"Quinn".as_ref(), 0));
 
         /* The following is feature. */
 
-        let pat = opaque::<str, _, SimpleError>(..="");
+        let pat = simple_opaque(..="");
         assert_eq!(pat.parse(&mut "").unwrap_err().offset(), 0);
         assert_eq!(pat.parse(&mut "❓").unwrap(), ("", ""));
 
-        let pat = opaque::<[u8], _, SimpleError>(..=[].as_ref());
+        let pat = simple_opaque::<[u8], _>(..=[].as_ref());
         assert_eq!(pat.parse(&mut b"".as_ref()).unwrap_err().offset(), 0);
         assert_eq!(pat.parse(&mut b"??".as_ref()).unwrap(), (b"".as_ref(), b"".as_ref()));
     }
