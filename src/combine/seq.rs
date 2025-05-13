@@ -5,26 +5,26 @@ use core::ops::Range;
 pub use crate::{ixs, sps};
 
 #[inline(always)]
-pub const fn indexed_seq<'i, U, E, S>(ixs: S) -> IndexedSeq<'i, U, E, S>
+pub const fn indexed_sequence<'i, U, E, S>(ixs: S) -> IndexedSequence<'i, U, E, S>
 where
     U: ?Sized + Slice,
     E: Situation,
     S: Indexedable<'i, U, E>,
 {
-    IndexedSeq {
+    IndexedSequence {
         ixs,
         phantom: PhantomData,
     }
 }
 
 #[inline(always)]
-pub const fn spanned_seq<'i, U, E, S>(sps: S) -> SpannedSeq<'i, U, E, S>
+pub const fn spanned_sequence<'i, U, E, S>(sps: S) -> SpannedSequence<'i, U, E, S>
 where
     U: ?Sized + Slice,
     E: Situation,
     S: Spannedable<'i, U, E>,
 {
-    SpannedSeq {
+    SpannedSequence {
         sps,
         phantom: PhantomData,
     }
@@ -32,7 +32,7 @@ where
 
 //==================================================================================================
 
-pub struct IndexedSeq<'i, U, E, S>
+pub struct IndexedSequence<'i, U, E, S>
 where
     U: ?Sized + Slice,
     E: Situation,
@@ -57,7 +57,7 @@ where
     fn extract_ixs(&self, slice: &'i U, entry: Self::Internal) -> Self::Captured;
 }
 
-impl<'i, U, E, S> Pattern<'i, U, E> for IndexedSeq<'i, U, E, S>
+impl<'i, U, E, S> Pattern<'i, U, E> for IndexedSequence<'i, U, E, S>
 where
     U: ?Sized + Slice,
     E: Situation,
@@ -180,7 +180,7 @@ impl_indexedable_for_tuples! {
 
 //==================================================================================================
 
-pub struct SpannedSeq<'i, U, E, S>
+pub struct SpannedSequence<'i, U, E, S>
 where
     U: ?Sized + Slice,
     E: Situation,
@@ -205,7 +205,7 @@ where
     fn extract_sps(&self, slice: &'i U, entry: Self::Internal) -> Self::Captured;
 }
 
-impl<'i, U, E, S> Pattern<'i, U, E> for SpannedSeq<'i, U, E, S>
+impl<'i, U, E, S> Pattern<'i, U, E> for SpannedSequence<'i, U, E, S>
 where
     U: ?Sized + Slice,
     E: Situation,

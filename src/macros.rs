@@ -17,35 +17,54 @@ macro_rules! all {
 
 //------------------------------------------------------------------------------
 
+/// [`Alternative`](crate::combine::alt::Alternative)
 #[doc(hidden)]
 #[macro_export]
 macro_rules! alt {
-    ( $($p:expr),* $(,)? ) => {
-        $crate::combine::alt::alternative::<_, _, _>(($($p,)*))
+    ( $($patt:expr),+ $(,)? ) => {
+        $crate::combine::alt::alternative::<_, _, _>(( $($patt,)+ ))
     };
 }
 
+/// [`Compound`](crate::combine::com::Compound)
 #[doc(hidden)]
 #[macro_export]
 macro_rules! com {
-    ( $($p:expr),* $(,)? ) => {
-        $crate::combine::com::compound::<_, _, _>(($($p,)*))
+    ( $($patt:expr),+ $(,)? ) => {
+        $crate::combine::com::compound::<_, _, _>(( $($patt,)+ ))
     };
 }
 
+/// [`IndexedSequence`](crate::combine::seq::IndexedSequence)
 #[doc(hidden)]
 #[macro_export]
 macro_rules! ixs {
-    ( $($p:expr),* $(,)? ) => {
-        $crate::combine::seq::indexed_seq::<_, _, _>(($($p,)*))
+    ( $($patt:expr),+ $(,)? ) => {
+        $crate::combine::seq::indexed_sequence::<_, _, _>(( $($patt,)+ ))
+    };
+}
+
+/// [`SpannedSequence`](crate::combine::seq::SpannedSequence)
+#[doc(hidden)]
+#[macro_export]
+macro_rules! sps {
+    ( $($patt:expr),+ $(,)? ) => {
+        $crate::combine::seq::spanned_sequence::<_, _, _>(( $($patt,)+ ))
     };
 }
 
 #[doc(hidden)]
 #[macro_export]
-macro_rules! sps {
-    ( $($p:expr),* $(,)? ) => {
-        $crate::combine::seq::spanned_seq::<_, _, _>(($($p,)*))
+macro_rules! dispatch {
+    (   $head:expr ;
+      $($case:expr => $body:expr),+ $(,)?
+    ) => {
+        $crate::combine::dispatch::dispatchment::<_, _, _>((
+            $head,
+            ( $(
+                ($case, $body),
+            )+ ),
+        ))
     };
 }
 
@@ -54,32 +73,32 @@ macro_rules! sps {
 #[doc(hidden)]
 #[macro_export]
 macro_rules! len {
-    ($n:expr, $p:expr) => {
-        $crate::combine::lens::lens::<_, _, _, { $n }>($p)
+    ($n:expr, $patt:expr) => {
+        $crate::combine::lens::lens::<_, _, _, { $n }>($patt)
     };
 }
 
 #[doc(hidden)]
 #[macro_export]
 macro_rules! rep {
-    ($n:tt, $p:expr) => {
-        $crate::combine::repeat::repeat_exact::<_, _, _, { $n }>($p)
+    ($n:tt, $patt:expr) => {
+        $crate::combine::repeat::repeat_exact::<_, _, _, { $n }>($patt)
     };
-    ($n:tt..=$m:tt, $p:expr) => {
-        $crate::combine::repeat::repeat::<_, _, _, { $n }, { $m - $n }>($p)
+    ($n:tt..=$m:tt, $patt:expr) => {
+        $crate::combine::repeat::repeat::<_, _, _, { $n }, { $m - $n }>($patt)
     };
-    (..=$m:tt, $p:expr) => {
-        $crate::combine::repeat::repeat_at_most::<_, _, _, { $m }>($p)
+    (..=$m:tt, $patt:expr) => {
+        $crate::combine::repeat::repeat_at_most::<_, _, _, { $m }>($patt)
     };
 
-    ($n:tt..$m:tt, $p:expr) => {
+    ($n:tt..$m:tt, $patt:expr) => {
         ::core::compile_error!("use `n..=m` instead")
     };
-    (..$m:tt, $p:expr) => {
+    (..$m:tt, $patt:expr) => {
         ::core::compile_error!("use `..=m` instead")
     };
 
-    ($n:tt.., $p:expr) => {
+    ($n:tt.., $patt:expr) => {
         ::core::compile_error!("consider use `reiter` instead")
     };
 }
@@ -130,6 +149,7 @@ macro_rules! token_set {
             }
 
             #[inline(always)]
+            #[allow(unused_variables)]
             fn advance(&self, slice: &$sli, entry: &mut Self::Internal, eof: bool) -> ::core::result::Result<usize, E> {
                 if !eof && slice.len() < Self::max_len() {
                     return E::raise_unfulfilled((Self::max_len() - slice.len()).try_into().ok());
@@ -169,6 +189,9 @@ mod tests {
     const TK_TRUE: &str = "true";
     const TK_FALSE: &str = "false";
 
+    token_set! {
+        Unused<str>;
+    }
     token_set! {
         Boolean<str>;
         False = TK_FALSE,

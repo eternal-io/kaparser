@@ -15,6 +15,7 @@ import! {
     pub mod alt;
     pub mod com;
     pub mod seq;
+    pub mod dispatch;
 
     pub mod take;
     pub mod lens;

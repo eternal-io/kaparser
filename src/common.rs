@@ -148,8 +148,6 @@ mod urange_bounds {
 
 //------------------------------------------------------------------------------
 
-#[doc(hidden)]
-#[macro_export]
 macro_rules! __resume_advance {
     (      $Ent:expr ;
         $( $CaseN:pat => $TurnN:block $ProcN:block )+
@@ -288,18 +286,18 @@ pub(crate) use alts::*;
 pub mod alts {
     /// `Lens1X` means `LenX - 1`. `Gen` means "Generic". Always `N < K < M`.
     macro_rules! gen_alternates {
-        (      $Lens1K:literal ~ $GenK:ident ~ $OrdK:tt
-            $( $Lens1M:literal ~ $GenM:ident ~ $OrdM:tt )*
+        (      $Lens1K:literal ~ $GenK:ident ~ $ConK:ident ~ $OrdK:tt
+            $( $Lens1M:literal ~ $GenM:ident ~ $ConM:ident ~ $OrdM:tt )*
         ) => {
             gen_alternates! { @
-                $Lens1K ~ $GenK ~ $OrdK ;
-                $($Lens1M ~ $GenM ~ $OrdM)*
+                  $Lens1K ~ $GenK ~ $ConK ~ $OrdK ;
+                $($Lens1M ~ $GenM ~ $ConM ~ $OrdM)*
             }
         };
 
-        ( @ $( $Lens1N:literal ~ $GenN:ident ~ $OrdN:tt )+ ;
-               $Lens1K:literal ~ $GenK:ident ~ $OrdK:tt
-            $( $Lens1M:literal ~ $GenM:ident ~ $OrdM:tt )*
+        ( @ $( $Lens1N:literal ~ $GenN:ident ~ $ConN:ident ~ $OrdN:tt )+ ;
+               $Lens1K:literal ~ $GenK:ident ~ $ConK:ident ~ $OrdK:tt
+            $( $Lens1M:literal ~ $GenM:ident ~ $ConM:ident ~ $OrdM:tt )*
         ) => { paste::paste! {
             #[derive(Debug, Clone, PartialEq, Eq, PartialOrd, Ord)]
             pub enum [<Alt $Lens1K>]<$($GenN),+> { $(
@@ -307,33 +305,42 @@ pub mod alts {
                 [<Var $OrdN>]($GenN),
             )+ }
 
+            impl<A> [<Alt $Lens1K>]<$($ConN),+> {
+                #[inline(always)]
+                pub fn converge(self) -> A {
+                    match self { $(
+                        Self::[<Var $OrdN>](v) => v,
+                    )+ }
+                }
+            }
+
             gen_alternates! { @
-                $($Lens1N ~ $GenN ~ $OrdN)+
-                  $Lens1K ~ $GenK ~ $OrdK ;
-                $($Lens1M ~ $GenM ~ $OrdM)*
+                $($Lens1N ~ $GenN ~ $ConN ~ $OrdN)+
+                  $Lens1K ~ $GenK ~ $ConK ~ $OrdK ;
+                $($Lens1M ~ $GenM ~ $ConM ~ $OrdM)*
             }
         } };
 
-        ( @ $( $Lens1N:literal ~ $GenN:ident ~ $OrdN:tt )+ ; ) => {};
+        ( @ $( $Lens1N:literal ~ $GenN:ident ~ $ConN:ident ~ $OrdN:tt )+ ; ) => {};
     }
 
     gen_alternates! {
-        0  ~ A ~ 1
-        1  ~ B ~ 2
-        2  ~ C ~ 3
-        3  ~ D ~ 4
-        4  ~ E ~ 5
-        5  ~ F ~ 6
-        6  ~ G ~ 7
-        7  ~ H ~ 8
-        8  ~ I ~ 9
-        9  ~ J ~ 10
-        10 ~ K ~ 11
-        11 ~ L ~ 12
-        12 ~ M ~ 13
-        13 ~ N ~ 14
-        14 ~ O ~ 15
-        15 ~ P ~ 16
-        16 ~ Q ~ 17
+        0  ~ A ~ A ~ 1
+        1  ~ B ~ A ~ 2
+        2  ~ C ~ A ~ 3
+        3  ~ D ~ A ~ 4
+        4  ~ E ~ A ~ 5
+        5  ~ F ~ A ~ 6
+        6  ~ G ~ A ~ 7
+        7  ~ H ~ A ~ 8
+        8  ~ I ~ A ~ 9
+        9  ~ J ~ A ~ 10
+        10 ~ K ~ A ~ 11
+        11 ~ L ~ A ~ 12
+        12 ~ M ~ A ~ 13
+        13 ~ N ~ A ~ 14
+        14 ~ O ~ A ~ 15
+        15 ~ P ~ A ~ 16
+        16 ~ Q ~ A ~ 17
     }
 }
