@@ -298,7 +298,7 @@ pub mod alts {
         };
 
         ( @ $( $Lens1N:literal ~ $GenN:ident ~ $OrdN:tt )+ ;
-            $Lens1K:literal ~ $GenK:ident ~ $OrdK:tt
+               $Lens1K:literal ~ $GenK:ident ~ $OrdK:tt
             $( $Lens1M:literal ~ $GenM:ident ~ $OrdM:tt )*
         ) => { paste::paste! {
             #[derive(Debug, Clone, PartialEq, Eq, PartialOrd, Ord)]
@@ -309,7 +309,7 @@ pub mod alts {
 
             gen_alternates! { @
                 $($Lens1N ~ $GenN ~ $OrdN)+
-                $Lens1K ~ $GenK ~ $OrdK ;
+                  $Lens1K ~ $GenK ~ $OrdK ;
                 $($Lens1M ~ $GenM ~ $OrdM)*
             }
         } };
