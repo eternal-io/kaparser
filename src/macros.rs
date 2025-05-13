@@ -41,6 +41,14 @@ macro_rules! ixs {
     };
 }
 
+#[doc(hidden)]
+#[macro_export]
+macro_rules! sps {
+    ( $($p:expr),* $(,)? ) => {
+        $crate::combine::seq::spanned_seq::<_, _, _>(($($p,)*))
+    };
+}
+
 //------------------------------------------------------------------------------
 
 #[doc(hidden)]

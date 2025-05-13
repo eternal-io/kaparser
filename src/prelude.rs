@@ -8,6 +8,7 @@ pub use crate::{
         opt::opt,
         peek::peek,
         repeat::rep,
+        seq::{ixs, sps},
         skim::{till, until},
         take::{take, take0, take1},
     },
