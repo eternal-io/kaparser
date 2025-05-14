@@ -106,6 +106,26 @@ where
 
 //------------------------------------------------------------------------------
 
+pub trait SliceAscii: Slice {
+    fn eq_ignore_ascii_case(left: Self::Item, right: Self::Item) -> bool;
+}
+
+impl SliceAscii for str {
+    #[inline(always)]
+    fn eq_ignore_ascii_case(left: Self::Item, right: Self::Item) -> bool {
+        left.eq_ignore_ascii_case(&right)
+    }
+}
+
+impl SliceAscii for [u8] {
+    #[inline(always)]
+    fn eq_ignore_ascii_case(left: Self::Item, right: Self::Item) -> bool {
+        left.eq_ignore_ascii_case(&right)
+    }
+}
+
+//------------------------------------------------------------------------------
+
 /// You can abbreviate `n..=n` to `n`.
 pub trait URangeBounds {
     fn contains(&self, times: usize) -> bool;

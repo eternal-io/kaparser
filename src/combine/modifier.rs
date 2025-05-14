@@ -5,6 +5,14 @@ use core::fmt::Display;
 extern crate std;
 
 #[inline(always)]
+pub const fn igc<U>(slice: &U) -> IgnoreCase<U>
+where
+    U: ?Sized + SliceAscii,
+{
+    IgnoreCase { slice }
+}
+
+#[inline(always)]
 pub const fn parallel<'i, U, E, P>(body: P) -> Parallel<'i, U, E, P>
 where
     U: ?Sized + Slice,
@@ -63,6 +71,47 @@ where
 
 //------------------------------------------------------------------------------
 
+pub struct IgnoreCase<'i, U>
+where
+    U: ?Sized + SliceAscii,
+{
+    slice: &'i U,
+}
+
+impl<'i, U, E> Pattern<'i, U, E> for IgnoreCase<'_, U>
+where
+    U: ?Sized + SliceAscii + 'i,
+    E: Situation,
+{
+    type Captured = &'i U;
+    type Internal = ();
+
+    #[inline(always)]
+    fn init(&self) -> Self::Internal {}
+    #[inline(always)]
+    fn advance(&self, slice: &U, _ntry: &mut Self::Internal, eof: bool) -> Result<usize, E> {
+        if slice.len() < self.slice.len() {
+            match eof {
+                true => E::raise_reject_at(slice.len()),
+                false => E::raise_unfulfilled(Some((self.slice.len() - slice.len()).try_into().unwrap())),
+            }
+        } else {
+            for ((off, expected), item) in self.slice.iter_indices().zip(slice.iter()) {
+                if item != expected {
+                    return E::raise_reject_at(off);
+                }
+            }
+            Ok(self.slice.len())
+        }
+    }
+    #[inline(always)]
+    fn extract(&self, slice: &'i U, _ntry: Self::Internal) -> Self::Captured {
+        slice.split_at(self.slice.len()).0
+    }
+}
+
+//------------------------------------------------------------------------------
+
 pub struct Parallel<'i, U, E, P>
 where
     U: ?Sized + Slice,
@@ -101,7 +150,7 @@ where
 
 //------------------------------------------------------------------------------
 
-#[allow(dead_code)]
+#[cfg_attr(not(feature = "debug"), allow(dead_code))]
 pub struct Trace<'i, U, E, P, I>
 where
     U: ?Sized + Slice,
