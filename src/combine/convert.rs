@@ -16,21 +16,21 @@ where
 }
 
 #[inline(always)]
-pub const fn verify<'i, U, E, P, F>(pred: F, body: P) -> Verify<'i, U, E, P, F>
+pub const fn filter<'i, U, E, P, F>(pred: F, body: P) -> Filter<'i, U, E, P, F>
 where
     U: ?Sized + Slice,
     E: Situation,
     P: Pattern<'i, U, E>,
     F: Fn(&P::Captured) -> bool,
 {
-    Verify {
+    Filter {
         body,
         pred,
         phantom: PhantomData,
     }
 }
 #[inline(always)]
-pub const fn verify_map<'i, U, E, P, F, T>(filter: F, body: P) -> VerifyMap<'i, U, E, P, F, T>
+pub const fn filter_map<'i, U, E, P, F, T>(filter: F, body: P) -> FilterMap<'i, U, E, P, F, T>
 where
     U: ?Sized + Slice,
     E: Situation,
@@ -38,7 +38,7 @@ where
     F: Fn(P::Captured) -> Option<T>,
     T: 'static + Clone,
 {
-    VerifyMap {
+    FilterMap {
         body,
         filter,
         phantom: PhantomData,
@@ -226,7 +226,7 @@ where
 
 //--------------------------------------------------------------------------------------------------
 
-pub struct Verify<'i, U, E, P, F>
+pub struct Filter<'i, U, E, P, F>
 where
     U: ?Sized + Slice,
     E: Situation,
@@ -237,7 +237,7 @@ where
     pred: F,
     phantom: PhantomData<(&'i U, E)>,
 }
-impl<'i, U, E, P, F> Pattern<'i, U, E> for Verify<'i, U, E, P, F>
+impl<'i, U, E, P, F> Pattern<'i, U, E> for Filter<'i, U, E, P, F>
 where
     U: ?Sized + Slice,
     E: Situation,
@@ -269,7 +269,7 @@ where
     }
 }
 
-pub struct VerifyMap<'i, U, E, P, F, T>
+pub struct FilterMap<'i, U, E, P, F, T>
 where
     U: ?Sized + Slice,
     E: Situation,
@@ -281,7 +281,7 @@ where
     filter: F,
     phantom: PhantomData<(&'i U, E)>,
 }
-impl<'i, U, E, P, F, T> Pattern<'i, U, E> for VerifyMap<'i, U, E, P, F, T>
+impl<'i, U, E, P, F, T> Pattern<'i, U, E> for FilterMap<'i, U, E, P, F, T>
 where
     U: ?Sized + Slice,
     E: Situation,

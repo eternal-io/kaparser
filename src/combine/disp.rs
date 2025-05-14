@@ -147,9 +147,9 @@ mod tests {
         let pat = simple_opaque(
             disp! {
                 take(2, ..);
-                "0x" => def::hex_().verify_map(|s| u64::from_str_radix(s, 16).ok()),
-                "0o" => def::oct_().verify_map(|s| u64::from_str_radix(s, 8).ok()),
-                "0b" => def::bin_().verify_map(|s| u64::from_str_radix(s, 2).ok()),
+                "0x" => def::hex_().filter_map(|s| u64::from_str_radix(s, 16).ok()),
+                "0o" => def::oct_().filter_map(|s| u64::from_str_radix(s, 8).ok()),
+                "0b" => def::bin_().filter_map(|s| u64::from_str_radix(s, 2).ok()),
             }
             .converge(),
         );

@@ -101,21 +101,21 @@ where
     }
 
     #[inline(always)]
-    fn verify<F>(self, pred: F) -> convert::Verify<'i, U, E, Self, F>
+    fn filter<F>(self, pred: F) -> convert::Filter<'i, U, E, Self, F>
     where
         Self: Sized,
         F: Fn(&Self::Captured) -> bool,
     {
-        convert::verify(pred, self)
+        convert::filter(pred, self)
     }
     #[inline(always)]
-    fn verify_map<F, T>(self, filter: F) -> convert::VerifyMap<'i, U, E, Self, F, T>
+    fn filter_map<F, T>(self, filter: F) -> convert::FilterMap<'i, U, E, Self, F, T>
     where
         Self: Sized,
         F: Fn(Self::Captured) -> Option<T>,
         T: 'static + Clone,
     {
-        convert::verify_map(filter, self)
+        convert::filter_map(filter, self)
     }
 
     #[inline(always)]
