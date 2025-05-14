@@ -205,6 +205,15 @@ where
     }
 
     #[inline(always)]
+    fn trace<I>(self, info: I) -> modifier::Trace<'i, U, E, Self, I>
+    where
+        Self: Sized,
+        I: core::fmt::Display,
+    {
+        modifier::trace(info, self)
+    }
+
+    #[inline(always)]
     fn desc(self, desc: E::Description) -> modifier::Describe<'i, U, E, Self>
     where
         Self: Sized,
