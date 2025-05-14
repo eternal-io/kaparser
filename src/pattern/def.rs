@@ -12,6 +12,7 @@ pub const fn line_end<'i, E: Situation>() -> Compound<'i, str, E, (Optional<'i, 
     com!(opt("\r"), "\n")
 }
 
+#[inline(always)]
 pub const fn ident<'i, E: Situation>()
 -> Compound<'i, str, E, ([impl Predicate<char>; 1], Take0<char, impl Predicate<char>>)> {
     com!([('_', is_alpha)], take0(is_alnum))
