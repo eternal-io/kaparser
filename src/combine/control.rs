@@ -145,7 +145,7 @@ where
             }
         } else {
             for ((off, expected), item) in self.slice.iter_indices().zip(slice.iter()) {
-                if item != expected {
+                if !U::eq_ignore_ascii_case(item, expected) {
                     return E::raise_reject_at(off);
                 }
             }
