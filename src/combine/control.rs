@@ -1,5 +1,18 @@
 use super::*;
 
+pub struct EOF;
+pub struct Halt;
+pub struct Reject;
+pub struct TODO;
+
+#[inline(always)]
+pub const fn igc<U>(slice: &U) -> IgnoreCase<U>
+where
+    U: ?Sized + SliceAscii,
+{
+    IgnoreCase { slice }
+}
+
 #[inline(always)]
 pub const fn cut<'i, U, E, P>(body: P) -> Cut<'i, U, E, P>
 where
@@ -29,8 +42,6 @@ where
 
 //------------------------------------------------------------------------------
 
-pub struct EOF;
-
 impl<'i, U, E> Pattern<'i, U, E> for EOF
 where
     U: ?Sized + Slice,
@@ -41,7 +52,6 @@ where
 
     #[inline(always)]
     fn init(&self) -> Self::Internal {}
-
     #[inline(always)]
     fn advance(&self, slice: &U, _ntry: &mut Self::Internal, eof: bool) -> Result<usize, E> {
         match slice.is_empty() && eof {
@@ -49,9 +59,103 @@ where
             false => E::raise_reject_at(0),
         }
     }
-
     #[inline(always)]
     fn extract(&self, _lice: &'i U, _ntry: Self::Internal) -> Self::Captured {}
+}
+
+impl<'i, U, E> Pattern<'i, U, E> for Halt
+where
+    U: ?Sized + Slice,
+    E: Situation,
+{
+    type Captured = ();
+    type Internal = ();
+
+    #[inline(always)]
+    fn init(&self) -> Self::Internal {}
+    #[inline(always)]
+    fn advance(&self, _lice: &U, _ntry: &mut Self::Internal, _of: bool) -> Result<usize, E> {
+        E::raise_halt_at(0)
+    }
+    #[inline(always)]
+    fn extract(&self, _lice: &'i U, _ntry: Self::Internal) -> Self::Captured {}
+}
+
+impl<'i, U, E> Pattern<'i, U, E> for Reject
+where
+    U: ?Sized + Slice,
+    E: Situation,
+{
+    type Captured = ();
+    type Internal = ();
+
+    #[inline(always)]
+    fn init(&self) -> Self::Internal {}
+    #[inline(always)]
+    fn advance(&self, _lice: &U, _ntry: &mut Self::Internal, _of: bool) -> Result<usize, E> {
+        E::raise_reject_at(0)
+    }
+    #[inline(always)]
+    fn extract(&self, _lice: &'i U, _ntry: Self::Internal) -> Self::Captured {}
+}
+
+impl<'i, U, E> Pattern<'i, U, E> for TODO
+where
+    U: ?Sized + Slice,
+    E: Situation,
+{
+    type Captured = ();
+    type Internal = ();
+
+    #[inline(always)]
+    fn init(&self) -> Self::Internal {}
+    #[inline(always)]
+    fn advance(&self, _lice: &U, _ntry: &mut Self::Internal, _of: bool) -> Result<usize, E> {
+        panic!("not yet implemented")
+    }
+    #[inline(always)]
+    fn extract(&self, _lice: &'i U, _ntry: Self::Internal) -> Self::Captured {}
+}
+
+//------------------------------------------------------------------------------
+
+pub struct IgnoreCase<'i, U>
+where
+    U: ?Sized + SliceAscii,
+{
+    slice: &'i U,
+}
+
+impl<'i, U, E> Pattern<'i, U, E> for IgnoreCase<'_, U>
+where
+    U: ?Sized + SliceAscii + 'i,
+    E: Situation,
+{
+    type Captured = &'i U;
+    type Internal = ();
+
+    #[inline(always)]
+    fn init(&self) -> Self::Internal {}
+    #[inline(always)]
+    fn advance(&self, slice: &U, _ntry: &mut Self::Internal, eof: bool) -> Result<usize, E> {
+        if slice.len() < self.slice.len() {
+            match eof {
+                true => E::raise_reject_at(slice.len()),
+                false => E::raise_unfulfilled(Some((self.slice.len() - slice.len()).try_into().unwrap())),
+            }
+        } else {
+            for ((off, expected), item) in self.slice.iter_indices().zip(slice.iter()) {
+                if item != expected {
+                    return E::raise_reject_at(off);
+                }
+            }
+            Ok(self.slice.len())
+        }
+    }
+    #[inline(always)]
+    fn extract(&self, slice: &'i U, _ntry: Self::Internal) -> Self::Captured {
+        slice.split_at(self.slice.len()).0
+    }
 }
 
 //------------------------------------------------------------------------------

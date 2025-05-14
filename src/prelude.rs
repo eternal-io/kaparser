@@ -2,7 +2,7 @@ pub use crate::{
     combine::{
         alt::alt,
         com::com,
-        control::{EOF, cond, cut},
+        control::{EOF, Halt, Reject, TODO, cond, cut, igc},
         lens::len,
         not::not,
         opt::opt,
