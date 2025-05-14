@@ -36,11 +36,11 @@ macro_rules! sps {
 
 #[doc(hidden)]
 #[macro_export]
-macro_rules! dispatch {
+macro_rules! disp {
     (   $head:expr ;
       $($case:expr => $body:expr),+ $(,)?
     ) => {
-        $crate::combine::dispatch::dispatchment::<_, _, _>((
+        $crate::combine::dispatch::dispatch::<_, _, _>((
             $head,
             ( $(
                 ($case, $body),
