@@ -1,8 +1,5 @@
 use core::ops::{Range, RangeFrom, RangeFull, RangeInclusive, RangeTo, RangeToInclusive};
 
-#[doc(inline)]
-pub use crate::all;
-
 /// Match a set of items (`char`, `u8`, `T`).
 pub trait Predicate<T>: Sized {
     fn predicate(&self, item: &T) -> bool;

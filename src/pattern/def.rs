@@ -12,37 +12,37 @@ pub const fn line_end<'i, E: Situation>() -> Compound<'i, str, E, (Optional<'i, 
     com!(opt("\r"), "\n")
 }
 
-pub const fn ident<'i, E: Situation>() -> Compound<'i, str, E, ([fn(&char) -> bool; 1], Take0<char, fn(&char) -> bool>)>
-{
-    com!([all!('_', is_alpha)], take0(is_alnum))
+pub const fn ident<'i, E: Situation>()
+-> Compound<'i, str, E, ([impl Predicate<char>; 1], Take0<char, impl Predicate<char>>)> {
+    com!([('_', is_alpha)], take0(is_alnum))
 }
 
 #[inline(always)]
 #[cfg(feature = "unicode-ident")]
 pub const fn unc_ident<'i, E: Situation>()
--> Compound<'i, str, E, ([fn(&char) -> bool; 1], Take0<char, fn(&char) -> bool>)> {
-    com!([all!('_', unc::xid_start)], take0(unc::xid_conti))
+-> Compound<'i, str, E, ([impl Predicate<char>; 1], Take0<char, impl Predicate<char>>)> {
+    com!([('_', unc::xid_start)], take0(unc::xid_conti))
 }
 
 #[inline(always)]
 pub const fn hex_<'i, E: Situation>()
--> Compound<'i, str, E, ([fn(&char) -> bool; 1], Take0<char, impl Fn(&char) -> bool>)> {
-    com!([is_hex], take0(all!('_', is_hex)))
+-> Compound<'i, str, E, ([impl Predicate<char>; 1], Take0<char, impl Predicate<char>>)> {
+    com!([is_hex], take0(('_', is_hex)))
 }
 #[inline(always)]
 pub const fn dec_<'i, E: Situation>()
--> Compound<'i, str, E, ([fn(&char) -> bool; 1], Take0<char, impl Fn(&char) -> bool>)> {
-    com!([is_dec], take0(all!('_', is_dec)))
+-> Compound<'i, str, E, ([impl Predicate<char>; 1], Take0<char, impl Predicate<char>>)> {
+    com!([is_dec], take0(('_', is_dec)))
 }
 #[inline(always)]
 pub const fn oct_<'i, E: Situation>()
--> Compound<'i, str, E, ([fn(&char) -> bool; 1], Take0<char, impl Fn(&char) -> bool>)> {
-    com!([is_oct], take0(all!('_', is_oct)))
+-> Compound<'i, str, E, ([impl Predicate<char>; 1], Take0<char, impl Predicate<char>>)> {
+    com!([is_oct], take0(('_', is_oct)))
 }
 #[inline(always)]
 pub const fn bin_<'i, E: Situation>()
--> Compound<'i, str, E, ([fn(&char) -> bool; 1], Take0<char, impl Fn(&char) -> bool>)> {
-    com!([is_bin], take0(all!('_', is_bin)))
+-> Compound<'i, str, E, ([impl Predicate<char>; 1], Take0<char, impl Predicate<char>>)> {
+    com!([is_bin], take0(('_', is_bin)))
 }
 
 macro_rules! gen_string_patterns {
@@ -54,14 +54,14 @@ macro_rules! gen_string_patterns {
       $(#[$attr])*
         #[inline(always)]
         pub const fn [<$name 0>]<'i, E: Situation>()
-           -> Opaque<'i, str, E, Take0<char, fn(&char) -> bool>>
+           -> Opaque<'i, str, E, Take0<char, impl Predicate<char>>>
             { opaque(take0([<is_ $name>])) }
 
         #[doc = "One or more ASCII " $desc ".\n\n"]
       $(#[$attr])*
         #[inline(always)]
         pub const fn [<$name 1>]<'i, E: Situation>()
-           -> Opaque<'i, str, E, RangeFrom<fn(&char) -> bool>>
+           -> Opaque<'i, str, E, RangeFrom<impl Predicate<char>>>
             { opaque(take1([<is_ $name>])) }
     )* } };
 }

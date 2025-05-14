@@ -1,22 +1,3 @@
-/// Combine predicates, produce a new predicate that accepts only these specified characters.
-#[doc(hidden)]
-#[macro_export]
-macro_rules! all {
-    ( $($preds:expr),+ $(,)? ) => {
-        move |ch: &char| all!( @ ch $($preds),+ )
-    };
-
-    ( @ $ch:ident $pred:expr, $($preds:expr),* ) => {
-        $pred.predicate($ch) || all!( @ $ch $($preds),* )
-    };
-
-    ( @ $ch:ident $pred:expr ) => {
-        $pred.predicate($ch)
-    };
-}
-
-//------------------------------------------------------------------------------
-
 /// [`Alternative`](crate::combine::alt::Alternative)
 #[doc(hidden)]
 #[macro_export]
