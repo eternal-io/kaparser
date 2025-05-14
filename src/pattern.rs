@@ -5,16 +5,16 @@ use crate::{
     predicate::*,
 };
 use core::marker::PhantomData;
+use impls::*;
+
+pub mod bin;
+pub mod def;
+pub mod impls;
 
 #[doc(inline)]
 pub use crate::token_set;
 #[doc(inline)]
 pub use impls::{opaque, simple_opaque};
-
-pub mod bin;
-pub mod def;
-pub mod impls;
-use impls::*;
 
 pub type ParseResult<T, E = SimpleError> = Result<T, E>;
 
