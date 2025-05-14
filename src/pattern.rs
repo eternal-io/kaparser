@@ -92,21 +92,21 @@ where
     //------------------------------------------------------------------------------
 
     #[inline(always)]
-    fn verify<F>(self, filter: F) -> convert::Verify<'i, U, E, Self, F>
+    fn verify<F>(self, pred: F) -> convert::Verify<'i, U, E, Self, F>
     where
         Self: Sized,
         F: Fn(Self::Captured) -> bool,
     {
-        convert::verify(filter, self)
+        convert::verify(pred, self)
     }
     #[inline(always)]
-    fn verify_map<F, T>(self, pred: F) -> convert::VerifyMap<'i, U, E, Self, F, T>
+    fn verify_map<F, T>(self, filter: F) -> convert::VerifyMap<'i, U, E, Self, F, T>
     where
         Self: Sized,
         F: Fn(Self::Captured) -> Option<T>,
         T: 'static + Clone,
     {
-        convert::verify_map(pred, self)
+        convert::verify_map(filter, self)
     }
 
     #[inline(always)]

@@ -2,7 +2,7 @@ use super::*;
 use core::mem;
 
 #[inline(always)]
-pub const fn verify<'i, U, E, P, F>(filter: F, body: P) -> Verify<'i, U, E, P, F>
+pub const fn verify<'i, U, E, P, F>(pred: F, body: P) -> Verify<'i, U, E, P, F>
 where
     U: ?Sized + Slice,
     E: Situation,
@@ -11,12 +11,12 @@ where
 {
     Verify {
         body,
-        filter,
+        pred,
         phantom: PhantomData,
     }
 }
 #[inline(always)]
-pub const fn verify_map<'i, U, E, P, F, T>(pred: F, body: P) -> VerifyMap<'i, U, E, P, F, T>
+pub const fn verify_map<'i, U, E, P, F, T>(filter: F, body: P) -> VerifyMap<'i, U, E, P, F, T>
 where
     U: ?Sized + Slice,
     E: Situation,
@@ -26,7 +26,7 @@ where
 {
     VerifyMap {
         body,
-        pred,
+        filter,
         phantom: PhantomData,
     }
 }
@@ -169,7 +169,7 @@ where
     F: Fn(P::Captured) -> bool,
 {
     body: P,
-    filter: F,
+    pred: F,
     phantom: PhantomData<(&'i U, E)>,
 }
 impl<'i, U, E, P, F> Pattern<'i, U, E> for Verify<'i, U, E, P, F>
@@ -193,7 +193,7 @@ where
 
         // SAFETY: The captured is only used temporarily in this function.
         //         No leaks can occur without internal mutability.
-        match unsafe { (self.filter)(self.body.extract(mem::transmute::<&U, &'i U>(slice), entry.clone())) } {
+        match unsafe { (self.pred)(self.body.extract(mem::transmute::<&U, &'i U>(slice), entry.clone())) } {
             true => Ok(offset),
             false => E::raise_reject_at(0),
         }
@@ -213,7 +213,7 @@ where
     T: 'static + Clone,
 {
     body: P,
-    pred: F,
+    filter: F,
     phantom: PhantomData<(&'i U, E)>,
 }
 impl<'i, U, E, P, F, T> Pattern<'i, U, E> for VerifyMap<'i, U, E, P, F, T>
@@ -248,7 +248,7 @@ where
         // SAFETY: The captured is only used temporarily in this function.
         //         `T` is `'static` that outlives `'i`. No leaks can occur without internal mutability.
         *entry = Alt3::Var3(
-            (self.pred)(self.body.extract(unsafe { mem::transmute::<&U, &'i U>(slice) }, state))
+            (self.filter)(self.body.extract(unsafe { mem::transmute::<&U, &'i U>(slice) }, state))
                 .ok_or_else(|| E::reject_at(0))?,
         );
 
