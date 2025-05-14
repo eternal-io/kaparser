@@ -16,6 +16,8 @@ pub mod def;
 pub mod impls;
 use impls::*;
 
+pub type ParseResult<T, E = SimpleError> = Result<T, E>;
+
 pub trait Pattern<'i, U, E>
 where
     U: ?Sized + Slice,

@@ -51,8 +51,6 @@ pub trait Situation: Sized + Debug {
 
 //------------------------------------------------------------------------------
 
-pub type ParseResult<T, E = SimpleError> = Result<T, E>;
-
 #[derive(Debug)]
 pub struct SimpleError<D = ()>
 where
