@@ -140,19 +140,22 @@ __generate_codes! { impl_dispatchable_for_tuple ( P ~ Var ) }
 
 #[cfg(test)]
 mod tests {
-    use crate::{common::Converge, prelude::*};
+    use crate::prelude::*;
 
     #[test]
     fn disp() {
-        let pat = simple_opaque(disp! {
-            take(2, ..);
-            "0x" => def::hex_().verify_map(|s| u64::from_str_radix(s, 16).ok()),
-            "0o" => def::oct_().verify_map(|s| u64::from_str_radix(s, 8).ok()),
-            "0b" => def::bin_().verify_map(|s| u64::from_str_radix(s, 2).ok()),
-        });
+        let pat = simple_opaque(
+            disp! {
+                take(2, ..);
+                "0x" => def::hex_().verify_map(|s| u64::from_str_radix(s, 16).ok()),
+                "0o" => def::oct_().verify_map(|s| u64::from_str_radix(s, 8).ok()),
+                "0b" => def::bin_().verify_map(|s| u64::from_str_radix(s, 2).ok()),
+            }
+            .converge(),
+        );
 
-        assert_eq!(pat.full_match("0x89AB").unwrap().converge(), 0x89AB);
-        assert_eq!(pat.full_match("0o4567").unwrap().converge(), 0o4567);
-        assert_eq!(pat.full_match("0b1110").unwrap().converge(), 0b1110);
+        assert_eq!(pat.full_match("0x89AB").unwrap(), 0x89AB);
+        assert_eq!(pat.full_match("0o4567").unwrap(), 0o4567);
+        assert_eq!(pat.full_match("0b1110").unwrap(), 0b1110);
     }
 }

@@ -92,6 +92,15 @@ where
     //------------------------------------------------------------------------------
 
     #[inline(always)]
+    fn converge<A>(self) -> convert::Converge<'i, U, E, Self, A>
+    where
+        Self: Sized,
+        Self::Captured: Convergable<A>,
+    {
+        convert::converge(self)
+    }
+
+    #[inline(always)]
     fn verify<F>(self, pred: F) -> convert::Verify<'i, U, E, Self, F>
     where
         Self: Sized,

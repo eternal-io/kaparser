@@ -2,6 +2,20 @@ use super::*;
 use core::mem;
 
 #[inline(always)]
+pub const fn converge<'i, U, E, P, A>(body: P) -> Converge<'i, U, E, P, A>
+where
+    U: ?Sized + Slice,
+    E: Situation,
+    P: Pattern<'i, U, E>,
+    P::Captured: Convergable<A>,
+{
+    Converge {
+        body,
+        phantom: PhantomData,
+    }
+}
+
+#[inline(always)]
 pub const fn verify<'i, U, E, P, F>(pred: F, body: P) -> Verify<'i, U, E, P, F>
 where
     U: ?Sized + Slice,
@@ -175,6 +189,42 @@ where
 }
 
 //==================================================================================================
+
+pub struct Converge<'i, U, E, P, A>
+where
+    U: ?Sized + Slice,
+    E: Situation,
+    P: Pattern<'i, U, E>,
+    P::Captured: Convergable<A>,
+{
+    body: P,
+    phantom: PhantomData<(&'i U, E, A)>,
+}
+impl<'i, U, E, P, A> Pattern<'i, U, E> for Converge<'i, U, E, P, A>
+where
+    U: ?Sized + Slice,
+    E: Situation,
+    P: Pattern<'i, U, E>,
+    P::Captured: Convergable<A>,
+{
+    type Captured = A;
+    type Internal = P::Internal;
+
+    #[inline(always)]
+    fn init(&self) -> Self::Internal {
+        self.body.init()
+    }
+    #[inline(always)]
+    fn advance(&self, slice: &U, entry: &mut Self::Internal, eof: bool) -> Result<usize, E> {
+        self.body.advance(slice, entry, eof)
+    }
+    #[inline(always)]
+    fn extract(&self, slice: &'i U, entry: Self::Internal) -> Self::Captured {
+        self.body.extract(slice, entry).converge()
+    }
+}
+
+//--------------------------------------------------------------------------------------------------
 
 pub struct Verify<'i, U, E, P, F>
 where
@@ -386,7 +436,6 @@ where
     then: Q,
     phantom: PhantomData<(&'i U, E)>,
 }
-
 impl<'i, U, E, P, Q> Pattern<'i, U, E> for Complex<'i, U, E, P, Q>
 where
     U: ?Sized + Slice,

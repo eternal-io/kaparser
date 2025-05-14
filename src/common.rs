@@ -235,7 +235,7 @@ macro_rules! __generate_codes {
 pub(crate) use alts::*;
 pub(crate) use checkpoints::*;
 
-pub trait Converge<A> {
+pub trait Convergable<A> {
     fn converge(self) -> A;
 }
 
@@ -250,7 +250,7 @@ pub mod alts {
                 $VarN($GenN),
             )+ }
 
-            impl<A> Converge<A> for [<Alt $Len>]<$($ConN),+> {
+            impl<A> Convergable<A> for [<Alt $Len>]<$($ConN),+> {
                 #[inline(always)]
                 fn converge(self) -> A {
                     match self { $(
