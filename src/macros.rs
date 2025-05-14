@@ -40,7 +40,7 @@ macro_rules! disp {
     (   $head:expr ;
       $($case:expr => $body:expr),+ $(,)?
     ) => {
-        $crate::combine::dispatch::dispatch::<_, _, _>((
+        $crate::combine::disp::dispatch::<_, _, _>((
             $head,
             ( $(
                 ($case, $body),
