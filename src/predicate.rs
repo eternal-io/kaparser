@@ -84,8 +84,8 @@ impl_predicate_for_primitives! {
 //------------------------------------------------------------------------------
 
 macro_rules! impl_predicate_for_tuple {
-    ( $( $OrdN:ident ~ $IdxN:tt )+ ) => {
-        impl<T, $($OrdN: Predicate<T>),+> Predicate<T> for ($($OrdN,)+) {
+    ( $Len:literal, $($OrdN:literal ~ ($GenN:ident) ~ $_gen:ident ~ $_con:ident ~ $IdxN:tt)+ ) => {
+        impl<T, $($GenN: Predicate<T>),+> Predicate<T> for ($($GenN,)+) {
             #[inline(always)]
             fn predicate(&self, item: &T) -> bool {
                 impl_predicate_for_tuple!( @ self item $($IdxN),+ )
@@ -102,39 +102,7 @@ macro_rules! impl_predicate_for_tuple {
     };
 }
 
-macro_rules! impl_predicate_for_tuples {
-    ( $GenK:ident ~ $IdxK:tt $( $GenN:ident ~ $IdxN:tt )* ) => {
-        impl_predicate_for_tuples!( @                   $GenK ~ $IdxK ; $($GenN ~ $IdxN)* );
-    };
-
-    ( @ $( $GenN:ident ~ $IdxN:tt )+ ; $GenK:ident ~ $IdxK:tt $( $GenM:ident ~ $IdxM:tt )* ) => {
-        impl_predicate_for_tuple!( $($GenN ~ $IdxN)+ );
-        impl_predicate_for_tuples!( @ $($GenN ~ $IdxN)+ $GenK ~ $IdxK ; $($GenM ~ $IdxM)* );
-    };
-
-    ( @ $( $GenN:ident ~ $IdxN:tt )+ ; ) => {
-        impl_predicate_for_tuple!( $($GenN ~ $IdxN)+ );
-    };
-}
-
-impl_predicate_for_tuples! {
-    P1  ~ 0
-    P2  ~ 1
-    P3  ~ 2
-    P4  ~ 3
-    P5  ~ 4
-    P6  ~ 5
-    P7  ~ 6
-    P8  ~ 7
-    P9  ~ 8
-    P10 ~ 9
-    P11 ~ 10
-    P12 ~ 11
-    P13 ~ 12
-    P14 ~ 13
-    P15 ~ 14
-    P16 ~ 15
-}
+__generate_codes! { impl_predicate_for_tuple ( P ) }
 
 //------------------------------------------------------------------------------
 

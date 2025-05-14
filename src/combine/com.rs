@@ -67,7 +67,7 @@ where
 }
 
 macro_rules! impl_compoundable_for_tuple {
-    ( $( $GenN:ident ~ $IdxN:tt )+ ) => { paste::paste! {
+    ( $Len:literal, $($OrdN:literal ~ ($GenN:ident) ~ $_gen:ident ~ $_con:ident ~ $IdxN:tt)+ ) => { paste::paste! {
         impl<'i, U, E, $($GenN: Pattern<'i, U, E>),+> Compoundable<'i, U, E> for ($($GenN,)+)
         where
             U: ?Sized + Slice + 'i,
@@ -102,51 +102,7 @@ macro_rules! impl_compoundable_for_tuple {
     } };
 }
 
-macro_rules! impl_compoundable_for_tuples {
-    (      $OrdK:literal ~ $IdxK:tt
-        $( $OrdM:literal ~ $IdxM:tt )*
-    ) => {
-        impl_compoundable_for_tuples! { @
-              $OrdK ~ $IdxK ;
-            $($OrdM ~ $IdxM)*
-        }
-    };
-
-    ( @ $( $OrdN:literal ~ $IdxN:tt )+ ;
-           $OrdK:literal ~ $IdxK:tt
-        $( $OrdM:literal ~ $IdxM:tt )*
-    ) => { paste::paste! {
-        impl_compoundable_for_tuple!( $([<P $OrdN>] ~ $IdxN)+ );
-
-        impl_compoundable_for_tuples! { @
-            $($OrdN ~ $IdxN)+
-              $OrdK ~ $IdxK ;
-            $($OrdM ~ $IdxM)*
-        }
-    } };
-
-    ( @ $( $OrdN:literal ~ $IdxN:tt )+ ; ) => {};
-}
-
-impl_compoundable_for_tuples! {
-    1  ~ 0
-    2  ~ 1
-    3  ~ 2
-    4  ~ 3
-    5  ~ 4
-    6  ~ 5
-    7  ~ 6
-    8  ~ 7
-    9  ~ 8
-    10 ~ 9
-    11 ~ 10
-    12 ~ 11
-    13 ~ 12
-    14 ~ 13
-    15 ~ 14
-    16 ~ 15
-    17 ~ 16
-}
+__generate_codes! { impl_compoundable_for_tuple ( P ) }
 
 //------------------------------------------------------------------------------
 

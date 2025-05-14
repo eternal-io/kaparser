@@ -148,6 +148,104 @@ mod urange_bounds {
 
 //------------------------------------------------------------------------------
 
+/// `Lens1X` means `LenX - 1`. Always `N < K < M`.
+/// `Gen` means "Generic". "Con" means "Converge".
+macro_rules! __generate_codes {
+    ( $callback:ident $(($($custom:ident) ~ +))? ) => { paste::paste! {
+        __generate_codes! {
+          @ $callback ;
+            0  ~ 1  $(~ ($([< $custom 1  >]) ~ +))? ~ A ~ X ~ 0
+            1  ~ 2  $(~ ($([< $custom 2  >]) ~ +))? ~ B ~ X ~ 1
+            2  ~ 3  $(~ ($([< $custom 3  >]) ~ +))? ~ C ~ X ~ 2
+            3  ~ 4  $(~ ($([< $custom 4  >]) ~ +))? ~ D ~ X ~ 3
+            4  ~ 5  $(~ ($([< $custom 5  >]) ~ +))? ~ E ~ X ~ 4
+            5  ~ 6  $(~ ($([< $custom 6  >]) ~ +))? ~ F ~ X ~ 5
+            6  ~ 7  $(~ ($([< $custom 7  >]) ~ +))? ~ G ~ X ~ 6
+            7  ~ 8  $(~ ($([< $custom 8  >]) ~ +))? ~ H ~ X ~ 7
+            8  ~ 9  $(~ ($([< $custom 9  >]) ~ +))? ~ I ~ X ~ 8
+            9  ~ 10 $(~ ($([< $custom 10 >]) ~ +))? ~ J ~ X ~ 9
+            10 ~ 11 $(~ ($([< $custom 11 >]) ~ +))? ~ K ~ X ~ 10
+            11 ~ 12 $(~ ($([< $custom 12 >]) ~ +))? ~ L ~ X ~ 11
+            12 ~ 13 $(~ ($([< $custom 13 >]) ~ +))? ~ M ~ X ~ 12
+            13 ~ 14 $(~ ($([< $custom 14 >]) ~ +))? ~ N ~ X ~ 13
+            14 ~ 15 $(~ ($([< $custom 15 >]) ~ +))? ~ O ~ X ~ 14
+            15 ~ 16 $(~ ($([< $custom 16 >]) ~ +))? ~ P ~ X ~ 15
+            16 ~ 17 $(~ ($([< $custom 17 >]) ~ +))? ~ Q ~ X ~ 16
+            17 ~ 18 $(~ ($([< $custom 18 >]) ~ +))? ~ R ~ X ~ 17
+            18 ~ 19 $(~ ($([< $custom 19 >]) ~ +))? ~ S ~ X ~ 18
+            19 ~ 20 $(~ ($([< $custom 20 >]) ~ +))? ~ T ~ X ~ 19
+            20 ~ 21 $(~ ($([< $custom 21 >]) ~ +))? ~ U ~ X ~ 20
+            21 ~ 22 $(~ ($([< $custom 22 >]) ~ +))? ~ V ~ X ~ 21
+            22 ~ 23 $(~ ($([< $custom 23 >]) ~ +))? ~ W ~ X ~ 22
+        }
+    } };
+
+    ( @ $callback:ident ;
+        $Lens1K:literal ~ $OrdK:literal $(~ ($($CusK:ident) ~ +))? ~ $GenK:ident ~ $ConK:ident ~ $IdxK:tt
+      $($Lens1M:literal ~ $OrdM:literal $(~ ($($CusM:ident) ~ +))? ~ $GenM:ident ~ $ConM:ident ~ $IdxM:tt)*
+    ) => {
+        __generate_codes! {
+          @ $callback ;
+            $Lens1K ~ $OrdK $(~ ($($CusK) ~ +))? ~ $GenK ~ $ConK ~ $IdxK ;
+          $($Lens1M ~ $OrdM $(~ ($($CusM) ~ +))? ~ $GenM ~ $ConM ~ $IdxM)*
+        }
+    };
+
+    ( @ $callback:ident ;
+      $($Lens1N:literal ~ $OrdN:literal $(~ ($($CusN:ident) ~ +))? ~ $GenN:ident ~ $ConN:ident ~ $IdxN:tt)+ ;
+        $Lens1K:literal ~ $OrdK:literal $(~ ($($CusK:ident) ~ +))? ~ $GenK:ident ~ $ConK:ident ~ $IdxK:tt
+      $($Lens1M:literal ~ $OrdM:literal $(~ ($($CusM:ident) ~ +))? ~ $GenM:ident ~ $ConM:ident ~ $IdxM:tt)*
+    ) => {
+        $callback!( $Lens1K, $($OrdN $(~ ($($CusN) ~ +))? ~ $GenN ~ $ConN ~ $IdxN)+ );
+        __generate_codes! {
+          @ $callback ;
+          $($Lens1N ~ $OrdN $(~ ($($CusN) ~ +))? ~ $GenN ~ $ConN ~ $IdxN)+
+            $Lens1K ~ $OrdK $(~ ($($CusK) ~ +))? ~ $GenK ~ $ConK ~ $IdxK ;
+          $($Lens1M ~ $OrdM $(~ ($($CusM) ~ +))? ~ $GenM ~ $ConM ~ $IdxM)*
+        }
+    };
+
+    ( @ $callback:ident ;
+      $($Lens1N:literal ~ $OrdN:literal $(~ ($($CusN:ident) ~ +))? ~ $GenN:ident ~ $ConN:ident ~ $IdxN:tt)+ ;
+    ) => {};
+}
+
+//------------------------------------------------------------------------------
+
+pub(crate) use alts::*;
+pub(crate) use checkpoints::*;
+
+pub mod alts {
+    macro_rules! gen_alternative {
+        ( $Len:literal, $($OrdN:literal ~ $GenN:ident ~ $ConN:ident ~ $IdxN:tt)+ ) => { paste::paste! {
+            #[derive(Debug, Clone, PartialEq, Eq, PartialOrd, Ord)]
+            pub enum [<Alt $Len>]<$($GenN),+> { $(
+            #[doc = "Variant " $OrdN " of " $Len "."]
+                [<Var $OrdN>]($GenN),
+            )+ }
+        } }
+    }
+
+    __generate_codes! { gen_alternative }
+}
+
+#[doc(hidden)]
+pub mod checkpoints {
+    macro_rules! gen_checkpoint {
+        ( $Len:literal, $($OrdN:literal ~ $GenN:ident ~ $ConN:ident ~ $IdxN:tt)+ ) => { paste::paste! {
+            #[doc(hidden)]
+            #[derive(Clone)]
+            pub enum [<Check $Len>] { $(
+                [<Point $OrdN>],
+            )+ }
+        } }
+    }
+
+    __generate_codes! { gen_checkpoint }
+}
+
+//------------------------------------------------------------------------------
+
 macro_rules! __resume_advance {
     (      $Ent:expr ;
         $( $CaseN:pat => $TurnN:block $ProcN:block )+
@@ -224,123 +322,5 @@ macro_rules! __resume_advance {
             }
         }
         $ProcK
-    }
-}
-
-//------------------------------------------------------------------------------
-
-macro_rules! gen_checkpoints {
-    (      $Lens1K:literal ~ $OrdK:tt
-        $( $Lens1M:literal ~ $OrdM:tt )*
-    ) => {
-        gen_checkpoints! { @
-              $Lens1K ~ $OrdK ;
-            $($Lens1M ~ $OrdM)*
-        }
-    };
-
-    ( @ $( $Lens1N:literal ~ $OrdN:tt )+ ;
-           $Lens1K:literal ~ $OrdK:tt
-        $( $Lens1M:literal ~ $OrdM:tt )*
-    ) => { paste::paste! {
-        #[doc(hidden)]
-        #[derive(Clone)]
-        pub enum [<Check $Lens1K>] { $(
-            [<Point $OrdN>],
-        )+ }
-
-        gen_checkpoints! { @
-            $($Lens1N ~ $OrdN)+
-              $Lens1K ~ $OrdK ;
-            $($Lens1M ~ $OrdM)*
-        }
-    } };
-
-    ( @ $( $Lens1N:literal ~ $OrdN:tt )+ ; ) => {};
-}
-
-gen_checkpoints! {
-    0  ~ 1
-    1  ~ 2
-    2  ~ 3
-    3  ~ 4
-    4  ~ 5
-    5  ~ 6
-    6  ~ 7
-    7  ~ 8
-    8  ~ 9
-    9  ~ 10
-    10 ~ 11
-    11 ~ 12
-    12 ~ 13
-    13 ~ 14
-    14 ~ 15
-    15 ~ 16
-    16 ~ 17
-}
-
-//------------------------------------------------------------------------------
-
-pub(crate) use alts::*;
-
-pub mod alts {
-    /// `Lens1X` means `LenX - 1`. `Gen` means "Generic". Always `N < K < M`.
-    macro_rules! gen_alternates {
-        (      $Lens1K:literal ~ $GenK:ident ~ $ConK:ident ~ $OrdK:tt
-            $( $Lens1M:literal ~ $GenM:ident ~ $ConM:ident ~ $OrdM:tt )*
-        ) => {
-            gen_alternates! { @
-                  $Lens1K ~ $GenK ~ $ConK ~ $OrdK ;
-                $($Lens1M ~ $GenM ~ $ConM ~ $OrdM)*
-            }
-        };
-
-        ( @ $( $Lens1N:literal ~ $GenN:ident ~ $ConN:ident ~ $OrdN:tt )+ ;
-               $Lens1K:literal ~ $GenK:ident ~ $ConK:ident ~ $OrdK:tt
-            $( $Lens1M:literal ~ $GenM:ident ~ $ConM:ident ~ $OrdM:tt )*
-        ) => { paste::paste! {
-            #[derive(Debug, Clone, PartialEq, Eq, PartialOrd, Ord)]
-            pub enum [<Alt $Lens1K>]<$($GenN),+> { $(
-            #[doc = "Variant " $OrdN " of " $Lens1K "."]
-                [<Var $OrdN>]($GenN),
-            )+ }
-
-            impl<A> [<Alt $Lens1K>]<$($ConN),+> {
-                #[inline(always)]
-                pub fn converge(self) -> A {
-                    match self { $(
-                        Self::[<Var $OrdN>](v) => v,
-                    )+ }
-                }
-            }
-
-            gen_alternates! { @
-                $($Lens1N ~ $GenN ~ $ConN ~ $OrdN)+
-                  $Lens1K ~ $GenK ~ $ConK ~ $OrdK ;
-                $($Lens1M ~ $GenM ~ $ConM ~ $OrdM)*
-            }
-        } };
-
-        ( @ $( $Lens1N:literal ~ $GenN:ident ~ $ConN:ident ~ $OrdN:tt )+ ; ) => {};
-    }
-
-    gen_alternates! {
-        0  ~ A ~ A ~ 1
-        1  ~ B ~ A ~ 2
-        2  ~ C ~ A ~ 3
-        3  ~ D ~ A ~ 4
-        4  ~ E ~ A ~ 5
-        5  ~ F ~ A ~ 6
-        6  ~ G ~ A ~ 7
-        7  ~ H ~ A ~ 8
-        8  ~ I ~ A ~ 9
-        9  ~ J ~ A ~ 10
-        10 ~ K ~ A ~ 11
-        11 ~ L ~ A ~ 12
-        12 ~ M ~ A ~ 13
-        13 ~ N ~ A ~ 14
-        14 ~ O ~ A ~ 15
-        15 ~ P ~ A ~ 16
-        16 ~ Q ~ A ~ 17
     }
 }

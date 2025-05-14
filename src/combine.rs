@@ -15,6 +15,7 @@ import! {
     pub mod alt;
     pub mod com;
     pub mod seq;
+    pub mod permute;
     pub mod dispatch;
 
     pub mod take;
@@ -24,6 +25,7 @@ import! {
 
     pub mod opt;
     pub mod peek;
+    pub mod winged;
     pub mod control;
     pub mod convert;
     pub mod modifier;

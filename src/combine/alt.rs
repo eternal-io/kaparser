@@ -67,24 +67,24 @@ where
 }
 
 macro_rules! impl_alternatable_for_tuple {
-    ( $Alt:ident, $( $GenN:ident ~ $VarN:ident ~ $OrdN:literal ~ $IdxN:tt )+ ) => { paste::paste! {
+    ( $Len:literal, $($OrdN:literal ~ ($GenN:ident ~ $VarN:ident) ~ $_gen:ident ~ $_con:ident ~ $IdxN:tt)+ ) => { paste::paste! {
         impl<'i, U, E, $($GenN: Pattern<'i, U, E>),+> Alternatable<'i, U, E> for ($($GenN,)+)
         where
             U: ?Sized + Slice,
             E: Situation,
         {
-            type Captured = $Alt<$($GenN::Captured),+>;
-            type Internal = $Alt<$($GenN::Internal),+>;
+            type Captured = [<Alt $Len>]<$($GenN::Captured),+>;
+            type Internal = [<Alt $Len>]<$($GenN::Internal),+>;
 
             #[inline(always)]
             fn init_alt(&self) -> Self::Internal {
-                $Alt::Var1(self.0.init())
+                [<Alt $Len>]::Var1(self.0.init())
             }
 
             #[inline(always)]
             #[allow(irrefutable_let_patterns)]
             fn advance_alt(&self, slice: &U, entry: &mut Self::Internal, eof: bool) -> Result<usize, E> {
-                use $Alt::*;
+                use [<Alt $Len>]::*;
 
                 __resume_advance! { entry ; $(
                     $VarN(_) => {
@@ -105,7 +105,7 @@ macro_rules! impl_alternatable_for_tuple {
 
             #[inline(always)]
             fn extract_alt(&self, slice: &'i U, entry: Self::Internal) -> Self::Captured {
-                use $Alt::*;
+                use [<Alt $Len>]::*;
                 match entry { $(
                     $VarN(state) => $VarN(self.$IdxN.extract(slice, state)),
                 )+ }
@@ -114,51 +114,7 @@ macro_rules! impl_alternatable_for_tuple {
     } };
 }
 
-macro_rules! impl_alternatable_for_tuples {
-    (      $Lens1K:literal ~ $OrdK:literal ~ $IdxK:tt
-        $( $Lens1M:literal ~ $OrdM:literal ~ $IdxM:tt )*
-    ) => {
-        impl_alternatable_for_tuples! { @
-              $Lens1K ~ $OrdK ~ $IdxK ;
-            $($Lens1M ~ $OrdM ~ $IdxM)*
-        }
-    };
-
-    ( @ $( $Lens1N:literal ~ $OrdN:literal ~ $IdxN:tt )+ ;
-           $Lens1K:literal ~ $OrdK:literal ~ $IdxK:tt
-        $( $Lens1M:literal ~ $OrdM:literal ~ $IdxM:tt )*
-    ) => { paste::paste! {
-        impl_alternatable_for_tuple!( [<Alt $Lens1K>], $([<P $OrdN>] ~ [<Var $OrdN>] ~ $OrdN ~ $IdxN)+ );
-
-        impl_alternatable_for_tuples! { @
-            $($Lens1N ~ $OrdN ~ $IdxN)+
-              $Lens1K ~ $OrdK ~ $IdxK ;
-            $($Lens1M ~ $OrdM ~ $IdxM)*
-        }
-    } };
-
-    ( @ $( $Lens1N:literal ~ $OrdN:literal ~ $IdxN:tt )+ ; ) => {};
-}
-
-impl_alternatable_for_tuples! {
-    0  ~ 1  ~ 0
-    1  ~ 2  ~ 1
-    2  ~ 3  ~ 2
-    3  ~ 4  ~ 3
-    4  ~ 5  ~ 4
-    5  ~ 6  ~ 5
-    6  ~ 7  ~ 6
-    7  ~ 8  ~ 7
-    8  ~ 9  ~ 8
-    9  ~ 10 ~ 9
-    10 ~ 11 ~ 10
-    11 ~ 12 ~ 11
-    12 ~ 13 ~ 12
-    13 ~ 14 ~ 13
-    14 ~ 15 ~ 14
-    15 ~ 16 ~ 15
-    16 ~ 17 ~ 16
-}
+__generate_codes! { impl_alternatable_for_tuple ( P ~ Var ) }
 
 //------------------------------------------------------------------------------
 
