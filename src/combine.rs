@@ -2,33 +2,23 @@
 use crate::{common::*, error::*, pattern::*, predicate::*};
 use core::marker::PhantomData;
 
-macro_rules! import {
-    ($($vis:vis mod $name:ident;)*) => { $(
-        $vis mod $name;
-        #[doc(hidden)]
-        #[allow(unused_imports)]
-        pub use $name::*;
-    )* };
-}
+pub mod alt;
+pub mod com;
+pub mod disp;
+pub mod perm;
+pub mod seq;
 
-import! {
-    pub mod alt;
-    pub mod com;
-    pub mod seq;
-    pub mod disp;
-    pub mod perm;
+pub mod lens;
+pub mod repeat;
+pub mod skim;
+pub mod take;
 
-    pub mod take;
-    pub mod lens;
-    pub mod repeat;
-    pub mod skim;
+pub mod opt;
+pub mod peek;
+pub mod winged;
 
-    pub mod opt;
-    pub mod peek;
-    pub mod winged;
-    pub mod control;
-    pub mod convert;
-    pub mod modifier;
+pub mod control;
+pub mod convert;
+pub mod modifier;
 
-    pub mod not;
-}
+pub mod not;

@@ -157,5 +157,6 @@ mod tests {
         assert_eq!(pat.full_match("0x89AB").unwrap(), 0x89AB);
         assert_eq!(pat.full_match("0o4567").unwrap(), 0o4567);
         assert_eq!(pat.full_match("0b1110").unwrap(), 0b1110);
+        assert_eq!(pat.full_match("114514").unwrap_err().offset(), 0);
     }
 }

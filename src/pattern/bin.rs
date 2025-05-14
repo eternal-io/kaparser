@@ -1,8 +1,4 @@
-use crate::{
-    combine::{Lens, Map, map},
-    error::Situation,
-};
-use core::ops::RangeFull;
+use crate::{combine::convert, prelude::*};
 
 macro_rules! gen_binary_patterns {
     ( $(
@@ -12,9 +8,9 @@ macro_rules! gen_binary_patterns {
       $(#[$attr])*
         #[inline(always)]
         pub const fn [<$f _ $ty>]<'i, E: Situation>()
-            -> Map<'i, [u8], E, Lens<u8, RangeFull, E, $len>, fn([u8; $len]) -> $ty, $ty>
+            -> impl Pattern<'i, [u8], E, Captured = $ty>
         {
-            map($ty::[<from_ $f _bytes>], len!($len, ..))
+            convert::map($ty::[<from_ $f _bytes>], len!($len, ..))
         }
     )* } };
 }

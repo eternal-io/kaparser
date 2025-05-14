@@ -8,12 +8,12 @@ use core::marker::PhantomData;
 
 #[doc(inline)]
 pub use crate::token_set;
+#[doc(inline)]
 pub use impls::{opaque, simple_opaque};
 
 pub mod bin;
 pub mod def;
-
-mod impls;
+pub mod impls;
 use impls::*;
 
 pub trait Pattern<'i, U, E>

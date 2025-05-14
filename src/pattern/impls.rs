@@ -1,62 +1,21 @@
 use super::*;
 
 /// Note the generic parameter order.
-pub const fn opaque<'i, U, P, E>(body: P) -> Opaque<'i, U, E, P>
+pub const fn opaque<'i, U, C, E>(pat: impl Pattern<'i, U, E, Captured = C>) -> impl Pattern<'i, U, E, Captured = C>
 where
     U: ?Sized + Slice,
     E: Situation,
-    P: Pattern<'i, U, E>,
 {
-    Opaque {
-        body,
-        phantom: PhantomData,
-    }
+    pat
 }
 
-pub const fn simple_opaque<'i, U, P>(body: P) -> Opaque<'i, U, SimpleError, P>
+pub const fn simple_opaque<'i, U, C>(
+    pat: impl Pattern<'i, U, SimpleError, Captured = C>,
+) -> impl Pattern<'i, U, SimpleError, Captured = C>
 where
     U: ?Sized + Slice,
-    P: Pattern<'i, U, SimpleError>,
 {
-    Opaque {
-        body,
-        phantom: PhantomData,
-    }
-}
-
-//------------------------------------------------------------------------------
-
-pub struct Opaque<'i, U, E, P>
-where
-    U: ?Sized + Slice,
-    E: Situation,
-    P: Pattern<'i, U, E>,
-{
-    body: P,
-    phantom: PhantomData<(&'i U, E)>,
-}
-
-impl<'i, U, E, P> Pattern<'i, U, E> for Opaque<'i, U, E, P>
-where
-    U: ?Sized + Slice,
-    E: Situation,
-    P: Pattern<'i, U, E>,
-{
-    type Captured = P::Captured;
-    type Internal = P::Internal;
-
-    #[inline(always)]
-    fn init(&self) -> Self::Internal {
-        self.body.init()
-    }
-    #[inline(always)]
-    fn advance(&self, slice: &U, entry: &mut Self::Internal, eof: bool) -> Result<usize, E> {
-        self.body.advance(slice, entry, eof)
-    }
-    #[inline(always)]
-    fn extract(&self, slice: &'i U, entry: Self::Internal) -> Self::Captured {
-        self.body.extract(slice, entry)
-    }
+    pat
 }
 
 //------------------------------------------------------------------------------
