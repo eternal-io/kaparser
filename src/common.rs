@@ -174,29 +174,29 @@ macro_rules! __generate_codes {
     ( $callback:ident $(($($custom:ident) ~ +))? ) => { paste::paste! {
         __generate_codes! {
           @ $callback ;
-            0  ~ 1  $(~ ($([< $custom 1  >]) ~ +))? ~ A ~ X ~ 0
-            1  ~ 2  $(~ ($([< $custom 2  >]) ~ +))? ~ B ~ X ~ 1
-            2  ~ 3  $(~ ($([< $custom 3  >]) ~ +))? ~ C ~ X ~ 2
-            3  ~ 4  $(~ ($([< $custom 4  >]) ~ +))? ~ D ~ X ~ 3
-            4  ~ 5  $(~ ($([< $custom 5  >]) ~ +))? ~ E ~ X ~ 4
-            5  ~ 6  $(~ ($([< $custom 6  >]) ~ +))? ~ F ~ X ~ 5
-            6  ~ 7  $(~ ($([< $custom 7  >]) ~ +))? ~ G ~ X ~ 6
-            7  ~ 8  $(~ ($([< $custom 8  >]) ~ +))? ~ H ~ X ~ 7
-            8  ~ 9  $(~ ($([< $custom 9  >]) ~ +))? ~ I ~ X ~ 8
-            9  ~ 10 $(~ ($([< $custom 10 >]) ~ +))? ~ J ~ X ~ 9
-            10 ~ 11 $(~ ($([< $custom 11 >]) ~ +))? ~ K ~ X ~ 10
-            11 ~ 12 $(~ ($([< $custom 12 >]) ~ +))? ~ L ~ X ~ 11
-            12 ~ 13 $(~ ($([< $custom 13 >]) ~ +))? ~ M ~ X ~ 12
-            13 ~ 14 $(~ ($([< $custom 14 >]) ~ +))? ~ N ~ X ~ 13
-            14 ~ 15 $(~ ($([< $custom 15 >]) ~ +))? ~ O ~ X ~ 14
-            15 ~ 16 $(~ ($([< $custom 16 >]) ~ +))? ~ P ~ X ~ 15
-            16 ~ 17 $(~ ($([< $custom 17 >]) ~ +))? ~ Q ~ X ~ 16
-            17 ~ 18 $(~ ($([< $custom 18 >]) ~ +))? ~ R ~ X ~ 17
-            18 ~ 19 $(~ ($([< $custom 19 >]) ~ +))? ~ S ~ X ~ 18
-            19 ~ 20 $(~ ($([< $custom 20 >]) ~ +))? ~ T ~ X ~ 19
-            20 ~ 21 $(~ ($([< $custom 21 >]) ~ +))? ~ U ~ X ~ 20
-            21 ~ 22 $(~ ($([< $custom 22 >]) ~ +))? ~ V ~ X ~ 21
-            22 ~ 23 $(~ ($([< $custom 23 >]) ~ +))? ~ W ~ X ~ 22
+            0  ~ 1  $(~ ($([< $custom 1  >]) ~ +))? ~ A ~ A ~ 0
+            1  ~ 2  $(~ ($([< $custom 2  >]) ~ +))? ~ B ~ A ~ 1
+            2  ~ 3  $(~ ($([< $custom 3  >]) ~ +))? ~ C ~ A ~ 2
+            3  ~ 4  $(~ ($([< $custom 4  >]) ~ +))? ~ D ~ A ~ 3
+            4  ~ 5  $(~ ($([< $custom 5  >]) ~ +))? ~ E ~ A ~ 4
+            5  ~ 6  $(~ ($([< $custom 6  >]) ~ +))? ~ F ~ A ~ 5
+            6  ~ 7  $(~ ($([< $custom 7  >]) ~ +))? ~ G ~ A ~ 6
+            7  ~ 8  $(~ ($([< $custom 8  >]) ~ +))? ~ H ~ A ~ 7
+            8  ~ 9  $(~ ($([< $custom 9  >]) ~ +))? ~ I ~ A ~ 8
+            9  ~ 10 $(~ ($([< $custom 10 >]) ~ +))? ~ J ~ A ~ 9
+            10 ~ 11 $(~ ($([< $custom 11 >]) ~ +))? ~ K ~ A ~ 10
+            11 ~ 12 $(~ ($([< $custom 12 >]) ~ +))? ~ L ~ A ~ 11
+            12 ~ 13 $(~ ($([< $custom 13 >]) ~ +))? ~ M ~ A ~ 12
+            13 ~ 14 $(~ ($([< $custom 14 >]) ~ +))? ~ N ~ A ~ 13
+            14 ~ 15 $(~ ($([< $custom 15 >]) ~ +))? ~ O ~ A ~ 14
+            15 ~ 16 $(~ ($([< $custom 16 >]) ~ +))? ~ P ~ A ~ 15
+            16 ~ 17 $(~ ($([< $custom 17 >]) ~ +))? ~ Q ~ A ~ 16
+            17 ~ 18 $(~ ($([< $custom 18 >]) ~ +))? ~ R ~ A ~ 17
+            18 ~ 19 $(~ ($([< $custom 19 >]) ~ +))? ~ S ~ A ~ 18
+            19 ~ 20 $(~ ($([< $custom 20 >]) ~ +))? ~ T ~ A ~ 19
+            20 ~ 21 $(~ ($([< $custom 21 >]) ~ +))? ~ U ~ A ~ 20
+            21 ~ 22 $(~ ($([< $custom 22 >]) ~ +))? ~ V ~ A ~ 21
+            22 ~ 23 $(~ ($([< $custom 23 >]) ~ +))? ~ W ~ A ~ 22
         }
     } };
 
@@ -235,18 +235,33 @@ macro_rules! __generate_codes {
 pub(crate) use alts::*;
 pub(crate) use checkpoints::*;
 
+pub trait Converge<A> {
+    fn converge(self) -> A;
+}
+
 pub mod alts {
+    use super::*;
+
     macro_rules! gen_alternative {
-        ( $Len:literal, $($OrdN:literal ~ $GenN:ident ~ $ConN:ident ~ $IdxN:tt)+ ) => { paste::paste! {
+        ( $Len:literal, $($OrdN:literal ~ ($VarN:ident) ~ $GenN:ident ~ $ConN:ident ~ $IdxN:tt)+ ) => { paste::paste! {
             #[derive(Debug, Clone, PartialEq, Eq, PartialOrd, Ord)]
             pub enum [<Alt $Len>]<$($GenN),+> { $(
             #[doc = "Variant " $OrdN " of " $Len "."]
-                [<Var $OrdN>]($GenN),
+                $VarN($GenN),
             )+ }
+
+            impl<A> Converge<A> for [<Alt $Len>]<$($ConN),+> {
+                #[inline(always)]
+                fn converge(self) -> A {
+                    match self { $(
+                        Self::$VarN(v) => v,
+                    )+ }
+                }
+            }
         } }
     }
 
-    __generate_codes! { gen_alternative }
+    __generate_codes! { gen_alternative ( Var ) }
 }
 
 #[doc(hidden)]
@@ -274,8 +289,7 @@ macro_rules! __resume_advance {
             @LABELING $Ent ;
             'p1  'p2  'p3  'p4  'p5  'p6  'p7  'p8
             'p9  'p10 'p11 'p12 'p13 'p14 'p15 'p16
-            'p17 'p18 'p19 'p20 'p21 'p22 'p23 'p24
-            'p25 'p26 'p27 'p28 'p29 'p30 'p31 'p32 ;
+            'p17 'p18 'p19 'p20 'p21 'p22 'p23 'p24 ;
             $( $CaseN => $TurnN $ProcN )+ ;
         }
     };
@@ -303,7 +317,7 @@ macro_rules! __resume_advance {
         /* not enough labels */ ;
         $CaseX:pat => $( $tt:tt )*
     ) => {
-        ::core::compile_error!("too many cases, only 32 at most")
+        ::core::compile_error!("too many cases, only 24 at most")
     };
 
     ( @LABELING $Ent:expr ;
