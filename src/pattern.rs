@@ -95,7 +95,7 @@ where
     fn verify<F>(self, pred: F) -> convert::Verify<'i, U, E, Self, F>
     where
         Self: Sized,
-        F: Fn(Self::Captured) -> bool,
+        F: Fn(&Self::Captured) -> bool,
     {
         convert::verify(pred, self)
     }
@@ -125,6 +125,15 @@ where
         T: Clone,
     {
         convert::then_some(value, self)
+    }
+
+    #[inline(always)]
+    fn complex<Q>(self, then: Q) -> convert::Complex<'i, U, E, Self, Q>
+    where
+        Self: Sized,
+        Q: Pattern<'i, U, E>,
+    {
+        convert::complex(self, then)
     }
 
     #[inline(always)]
@@ -193,15 +202,6 @@ where
         Self: Sized,
     {
         modifier::parallel(self)
-    }
-
-    #[inline(always)]
-    fn complex<Q>(self, then: Q) -> modifier::Complex<'i, U, E, Self, Q>
-    where
-        Self: Sized,
-        Q: Pattern<'i, U, E>,
-    {
-        modifier::complex(self, then)
     }
 
     #[inline(always)]
