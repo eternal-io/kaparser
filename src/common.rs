@@ -1,4 +1,7 @@
-use core::ops::{Range, RangeFrom, RangeFull, RangeInclusive, RangeTo, RangeToInclusive};
+use core::{
+    mem::MaybeUninit,
+    ops::{Range, RangeFrom, RangeFull, RangeInclusive, RangeTo, RangeToInclusive},
+};
 
 #[doc(hidden)]
 pub use paste::paste;
@@ -168,6 +171,32 @@ mod urange_bounds {
 
 //------------------------------------------------------------------------------
 
+pub trait Convergable<A> {
+    fn converge(self) -> A;
+}
+
+pub trait ConvergableArray<A, const N: usize> {
+    fn converge(self) -> [A; N];
+}
+
+impl<A, C, const N: usize> ConvergableArray<A, N> for [C; N]
+where
+    C: Convergable<A>,
+{
+    #[allow(unsafe_code)]
+    fn converge(self) -> [A; N] {
+        let mut output: MaybeUninit<[A; N]> = MaybeUninit::uninit();
+        for (i, a) in self.into_iter().enumerate() {
+            unsafe {
+                (&raw mut (*output.as_mut_ptr())[i]).write(a.converge());
+            }
+        }
+        unsafe { output.assume_init() }
+    }
+}
+
+//------------------------------------------------------------------------------
+
 /// `Lens1X` means `LenX - 1`. Always `N < K < M`.
 /// `Gen` means "Generic". "Con" means "Converge".
 macro_rules! __generate_codes {
@@ -234,10 +263,6 @@ macro_rules! __generate_codes {
 
 pub(crate) use alts::*;
 pub(crate) use checkpoints::*;
-
-pub trait Convergable<A> {
-    fn converge(self) -> A;
-}
 
 pub mod alts {
     use super::*;

@@ -14,6 +14,19 @@ where
         phantom: PhantomData,
     }
 }
+#[inline(always)]
+pub const fn converge_array<'i, U, E, P, A, const N: usize>(body: P) -> ConvergeArray<'i, U, E, P, A, N>
+where
+    U: ?Sized + Slice,
+    E: Situation,
+    P: Pattern<'i, U, E>,
+    P::Captured: ConvergableArray<A, N>,
+{
+    ConvergeArray {
+        body,
+        phantom: PhantomData,
+    }
+}
 
 #[inline(always)]
 pub const fn filter<'i, U, E, P, F>(pred: F, body: P) -> Filter<'i, U, E, P, F>
@@ -208,6 +221,40 @@ where
     P::Captured: Convergable<A>,
 {
     type Captured = A;
+    type Internal = P::Internal;
+
+    #[inline(always)]
+    fn init(&self) -> Self::Internal {
+        self.body.init()
+    }
+    #[inline(always)]
+    fn advance(&self, slice: &U, entry: &mut Self::Internal, eof: bool) -> Result<usize, E> {
+        self.body.advance(slice, entry, eof)
+    }
+    #[inline(always)]
+    fn extract(&self, slice: &'i U, entry: Self::Internal) -> Self::Captured {
+        self.body.extract(slice, entry).converge()
+    }
+}
+
+pub struct ConvergeArray<'i, U, E, P, A, const N: usize>
+where
+    U: ?Sized + Slice,
+    E: Situation,
+    P: Pattern<'i, U, E>,
+    P::Captured: ConvergableArray<A, N>,
+{
+    body: P,
+    phantom: PhantomData<(&'i U, E, A)>,
+}
+impl<'i, U, E, P, A, const N: usize> Pattern<'i, U, E> for ConvergeArray<'i, U, E, P, A, N>
+where
+    U: ?Sized + Slice,
+    E: Situation,
+    P: Pattern<'i, U, E>,
+    P::Captured: ConvergableArray<A, N>,
+{
+    type Captured = [A; N];
     type Internal = P::Internal;
 
     #[inline(always)]
