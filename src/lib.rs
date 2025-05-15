@@ -23,7 +23,6 @@ pub mod combine {
     pub mod com;
     pub mod seq;
     pub mod dispatch;
-    pub mod permute;
 
     pub mod lens;
     pub mod repeat;

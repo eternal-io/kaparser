@@ -122,14 +122,6 @@ where
     {
         convert::converge(self)
     }
-    #[inline(always)]
-    fn converge_array<A, const N: usize>(self) -> convert::ConvergeArray<'i, U, E, Self, A, N>
-    where
-        Self: Sized,
-        Self::Captured: ConvergableArray<A, N>,
-    {
-        convert::converge_array(self)
-    }
 
     #[inline(always)]
     fn filter<F>(self, pred: F) -> convert::Filter<'i, U, E, Self, F>

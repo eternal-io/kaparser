@@ -108,12 +108,12 @@ macro_rules! impl_dispatchable_for_tuple {
                     *entry = Alt3::Var3((offset, internal));
                 }
 
-                let Alt3::Var3((offset, entry)) = entry else {
+                let Alt3::Var3((offset, state)) = entry else {
                     panic!("contract violation")
                 };
                 let slice = slice.split_at(*offset).1;
 
-                match entry { $(
+                match state { $(
                     $VarN(state) => self.1.$IdxN.1.advance(slice, state, eof),
                 )+ }.map(|off| *offset + off)
             }
