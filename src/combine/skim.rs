@@ -1,6 +1,7 @@
 use super::*;
 use core::ops::{RangeTo, RangeToInclusive};
 
+/// The terminator is optional but also consumed.
 #[inline(always)]
 pub const fn till<T, P>(end: P) -> RangeTo<P>
 where
@@ -10,6 +11,7 @@ where
     RangeTo { end }
 }
 
+/// The terminator is required and also consumed.
 #[inline(always)]
 pub const fn until<'i, U, E, P>(end: P) -> RangeToInclusive<P>
 where
@@ -18,6 +20,22 @@ where
     P: Pattern<'i, U, E>,
 {
     RangeToInclusive { end }
+}
+
+pub const fn fast_till<U>(needle: U::Item)
+where
+    U: ?Sized + ThinSlice,
+{
+}
+
+pub const fn fast_till2() {}
+
+pub const fn fast_till3() {}
+
+pub const fn fast_until<U>(needle: &U)
+where
+    U: ?Sized + ThinSlice,
+{
 }
 
 //------------------------------------------------------------------------------
