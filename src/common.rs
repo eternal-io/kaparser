@@ -106,18 +106,18 @@ where
 
 //------------------------------------------------------------------------------
 
-pub trait SliceAscii: Slice {
+pub trait ThinSlice: Slice {
     fn eq_ignore_ascii_case(left: Self::Item, right: Self::Item) -> bool;
 }
 
-impl SliceAscii for str {
+impl ThinSlice for str {
     #[inline(always)]
     fn eq_ignore_ascii_case(left: Self::Item, right: Self::Item) -> bool {
         left.eq_ignore_ascii_case(&right)
     }
 }
 
-impl SliceAscii for [u8] {
+impl ThinSlice for [u8] {
     #[inline(always)]
     fn eq_ignore_ascii_case(left: Self::Item, right: Self::Item) -> bool {
         left.eq_ignore_ascii_case(&right)

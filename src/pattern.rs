@@ -75,7 +75,7 @@ where
     }
 
     #[inline(always)]
-    fn simple_opaque<Ui, Cap>(self) -> impl Pattern<'i, Ui, SimpleError, Captured = Cap>
+    fn opaque_simple<Ui, Cap>(self) -> impl Pattern<'i, Ui, SimpleError, Captured = Cap>
     where
         Self: Sized + Pattern<'i, Ui, SimpleError, Captured = Cap>,
         Ui: ?Sized + Slice,

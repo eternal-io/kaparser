@@ -8,7 +8,7 @@ pub struct TODO;
 #[inline(always)]
 pub const fn igc<U>(slice: &U) -> IgnoreCase<U>
 where
-    U: ?Sized + SliceAscii,
+    U: ?Sized + ThinSlice,
 {
     IgnoreCase { slice }
 }
@@ -121,14 +121,14 @@ where
 
 pub struct IgnoreCase<'i, U>
 where
-    U: ?Sized + SliceAscii,
+    U: ?Sized + ThinSlice,
 {
     slice: &'i U,
 }
 
 impl<'i, U, E> Pattern<'i, U, E> for IgnoreCase<'_, U>
 where
-    U: ?Sized + SliceAscii + 'i,
+    U: ?Sized + ThinSlice + 'i,
     E: Situation,
 {
     type Captured = &'i U;

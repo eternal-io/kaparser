@@ -151,7 +151,7 @@ mod tests {
             "0b" => def::bin_().filter_map(|s| u64::from_str_radix(s, 2).ok()),
         }
         .converge()
-        .simple_opaque();
+        .opaque_simple();
 
         assert_eq!(pat.full_match("0x89AB").unwrap(), 0x89AB);
         assert_eq!(pat.full_match("0o4567").unwrap(), 0o4567);
