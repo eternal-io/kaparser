@@ -144,15 +144,14 @@ mod tests {
 
     #[test]
     fn disp() {
-        let pat = simple_opaque(
-            disp! {
-                take(2, ..);
-                "0x" => def::hex_().filter_map(|s| u64::from_str_radix(s, 16).ok()),
-                "0o" => def::oct_().filter_map(|s| u64::from_str_radix(s, 8).ok()),
-                "0b" => def::bin_().filter_map(|s| u64::from_str_radix(s, 2).ok()),
-            }
-            .converge(),
-        );
+        let pat = disp! {
+            take(2, ..);
+            "0x" => def::hex_().filter_map(|s| u64::from_str_radix(s, 16).ok()),
+            "0o" => def::oct_().filter_map(|s| u64::from_str_radix(s, 8).ok()),
+            "0b" => def::bin_().filter_map(|s| u64::from_str_radix(s, 2).ok()),
+        }
+        .converge()
+        .simple_opaque();
 
         assert_eq!(pat.full_match("0x89AB").unwrap(), 0x89AB);
         assert_eq!(pat.full_match("0o4567").unwrap(), 0o4567);

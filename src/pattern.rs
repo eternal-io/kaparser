@@ -65,6 +65,27 @@ where
     //------------------------------------------------------------------------------
 
     #[inline(always)]
+    fn opaque<Ui, Ei, Cap>(self) -> impl Pattern<'i, Ui, Ei, Captured = Cap>
+    where
+        Self: Sized + Pattern<'i, Ui, Ei, Captured = Cap>,
+        Ui: ?Sized + Slice,
+        Ei: Situation,
+    {
+        self
+    }
+
+    #[inline(always)]
+    fn simple_opaque<Ui, Cap>(self) -> impl Pattern<'i, Ui, SimpleError, Captured = Cap>
+    where
+        Self: Sized + Pattern<'i, Ui, SimpleError, Captured = Cap>,
+        Ui: ?Sized + Slice,
+    {
+        self
+    }
+
+    //------------------------------------------------------------------------------
+
+    #[inline(always)]
     fn reiter<'p>(&'p self, slice: &'p mut &'i U) -> Reiter<'p, 'i, U, E, Self>
     where
         Self: Sized,
