@@ -14,7 +14,7 @@ pub use crate::{
         take::{take, take0, take1},
     },
     common::alts::*,
-    error::{SimpleError, Situation},
+    error::*,
     line_col::*,
     pattern::{ParseResult, Pattern, bin, def, opaque, simple_opaque, token_set},
     predicate::*,
