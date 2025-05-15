@@ -261,6 +261,14 @@ where
     {
         modifier::desc_with(f, self)
     }
+
+    #[inline(always)]
+    fn void(self) -> modifier::Void<'i, U, E, Self>
+    where
+        Self: Sized,
+    {
+        modifier::void(self)
+    }
 }
 
 //==================================================================================================

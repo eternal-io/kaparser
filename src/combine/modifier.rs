@@ -61,6 +61,19 @@ where
     }
 }
 
+#[inline(always)]
+pub const fn void<'i, U, E, P>(body: P) -> Void<'i, U, E, P>
+where
+    U: ?Sized + Slice,
+    E: Situation,
+    P: Pattern<'i, U, E>,
+{
+    Void {
+        body,
+        phantom: PhantomData,
+    }
+}
+
 //------------------------------------------------------------------------------
 
 pub struct Parallel<'i, U, E, P>
@@ -219,4 +232,37 @@ where
     fn extract(&self, slice: &'i U, entry: Self::Internal) -> Self::Captured {
         self.body.extract(slice, entry)
     }
+}
+
+//------------------------------------------------------------------------------
+
+pub struct Void<'i, U, E, P>
+where
+    U: ?Sized + Slice,
+    E: Situation,
+    P: Pattern<'i, U, E>,
+{
+    body: P,
+    phantom: PhantomData<(&'i U, E)>,
+}
+
+impl<'i, U, E, P> Pattern<'i, U, E> for Void<'i, U, E, P>
+where
+    U: ?Sized + Slice,
+    E: Situation,
+    P: Pattern<'i, U, E>,
+{
+    type Captured = ();
+    type Internal = P::Internal;
+
+    #[inline(always)]
+    fn init(&self) -> Self::Internal {
+        self.body.init()
+    }
+    #[inline(always)]
+    fn advance(&self, slice: &U, entry: &mut Self::Internal, eof: bool) -> Result<usize, E> {
+        self.body.advance(slice, entry, eof)
+    }
+    #[inline(always)]
+    fn extract(&self, _lice: &'i U, _ntry: Self::Internal) -> Self::Captured {}
 }
