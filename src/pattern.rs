@@ -13,8 +13,6 @@ pub mod impls;
 
 #[doc(inline)]
 pub use crate::token_set;
-#[doc(inline)]
-pub use impls::{opaque, opaque_simple};
 
 pub type ParseResult<T, E = SimpleError> = Result<T, E>;
 
@@ -347,22 +345,22 @@ mod tests {
 
     #[test]
     fn slice() {
-        let pat = opaque_simple("");
+        let pat = impls::opaque_simple("");
         assert!(pat.full_match("").is_ok());
         assert_eq!(pat.full_match("?").unwrap_err().offset(), 0);
         assert_eq!(pat.full_match("??").unwrap_err().offset(), 0);
 
-        let pat = opaque_simple("A");
+        let pat = impls::opaque_simple("A");
         assert_eq!(pat.full_match("").unwrap_err().offset(), 0);
         assert_eq!(pat.full_match("A").unwrap(), "A");
         assert_eq!(pat.full_match("AA").unwrap_err().offset(), 1);
 
-        let pat = opaque_simple("AB");
+        let pat = impls::opaque_simple("AB");
         assert_eq!(pat.full_match("").unwrap_err().offset(), 0);
         assert_eq!(pat.full_match("AB").unwrap(), "AB");
         assert_eq!(pat.full_match("ABCD").unwrap_err().offset(), 2);
 
-        let pat = opaque_simple("ABCD");
+        let pat = impls::opaque_simple("ABCD");
         assert_eq!(pat.full_match("").unwrap_err().offset(), 0);
         assert_eq!(pat.full_match("AB").unwrap_err().offset(), 2);
         assert_eq!(pat.full_match("ABCD").unwrap(), "ABCD");
