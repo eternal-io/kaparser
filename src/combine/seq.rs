@@ -1,11 +1,20 @@
 use super::*;
 use core::ops::Range;
 
-#[doc(inline)]
-pub use crate::{ixs, sps};
+pub const fn seq<'i, U, E, S>(seq: S) -> Sequence<'i, U, E, S>
+where
+    U: ?Sized + Slice,
+    E: Situation,
+    S: Sequencable<'i, U, E>,
+{
+    Sequence {
+        seq,
+        phantom: PhantomData,
+    }
+}
 
 #[inline(always)]
-pub const fn indexed_sequence<'i, U, E, S>(ixs: S) -> IndexedSequence<'i, U, E, S>
+pub const fn ixs<'i, U, E, S>(ixs: S) -> IndexedSequence<'i, U, E, S>
 where
     U: ?Sized + Slice,
     E: Situation,
@@ -18,7 +27,7 @@ where
 }
 
 #[inline(always)]
-pub const fn spanned_sequence<'i, U, E, S>(sps: S) -> SpannedSequence<'i, U, E, S>
+pub const fn sps<'i, U, E, S>(sps: S) -> SpannedSequence<'i, U, E, S>
 where
     U: ?Sized + Slice,
     E: Situation,
@@ -32,23 +41,72 @@ where
 
 //------------------------------------------------------------------------------
 
-macro_rules! impl_pattern_for_tuple {
+pub struct Sequence<'i, U, E, S>
+where
+    U: ?Sized + Slice,
+    E: Situation,
+    S: Sequencable<'i, U, E>,
+{
+    seq: S,
+    phantom: PhantomData<(&'i U, E)>,
+}
+
+pub trait Sequencable<'i, U, E>
+where
+    U: ?Sized + Slice,
+    E: Situation,
+{
+    type Captured;
+    type Internal: 'static + Clone;
+
+    fn init_seq(&self) -> Self::Internal;
+
+    fn advance_seq(&self, slice: &U, entry: &mut Self::Internal, eof: bool) -> Result<usize, E>;
+
+    fn extract_seq(&self, slice: &'i U, entry: Self::Internal) -> Self::Captured;
+}
+
+impl<'i, U, E, S> Pattern<'i, U, E> for Sequence<'i, U, E, S>
+where
+    U: ?Sized + Slice,
+    E: Situation,
+    S: Sequencable<'i, U, E>,
+{
+    type Captured = S::Captured;
+    type Internal = S::Internal;
+
+    #[inline(always)]
+    fn init(&self) -> Self::Internal {
+        self.seq.init_seq()
+    }
+    #[inline(always)]
+    fn advance(&self, slice: &U, entry: &mut Self::Internal, eof: bool) -> Result<usize, E> {
+        self.seq.advance_seq(slice, entry, eof)
+    }
+    #[inline(always)]
+    fn extract(&self, slice: &'i U, entry: Self::Internal) -> Self::Captured {
+        self.seq.extract_seq(slice, entry)
+    }
+}
+
+macro_rules! impl_sequencable_for_tuple {
     ( $Len:literal, $($OrdN:literal ~ ($GenN:ident ~ $ValN:ident) ~ $_gen:ident ~ $_con:ident ~ $IdxN:tt)+ ) => { paste::paste! {
-        impl<'i, U, E, $($GenN: Pattern<'i, U, E>),+> Pattern<'i, U, E> for ($($GenN,)+)
+        impl<'i, U, E, $($GenN),+> Sequencable<'i, U, E> for ($($GenN,)+)
         where
             U: ?Sized + Slice,
             E: Situation,
+          $($GenN: Pattern<'i, U, E>,)+
         {
             type Captured = ($($GenN::Captured,)+);
             type Internal = ([<Check $Len>], ($((usize, $GenN::Internal),)+));
 
             #[inline(always)]
-            fn init(&self) -> Self::Internal {
+            fn init_seq(&self) -> Self::Internal {
                 ([<Check $Len>]::Point1, ($((0, self.$IdxN.init()),)+))
             }
 
             #[inline(always)]
-            fn advance(&self, slice: &U, entry: &mut Self::Internal, eof: bool) -> Result<usize, E> {
+            fn advance_seq(&self, slice: &U, entry: &mut Self::Internal, eof: bool) -> Result<usize, E> {
                 use [<Check $Len>]::*;
                 let (checkpoint, states) = entry;
                 let mut offset = 0usize;
@@ -73,7 +131,7 @@ macro_rules! impl_pattern_for_tuple {
             }
 
             #[inline(always)]
-            fn extract(&self, slice: &'i U, entry: Self::Internal) -> Self::Captured {
+            fn extract_seq(&self, slice: &'i U, entry: Self::Internal) -> Self::Captured {
                 $(
                     let $ValN = entry.1.$IdxN;
                     let $ValN = self.$IdxN.extract(slice.split_at($ValN.0).1, $ValN.1);
@@ -84,7 +142,7 @@ macro_rules! impl_pattern_for_tuple {
     } };
 }
 
-__generate_codes! { impl_pattern_for_tuple ( P ~ val ) }
+__generate_codes! { impl_sequencable_for_tuple ( P ~ val ) }
 
 //------------------------------------------------------------------------------
 
@@ -301,9 +359,10 @@ mod tests {
     use crate::prelude::*;
 
     #[test]
-    fn seq() {
+    fn test_seq() {
         assert_eq!(
-            simple_opaque((is_bin.., is_oct.., is_hex..))
+            seq((is_bin.., is_oct.., is_hex..))
+                .opaque_simple()
                 .full_match("0123456789abcdefABCDEF")
                 .unwrap(),
             ("01", "234567", "89abcdefABCDEF")
@@ -311,9 +370,10 @@ mod tests {
     }
 
     #[test]
-    fn ixs() {
+    fn test_ixs() {
         assert_eq!(
-            simple_opaque(ixs!(is_bin.., is_oct.., is_hex..))
+            ixs((is_bin.., is_oct.., is_hex..))
+                .opaque_simple()
                 .full_match("0123456789abcdefABCDEF")
                 .unwrap(),
             ((0, "01"), (2, "234567"), (8, "89abcdefABCDEF"))
@@ -321,9 +381,10 @@ mod tests {
     }
 
     #[test]
-    fn sps() {
+    fn test_sps() {
         assert_eq!(
-            simple_opaque(sps!(is_bin.., is_oct.., is_hex..))
+            sps((is_bin.., is_oct.., is_hex..))
+                .opaque_simple()
                 .full_match("0123456789abcdefABCDEF")
                 .unwrap(),
             ((0..2, "01"), (2..8, "234567"), (8..22, "89abcdefABCDEF"))

@@ -1,39 +1,3 @@
-/// [`Alternative`](crate::combine::alt::Alternative)
-#[doc(hidden)]
-#[macro_export]
-macro_rules! alt {
-    ( $($patt:expr),+ $(,)? ) => {
-        $crate::combine::alt::alternative::<_, _, _>(( $($patt,)+ ))
-    };
-}
-
-/// [`Compound`](crate::combine::com::Compound)
-#[doc(hidden)]
-#[macro_export]
-macro_rules! com {
-    ( $($patt:expr),+ $(,)? ) => {
-        $crate::combine::com::compound::<_, _, _>(( $($patt,)+ ))
-    };
-}
-
-/// [`IndexedSequence`](crate::combine::seq::IndexedSequence)
-#[doc(hidden)]
-#[macro_export]
-macro_rules! ixs {
-    ( $($patt:expr),+ $(,)? ) => {
-        $crate::combine::seq::indexed_sequence::<_, _, _>(( $($patt,)+ ))
-    };
-}
-
-/// [`SpannedSequence`](crate::combine::seq::SpannedSequence)
-#[doc(hidden)]
-#[macro_export]
-macro_rules! sps {
-    ( $($patt:expr),+ $(,)? ) => {
-        $crate::combine::seq::spanned_sequence::<_, _, _>(( $($patt,)+ ))
-    };
-}
-
 #[doc(hidden)]
 #[macro_export]
 macro_rules! disp {
@@ -181,7 +145,7 @@ mod tests {
 
     #[test]
     fn tkst() {
-        let pat = simple_opaque(BooleanT);
+        let pat = opaque_simple(BooleanT);
         assert_eq!(pat.full_match("true").unwrap(), Boolean::True);
         assert_eq!(pat.full_match("false").unwrap(), Boolean::False);
         assert!(pat.full_match("False").is_err());

@@ -70,7 +70,7 @@ mod tests {
 
     #[test]
     fn main() {
-        let pat = simple_opaque::<[u8], _>(len!(3, 0x80..0xAA));
+        let pat = opaque_simple::<[u8], _>(len!(3, 0x80..0xAA));
         assert!(pat.full_match([0x80, 0x80, 0x80].as_ref()).is_ok());
         assert_eq!(pat.full_match([0x80, 0x80, 0x7F].as_ref()).unwrap_err().offset(), 2);
         assert_eq!(pat.full_match([0x80, 0x7F, 0x80].as_ref()).unwrap_err().offset(), 1);

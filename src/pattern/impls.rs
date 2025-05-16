@@ -9,7 +9,7 @@ where
     pat
 }
 
-pub const fn simple_opaque<'i, U, C>(
+pub const fn opaque_simple<'i, U, C>(
     pat: impl Pattern<'i, U, SimpleError, Captured = C>,
 ) -> impl Pattern<'i, U, SimpleError, Captured = C>
 where
@@ -107,7 +107,8 @@ mod tests {
     #[test]
     fn reiter() -> ParseResult<()> {
         let mut sli = ":qwer:uiop:zxcv:0000";
-        let mut pat = (":", is_alpha..).reiter(&mut sli);
+        let pat = seq((":", is_alpha..));
+        let mut pat = pat.reiter(&mut sli);
 
         assert_eq!(pat.next().unwrap()?, (":", "qwer"));
         assert_eq!(pat.next().unwrap()?, (":", "uiop"));
