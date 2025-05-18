@@ -13,7 +13,6 @@ pub mod predicate;
 pub mod prelude;
 
 #[rustfmt::skip]
-#[allow(unused_variables)]
 #[doc = include_str!("../docs/combinators.md")]
 pub mod combine {
     use crate::{common::*, prelude::*};

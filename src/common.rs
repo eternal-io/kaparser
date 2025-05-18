@@ -23,6 +23,48 @@ pub(crate) const fn cold_path() {}
 
 //------------------------------------------------------------------------------
 
+/// You can abbreviate `n..=n` to `n`.
+pub trait URangeBounds {
+    fn contains(&self, times: usize) -> bool;
+    fn unfulfilled(&self, times: usize) -> bool;
+}
+
+#[rustfmt::skip]
+mod urange_bounds {
+    use super::*;
+
+    impl URangeBounds for usize {
+        fn contains(&self, times: usize) -> bool { times == *self }
+        fn unfulfilled(&self, times: usize) -> bool { times < *self }
+    }
+    impl URangeBounds for RangeFull {
+        fn contains(&self, _t: usize) -> bool { true }
+        fn unfulfilled(&self, _t: usize) -> bool { true }
+    }
+    impl URangeBounds for RangeFrom<usize> {
+        fn contains(&self, times: usize) -> bool { self.contains(&times) }
+        fn unfulfilled(&self, _t: usize) -> bool { true }
+    }
+    impl URangeBounds for Range<usize> {
+        fn contains(&self, times: usize) -> bool { self.contains(&times) }
+        fn unfulfilled(&self, times: usize) -> bool { times + 1 < self.end }
+    }
+    impl URangeBounds for RangeTo<usize> {
+        fn contains(&self, times: usize) -> bool { self.contains(&times) }
+        fn unfulfilled(&self, times: usize) -> bool { times + 1 < self.end }
+    }
+    impl URangeBounds for RangeInclusive<usize> {
+        fn contains(&self, times: usize) -> bool { self.contains(&times) }
+        fn unfulfilled(&self, times: usize) -> bool { times < *self.end() }
+    }
+    impl URangeBounds for RangeToInclusive<usize> {
+        fn contains(&self, times: usize) -> bool { self.contains(&times) }
+        fn unfulfilled(&self, times: usize) -> bool { times < self.end }
+    }
+}
+
+//------------------------------------------------------------------------------
+
 pub trait Slice {
     type Item: Copy + PartialEq;
 
@@ -125,45 +167,136 @@ impl ThinSlice for [u8] {
 }
 
 //------------------------------------------------------------------------------
+// Reference: rust-src (str_internals)
 
-/// You can abbreviate `n..=n` to `n`.
-pub trait URangeBounds {
-    fn contains(&self, times: usize) -> bool;
-    fn unfulfilled(&self, times: usize) -> bool;
+const CONT_MASK: u8 = 0b0011_1111;
+const TAG_TWO_B: u8 = 0b1100_0000;
+const TAG_THREE_B: u8 = 0b1110_0000;
+const TAG_FOUR_B: u8 = 0b1111_0000;
+
+#[inline(always)]
+const fn encode_utf8_first_byte(ch: char) -> u8 {
+    let code = ch as u32;
+    match ch.len_utf8() {
+        1 => code as u8,
+        2 => (code >> 6 & 0x1F) as u8 | TAG_TWO_B,
+        3 => (code >> 12 & 0x0F) as u8 | TAG_THREE_B,
+        4 => (code >> 18 & 0x07) as u8 | TAG_FOUR_B,
+        _ => unreachable!(),
+    }
 }
 
-#[rustfmt::skip]
-mod urange_bounds {
-    use super::*;
+#[inline(always)]
+const fn decode_utf8_first_byte(byte: u8, width: u32) -> u32 {
+    (byte & (0x7F >> width)) as u32
+}
 
-    impl URangeBounds for usize {
-        fn contains(&self, times: usize) -> bool { times == *self }
-        fn unfulfilled(&self, times: usize) -> bool { times < *self }
+#[inline(always)]
+const fn decode_utf8_acc_cont_byte(ch: u32, byte: u8) -> u32 {
+    (ch << 6) | (byte & CONT_MASK) as u32
+}
+
+/// # SAFETY
+///
+/// The `bytes` must be valid UTF-8.
+#[inline(always)]
+#[allow(unsafe_code)]
+fn next_code_point(bytes: &[u8]) -> u32 {
+    let x = unsafe { *bytes.get_unchecked(0) };
+    if x < 128 {
+        return x as u32;
     }
-    impl URangeBounds for RangeFull {
-        fn contains(&self, _t: usize) -> bool { true }
-        fn unfulfilled(&self, _t: usize) -> bool { true }
+
+    // Multibyte case follows
+    // Decode from a byte combination out of: [[[x y] z] w]
+    let init = decode_utf8_first_byte(x, 2);
+    let y = unsafe { *bytes.get_unchecked(1) };
+    let mut ch = decode_utf8_acc_cont_byte(init, y);
+    if x >= 0xE0 {
+        // [[x y z] w] case
+        // 5th bit in 0xE0 .. 0xEF is always clear, so `init` is still valid
+        let z = unsafe { *bytes.get_unchecked(2) };
+        let y_z = decode_utf8_acc_cont_byte((y & CONT_MASK) as u32, z);
+        ch = init << 12 | y_z;
+        if x >= 0xF0 {
+            // [x y z w] case
+            // use only the lower 3 bits of `init`
+            let w = unsafe { *bytes.get_unchecked(3) };
+            ch = (init & 7) << 18 | decode_utf8_acc_cont_byte(y_z, w);
+        }
     }
-    impl URangeBounds for RangeFrom<usize> {
-        fn contains(&self, times: usize) -> bool { self.contains(&times) }
-        fn unfulfilled(&self, _t: usize) -> bool { true }
+
+    ch
+}
+
+#[inline(always)]
+pub(crate) fn memchr_utf8(needle: char, haystack: &str) -> Option<usize> {
+    let haystack = haystack.as_bytes();
+    let indicator = encode_utf8_first_byte(needle);
+    while let Some(pos) = memchr::memchr(indicator, haystack) {
+        if next_code_point(&haystack[pos..]) == needle as u32 {
+            return Some(pos);
+        }
     }
-    impl URangeBounds for Range<usize> {
-        fn contains(&self, times: usize) -> bool { self.contains(&times) }
-        fn unfulfilled(&self, times: usize) -> bool { times + 1 < self.end }
+    None
+}
+#[inline(always)]
+pub(crate) fn memchr2_utf8(needle1: char, needle2: char, haystack: &str) -> Option<(usize, char)> {
+    let haystack = haystack.as_bytes();
+    let indicator1 = encode_utf8_first_byte(needle1);
+    let indicator2 = encode_utf8_first_byte(needle2);
+    while let Some(pos) = memchr::memchr2(indicator1, indicator2, haystack) {
+        return Some(match next_code_point(&haystack[pos..]) {
+            needle if needle == needle1 as u32 => (pos, needle1),
+            needle if needle == needle2 as u32 => (pos, needle2),
+            _ => continue,
+        })
     }
-    impl URangeBounds for RangeTo<usize> {
-        fn contains(&self, times: usize) -> bool { self.contains(&times) }
-        fn unfulfilled(&self, times: usize) -> bool { times + 1 < self.end }
+    None
+}
+#[inline(always)]
+pub(crate) fn memchr3_utf8(needle1: char, needle2: char, needle3: char, haystack: &str) -> Option<(usize, char)> {
+    let haystack = haystack.as_bytes();
+    let indicator1 = encode_utf8_first_byte(needle1);
+    let indicator2 = encode_utf8_first_byte(needle2);
+    let indicator3 = encode_utf8_first_byte(needle3);
+    while let Some(pos) = memchr::memchr3(indicator1, indicator2, indicator3, haystack) {
+        return Some(match next_code_point(&haystack[pos..]) {
+            needle if needle == needle1 as u32 => (pos, needle1),
+            needle if needle == needle2 as u32 => (pos, needle2),
+            needle if needle == needle3 as u32 => (pos, needle3),
+            _ => continue,
+        });
     }
-    impl URangeBounds for RangeInclusive<usize> {
-        fn contains(&self, times: usize) -> bool { self.contains(&times) }
-        fn unfulfilled(&self, times: usize) -> bool { times < *self.end() }
-    }
-    impl URangeBounds for RangeToInclusive<usize> {
-        fn contains(&self, times: usize) -> bool { self.contains(&times) }
-        fn unfulfilled(&self, times: usize) -> bool { times < self.end }
-    }
+    None
+}
+
+pub(crate) use memchr::memmem;
+
+#[inline(always)]
+pub(crate) fn memchr(needle: u8, haystack: &[u8]) -> Option<usize> {
+    memchr::memchr(needle, haystack)
+}
+#[inline(always)]
+#[allow(unsafe_code)]
+pub(crate) fn memchr2(needle1: u8, needle2: u8, haystack: &[u8]) -> Option<(usize, u8)> {
+    let pos = memchr::memchr2(needle1, needle2, haystack)?;
+    Some(match haystack[pos] {
+        needle if needle == needle1 => (pos, needle1),
+        needle if needle == needle2 => (pos, needle2),
+        _ => unsafe { core::hint::unreachable_unchecked() },
+    })
+}
+#[inline(always)]
+#[allow(unsafe_code)]
+pub(crate) fn memchr3(needle1: u8, needle2: u8, needle3: u8, haystack: &[u8]) -> Option<(usize, u8)> {
+    let pos = memchr::memchr3(needle1, needle2, needle3, haystack)?;
+    Some(match haystack[pos] {
+        needle if needle == needle1 => (pos, needle1),
+        needle if needle == needle2 => (pos, needle2),
+        needle if needle == needle3 => (pos, needle3),
+        _ => unsafe { core::hint::unreachable_unchecked() },
+    })
 }
 
 //------------------------------------------------------------------------------
