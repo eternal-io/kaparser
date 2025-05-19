@@ -76,8 +76,8 @@ pub trait Slice {
     }
 
     fn split_at(&self, mid: usize) -> (&Self, &Self);
-    fn iter(&self) -> impl Iterator<Item = Self::Item>;
-    fn iter_indices(&self) -> impl Iterator<Item = (usize, Self::Item)>;
+    fn iter(&self) -> impl Iterator<Item = Self::Item> + DoubleEndedIterator;
+    fn iter_indices(&self) -> impl Iterator<Item = (usize, Self::Item)> + DoubleEndedIterator;
     fn first(&self) -> Option<Self::Item> {
         self.iter().next()
     }
@@ -104,11 +104,11 @@ impl Slice for str {
         (*self).split_at(mid)
     }
     #[inline(always)]
-    fn iter(&self) -> impl Iterator<Item = Self::Item> {
+    fn iter(&self) -> impl Iterator<Item = Self::Item> + DoubleEndedIterator {
         self.chars()
     }
     #[inline(always)]
-    fn iter_indices(&self) -> impl Iterator<Item = (usize, Self::Item)> {
+    fn iter_indices(&self) -> impl Iterator<Item = (usize, Self::Item)> + DoubleEndedIterator {
         self.char_indices()
     }
 }
@@ -137,11 +137,11 @@ where
         (*self).split_at(mid)
     }
     #[inline(always)]
-    fn iter(&self) -> impl Iterator<Item = Self::Item> {
+    fn iter(&self) -> impl Iterator<Item = Self::Item> + DoubleEndedIterator {
         (*self).iter().copied()
     }
     #[inline(always)]
-    fn iter_indices(&self) -> impl Iterator<Item = (usize, Self::Item)> {
+    fn iter_indices(&self) -> impl Iterator<Item = (usize, Self::Item)> + DoubleEndedIterator {
         (*self).iter().copied().enumerate()
     }
 }
