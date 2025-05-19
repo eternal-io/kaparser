@@ -63,7 +63,7 @@ where
         {
             Some((off, item)) => {
                 *entry += off;
-                Ok(*entry + slice.len_of(item))
+                Ok(*entry + U::len_of(item))
             }
             None => {
                 *entry = slice.len();
@@ -110,7 +110,7 @@ where
                     }
                 }
             }
-            *offset += slice.len_of(item);
+            *offset += U::len_of(item);
         }
 
         match eof {

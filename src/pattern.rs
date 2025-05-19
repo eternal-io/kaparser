@@ -321,7 +321,7 @@ where
     fn advance(&self, slice: &U, _ntry: &mut Self::Internal, eof: bool) -> Result<usize, E> {
         match slice.first() {
             Some(item) => match self[0].predicate(&item) {
-                true => Ok(slice.len_of(item)),
+                true => Ok(U::len_of(item)),
                 false => E::raise_reject_at(0),
             },
             None => match eof {

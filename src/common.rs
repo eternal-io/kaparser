@@ -69,7 +69,7 @@ pub trait Slice {
     type Item: Copy + PartialEq;
 
     fn len(&self) -> usize;
-    fn len_of(&self, item: Self::Item) -> usize;
+    fn len_of(item: Self::Item) -> usize;
     fn starts_with(&self, prefix: &Self) -> bool;
     fn is_empty(&self) -> bool {
         self.len() == 0
@@ -91,7 +91,7 @@ impl Slice for str {
         (*self).len()
     }
     #[inline(always)]
-    fn len_of(&self, item: Self::Item) -> usize {
+    fn len_of(item: Self::Item) -> usize {
         item.len_utf8()
     }
     #[inline(always)]
@@ -124,7 +124,7 @@ where
         (*self).len()
     }
     #[inline(always)]
-    fn len_of(&self, _tem: Self::Item) -> usize {
+    fn len_of(_tem: Self::Item) -> usize {
         1
     }
     #[inline(always)]
@@ -150,6 +150,12 @@ where
 
 pub trait ThinSlice: Slice {
     fn eq_ignore_ascii_case(left: Self::Item, right: Self::Item) -> bool;
+
+    fn memchr(&self, needle: Self::Item) -> Option<usize>;
+    fn memchr2(&self, needle1: Self::Item, needle2: Self::Item) -> Option<(usize, Self::Item)>;
+    fn memchr3(&self, needle1: Self::Item, needle2: Self::Item, needle3: Self::Item) -> Option<(usize, Self::Item)>;
+
+    fn memmem(&self, slice: &Self) -> Option<usize>;
 }
 
 impl ThinSlice for str {
@@ -157,12 +163,48 @@ impl ThinSlice for str {
     fn eq_ignore_ascii_case(left: Self::Item, right: Self::Item) -> bool {
         left.eq_ignore_ascii_case(&right)
     }
+
+    #[inline(always)]
+    fn memchr(&self, needle: Self::Item) -> Option<usize> {
+        memchr_utf8(needle, self)
+    }
+    #[inline(always)]
+    fn memchr2(&self, needle1: Self::Item, needle2: Self::Item) -> Option<(usize, Self::Item)> {
+        memchr2_utf8(needle1, needle2, self)
+    }
+    #[inline(always)]
+    fn memchr3(&self, needle1: Self::Item, needle2: Self::Item, needle3: Self::Item) -> Option<(usize, Self::Item)> {
+        memchr3_utf8(needle1, needle2, needle3, self)
+    }
+
+    #[inline(always)]
+    fn memmem(&self, needle: &Self) -> Option<usize> {
+        memchr::memmem::find(self.as_bytes(), needle.as_bytes())
+    }
 }
 
 impl ThinSlice for [u8] {
     #[inline(always)]
     fn eq_ignore_ascii_case(left: Self::Item, right: Self::Item) -> bool {
         left.eq_ignore_ascii_case(&right)
+    }
+
+    #[inline(always)]
+    fn memchr(&self, needle: Self::Item) -> Option<usize> {
+        memchr(needle, self)
+    }
+    #[inline(always)]
+    fn memchr2(&self, needle1: Self::Item, needle2: Self::Item) -> Option<(usize, Self::Item)> {
+        memchr2(needle1, needle2, self)
+    }
+    #[inline(always)]
+    fn memchr3(&self, needle1: Self::Item, needle2: Self::Item, needle3: Self::Item) -> Option<(usize, Self::Item)> {
+        memchr3(needle1, needle2, needle3, self)
+    }
+
+    #[inline(always)]
+    fn memmem(&self, needle: &Self) -> Option<usize> {
+        memchr::memmem::find(self, needle)
     }
 }
 
@@ -230,7 +272,7 @@ fn next_code_point(bytes: &[u8]) -> u32 {
 }
 
 #[inline(always)]
-pub(crate) fn memchr_utf8(needle: char, haystack: &str) -> Option<usize> {
+fn memchr_utf8(needle: char, haystack: &str) -> Option<usize> {
     let haystack = haystack.as_bytes();
     let indicator = encode_utf8_first_byte(needle);
     while let Some(pos) = memchr::memchr(indicator, haystack) {
@@ -241,7 +283,7 @@ pub(crate) fn memchr_utf8(needle: char, haystack: &str) -> Option<usize> {
     None
 }
 #[inline(always)]
-pub(crate) fn memchr2_utf8(needle1: char, needle2: char, haystack: &str) -> Option<(usize, char)> {
+fn memchr2_utf8(needle1: char, needle2: char, haystack: &str) -> Option<(usize, char)> {
     let haystack = haystack.as_bytes();
     let indicator1 = encode_utf8_first_byte(needle1);
     let indicator2 = encode_utf8_first_byte(needle2);
@@ -250,12 +292,12 @@ pub(crate) fn memchr2_utf8(needle1: char, needle2: char, haystack: &str) -> Opti
             needle if needle == needle1 as u32 => (pos, needle1),
             needle if needle == needle2 as u32 => (pos, needle2),
             _ => continue,
-        })
+        });
     }
     None
 }
 #[inline(always)]
-pub(crate) fn memchr3_utf8(needle1: char, needle2: char, needle3: char, haystack: &str) -> Option<(usize, char)> {
+fn memchr3_utf8(needle1: char, needle2: char, needle3: char, haystack: &str) -> Option<(usize, char)> {
     let haystack = haystack.as_bytes();
     let indicator1 = encode_utf8_first_byte(needle1);
     let indicator2 = encode_utf8_first_byte(needle2);
@@ -271,15 +313,13 @@ pub(crate) fn memchr3_utf8(needle1: char, needle2: char, needle3: char, haystack
     None
 }
 
-pub(crate) use memchr::memmem;
-
 #[inline(always)]
-pub(crate) fn memchr(needle: u8, haystack: &[u8]) -> Option<usize> {
+fn memchr(needle: u8, haystack: &[u8]) -> Option<usize> {
     memchr::memchr(needle, haystack)
 }
 #[inline(always)]
 #[allow(unsafe_code)]
-pub(crate) fn memchr2(needle1: u8, needle2: u8, haystack: &[u8]) -> Option<(usize, u8)> {
+fn memchr2(needle1: u8, needle2: u8, haystack: &[u8]) -> Option<(usize, u8)> {
     let pos = memchr::memchr2(needle1, needle2, haystack)?;
     Some(match haystack[pos] {
         needle if needle == needle1 => (pos, needle1),
@@ -289,7 +329,7 @@ pub(crate) fn memchr2(needle1: u8, needle2: u8, haystack: &[u8]) -> Option<(usiz
 }
 #[inline(always)]
 #[allow(unsafe_code)]
-pub(crate) fn memchr3(needle1: u8, needle2: u8, needle3: u8, haystack: &[u8]) -> Option<(usize, u8)> {
+fn memchr3(needle1: u8, needle2: u8, needle3: u8, haystack: &[u8]) -> Option<(usize, u8)> {
     let pos = memchr::memchr3(needle1, needle2, needle3, haystack)?;
     Some(match haystack[pos] {
         needle if needle == needle1 => (pos, needle1),

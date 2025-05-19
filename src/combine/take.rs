@@ -74,7 +74,7 @@ where
             .take_while(|(i, (_, ch))| self.range.unfulfilled(*times + *i) && self.predicate.predicate(ch))
             .last()
         {
-            *offset += off + slice.len_of(item);
+            *offset += off + U::len_of(item);
             *times += i + 1;
         }
 
