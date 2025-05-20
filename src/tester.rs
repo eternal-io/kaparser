@@ -10,7 +10,7 @@ pub fn test_full_match<'i, Cap: Debug + PartialEq>(
     pattern: impl Pattern<'i, str, SimpleError, Captured = Cap>,
     samples: FullMatchSamples<Cap>,
 ) {
-    let mut err_flag = false;
+    let mut ok_flag = true;
 
     for (slice, expected) in samples.into_iter() {
         match pattern.full_match(slice) {
@@ -35,17 +35,17 @@ pub fn test_full_match<'i, Cap: Debug + PartialEq>(
             },
         }
 
-        err_flag = true;
+        ok_flag = false;
     }
 
-    assert!(err_flag);
+    assert!(ok_flag);
 }
 
 pub fn test_partial_match<'i, Cap: Debug + PartialEq>(
     pattern: impl Pattern<'i, str, SimpleError, Captured = Cap>,
     samples: PartialMatchSamples<Cap>,
 ) {
-    let mut err_flag = false;
+    let mut ok_flag = true;
 
     for (mut slice, expected) in samples.into_iter() {
         let rest = &mut slice;
@@ -91,8 +91,8 @@ pub fn test_partial_match<'i, Cap: Debug + PartialEq>(
             },
         }
 
-        err_flag = true;
+        ok_flag = false;
     }
 
-    assert!(err_flag);
+    assert!(ok_flag);
 }
