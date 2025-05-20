@@ -118,28 +118,42 @@ where
     }
     #[inline(always)]
     fn advance(&self, slice: &U, entry: &mut Self::Internal, eof: bool) -> Result<usize, E> {
+        // Use `winged3('<', '{', '}', '>')` as example, it accepts input like `<<<{ ... }>>>`.
         let (n_primaries, winged_off, winged_content_off) = entry;
 
+        // Matching `<`.
         if *winged_off == 0 {
+            // Skipping `<` `ctr` times, and the subsequent `item` may be `{`.
             let Some((ctr, (delim_delta, item))) = slice
                 .iter_indices()
                 .enumerate()
                 .skip_while(|(_ctr, (_off, item))| *item == self.start_primary)
                 .next()
             else {
-                return E::raise_reject_at(slice.len());
+                // This slice consists only of repeated `<`.
+                return match eof {
+                    true => E::raise_reject_at(slice.len()),
+                    false => E::raise_unfulfilled(None),
+                };
             };
 
+            if ctr == 0 && !SINGLE {
+                // `!SINGLE` expected at least one `<`.
+                return E::raise_reject_at(0);
+            }
+
             if item != self.start_secondary {
+                // The subsequent `item` is not `{`.
                 return E::raise_reject_at(delim_delta);
             }
 
             *n_primaries = ctr;
-            *winged_off = delim_delta + U::len_of(item);
+            *winged_off = delim_delta + U::len_of(item); // the offset of `<<<{`
             *winged_content_off = *winged_off;
         }
 
         loop {
+            // Looking for the (offset - winged_content_off) of `}`.
             let Some(content_delta) = slice.split_at(*winged_content_off).1.memchr(self.end_secondary) else {
                 return match eof {
                     true => E::raise_halt_at(slice.len()),
@@ -150,11 +164,13 @@ where
                 };
             };
 
-            *winged_content_off += content_delta;
+            *winged_content_off += content_delta; // the offset of `<<<{ ... `
 
+            // Total offset of the consumed input, currently only `<<<{ ... }`.
             let mut offset = *winged_content_off + U::len_of(self.end_secondary);
 
-            match slice
+            // Taking `>` at most n_primaries (= ctr + 1) times.
+            let m_primaries = match slice
                 .split_at(offset)
                 .1
                 .iter_indices()
@@ -163,20 +179,26 @@ where
                 .take_while(|(_ctr, (_off, item))| *item == self.end_primary)
                 .last()
             {
+                None => 0,
                 Some((ctr, (delim_delta, _))) => {
-                    offset += delim_delta + U::len_of(self.end_primary);
-
-                    match *n_primaries == ctr + 1 {
-                        true => return Ok(offset),
-                        false => *winged_content_off = offset,
-                    }
+                    offset += delim_delta + U::len_of(self.end_primary); // the offset of `<<<{ ... }>>>`, or possibly `<<<{ ... }>` etc.
+                    ctr + 1
                 }
-                None => {
-                    match *n_primaries == 0 {
-                        true => return Ok(offset),
-                        false => *winged_content_off = offset,
+            };
+
+            if *n_primaries == m_primaries {
+                // Closed properly.
+                return Ok(offset);
+            }
+
+            match offset == slice.len() {
+                true => {
+                    return match eof {
+                        true => E::raise_halt_at(slice.len()), // NOT closed properly.
+                        false => E::raise_unfulfilled(None),   // Unable to determine if it was closed properly.
                     };
                 }
+                false => *winged_content_off = offset, // Fake end sequence, actually part of content.
             }
         }
     }
@@ -283,83 +305,43 @@ where
         (n_inners, slice.split_at(winged_content_off).0.split_at(winged_off).1)
     }
 }
+
 //------------------------------------------------------------------------------
 
 #[cfg(test)]
 mod tests {
     use super::*;
+    use crate::tester::*;
 
     #[test]
     fn test_winged() {
-        let pat = impls::opaque_simple(winged::<str, true>('#', '"'));
-        assert_eq!(pat.full_match(r###""...""###).unwrap(), (0, r###"..."###));
-        assert_eq!(pat.full_match(r###"#"..."#"###).unwrap(), (1, r###"..."###));
-        assert_eq!(pat.full_match(r###"##"..."##"###).unwrap(), (2, r###"..."###));
-        assert_eq!(pat.full_match(r###"##"..""##"###).unwrap(), (2, r###"..""###));
-        assert_eq!(pat.full_match(r###"##"."#"##"###).unwrap(), (2, r###"."#"###));
-        assert_eq!(pat.full_match(r###"##"""#"##"###).unwrap(), (2, r###"""#"###));
-        assert_eq!(pat.full_match(r###"##"##"###).unwrap_err().offset(), 5);
-        assert_eq!(pat.full_match(r###"###"###).unwrap_err().offset(), 3);
-        assert_eq!(pat.full_match(r###"#'...'#"###).unwrap_err().offset(), 1);
-        assert_eq!(pat.full_match(r###"..."###).unwrap_err().offset(), 0);
-    }
-    #[test]
-    fn test_winged2() {
-        let pat = impls::opaque_simple(winged2::<str, true>('#', '<', '>'));
-        assert_eq!(pat.full_match(r###"<...>"###).unwrap(), (0, r###"..."###));
-        assert_eq!(pat.full_match(r###"#<...>#"###).unwrap(), (1, r###"..."###));
-        assert_eq!(pat.full_match(r###"##<...>##"###).unwrap(), (2, r###"..."###));
-        assert_eq!(pat.full_match(r###"##<..>>##"###).unwrap(), (2, r###"..>"###));
-        assert_eq!(pat.full_match(r###"##<.>#>##"###).unwrap(), (2, r###".>#"###));
-        assert_eq!(pat.full_match(r###"##<###>##"###).unwrap(), (2, r###"###"###));
-        assert_eq!(pat.full_match(r###"##<##>"###).unwrap_err().offset(), 6);
-        assert_eq!(pat.full_match(r###"#'...'#"###).unwrap_err().offset(), 1);
-    }
-    #[test]
-    fn test_winged3() {
-        let pat = impls::opaque_simple(winged3::<str, true>('<', '[', ']', '>'));
-        assert_eq!(pat.full_match(r###"[...]"###).unwrap(), (0, r###"..."###));
-        assert_eq!(pat.full_match(r###"<[...]>"###).unwrap(), (1, r###"..."###));
-        assert_eq!(pat.full_match(r###"<<[]>>"###).unwrap(), (2, r###""###));
-        assert_eq!(pat.full_match(r###"<<[.]>>"###).unwrap(), (2, r###"."###));
-        assert_eq!(pat.full_match(r###"<<[..]>>"###).unwrap(), (2, r###".."###));
-        assert_eq!(pat.full_match(r###"<<[...]>>"###).unwrap(), (2, r###"..."###));
-        assert_eq!(pat.full_match(r###"<<<>>>"###).unwrap_err().offset(), 3);
-        assert_eq!(pat.full_match(r###"<'...'>"###).unwrap_err().offset(), 1);
+        test_full_match(
+            winged3::<str, true>('＜', '｛', '｝', '＞'),
+            vec![
+                ("｛ＫＡＥ｝", Ok((0, "ＫＡＥ"))),
+                ("＜｛ＫＡＥ｝＞", Ok((1, "ＫＡＥ"))),
+                ("＜＜｛ＫＡＥ｝＞＞", Ok((2, "ＫＡＥ"))),
+                ("＜＜｛ＫＡＥ｝｝＞＞", Ok((2, "ＫＡＥ｝"))),
+                ("＜＜｛ＫＡＥ｝＞｝＞＞", Ok((2, "ＫＡＥ｝＞"))),
+                ("＜＜｛＜｛ＫＡＥ｝＞｝＞＞", Ok((2, "＜｛ＫＡＥ｝＞"))),
+                ("｛ＫＡＥ", Err(4 * 3)),
+                ("＜｛ＫＡＥ｝", Err(6 * 3)),
+                ("＜＜｛ＫＡＥ｝＞", Err(8 * 3)),
+                ("＜｛ＫＡＥ｝＞｝＞", Err(7 * 3)),
+            ],
+        );
+        test_partial_match(
+            winged3::<str, true>('＜', '｛', '｝', '＞'),
+            vec![
+                ("｛ＫＡＥ｝＞", Ok(((0, "ＫＡＥ"), "＞"))),
+                ("＜｛ＫＡＥ｝＞｝＞", Ok(((1, "ＫＡＥ"), "｝＞"))),
+                ("＜＜｛ＫＡＥ｝＞＞｝＃", Ok(((2, "ＫＡＥ"), "｝＃"))),
+            ],
+        );
     }
 
     #[test]
     fn test_winged_flipped() {
-        let pat = impls::opaque_simple(winged_flipped::<str, false>('/', '*'));
-        assert_eq!(pat.full_match("/*...*/").unwrap(), (1, "..."));
-        assert_eq!(pat.full_match("/**...**/").unwrap(), (2, "..."));
-        assert_eq!(pat.full_match("/***...***/").unwrap(), (3, "..."));
-        assert_eq!(pat.full_match("/*...*/*/").unwrap_err().offset(), 7);
-        assert_eq!(pat.full_match("/*...*/").unwrap(), (1, "..."));
-        assert_eq!(pat.full_match("/*...*").unwrap_err().offset(), 6);
-        assert_eq!(pat.full_match("/*...").unwrap_err().offset(), 5);
-        assert_eq!(pat.full_match("/...*/").unwrap_err().offset(), 1);
-    }
-
-    #[test]
-    fn test_winged_flipped2() {
-        let pat = impls::opaque_simple(winged_flipped2::<str, false>('(', '*', ')'));
-        assert_eq!(pat.full_match("(*...*)").unwrap(), (1, "..."));
-        assert_eq!(pat.full_match("((*...*)").unwrap(), (1, "(*..."));
-        assert_eq!(pat.full_match("(*...*").unwrap_err().offset(), 6);
-        assert_eq!(pat.full_match("(*...").unwrap_err().offset(), 5);
-        assert_eq!(pat.full_match("(...*)").unwrap_err().offset(), 1);
-    }
-
-    #[test]
-    fn test_winged_flipped3() {
-        let pat = impls::opaque_simple(winged_flipped3::<str, false>('{', '<', '>', '}'));
-        assert_eq!(pat.full_match("{<...>}").unwrap(), (1, "..."));
-        assert_eq!(pat.full_match("{{<...>}}").unwrap(), (2, "..."));
-        assert_eq!(pat.full_match("{{{<...>}}}").unwrap(), (3, "..."));
-        assert_eq!(pat.full_match("{<...>}>}").unwrap_err().offset(), 8);
-        assert_eq!(pat.full_match("{<...>").unwrap_err().offset(), 6);
-        assert_eq!(pat.full_match("{<...").unwrap_err().offset(), 5);
-        assert_eq!(pat.full_match("{...>}").unwrap_err().offset(), 1);
+        test_full_match(winged_flipped3::<str, true>('｛', '＜', '＞', '｝'), vec![]);
     }
 }
