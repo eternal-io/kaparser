@@ -6,43 +6,43 @@ where
     U: ?Sized + ThinSlice,
 {
     Winged {
-        start_primary: primary,
-        start_secondary: secondary,
-        end_secondary: secondary,
-        end_primary: primary,
+        primary_start: primary,
+        secondary_start: secondary,
+        secondary_end: secondary,
+        primary_end: primary,
     }
 }
 #[inline(always)]
 pub const fn winged2<U, const SINGLE: bool>(
     primary: U::Item,
-    start_secondary: U::Item,
-    end_secondary: U::Item,
+    secondary_start: U::Item,
+    secondary_end: U::Item,
 ) -> Winged<U, SINGLE>
 where
     U: ?Sized + ThinSlice,
 {
     Winged {
-        start_primary: primary,
-        start_secondary,
-        end_secondary,
-        end_primary: primary,
+        primary_start: primary,
+        secondary_start,
+        secondary_end,
+        primary_end: primary,
     }
 }
 #[inline(always)]
 pub const fn winged3<U, const SINGLE: bool>(
-    start_primary: U::Item,
-    start_secondary: U::Item,
-    end_secondary: U::Item,
-    end_primary: U::Item,
+    primary_start: U::Item,
+    secondary_start: U::Item,
+    secondary_end: U::Item,
+    primary_end: U::Item,
 ) -> Winged<U, SINGLE>
 where
     U: ?Sized + ThinSlice,
 {
     Winged {
-        start_primary,
-        start_secondary,
-        end_secondary,
-        end_primary,
+        primary_start,
+        secondary_start,
+        secondary_end,
+        primary_end,
     }
 }
 
@@ -52,43 +52,43 @@ where
     U: ?Sized + ThinSlice,
 {
     WingedFlipped {
-        start_outer: outer,
-        start_inner: inner,
-        end_inner: inner,
-        end_outer: outer,
+        outer_start: outer,
+        inner_start: inner,
+        inner_end: inner,
+        outer_end: outer,
     }
 }
 #[inline(always)]
 pub const fn winged_flipped2<U, const SINGLE: bool>(
-    start_outer: U::Item,
+    outer_start: U::Item,
     inner: U::Item,
-    end_outer: U::Item,
+    outer_end: U::Item,
 ) -> WingedFlipped<U, SINGLE>
 where
     U: ?Sized + ThinSlice,
 {
     WingedFlipped {
-        start_outer,
-        start_inner: inner,
-        end_inner: inner,
-        end_outer,
+        outer_start,
+        inner_start: inner,
+        inner_end: inner,
+        outer_end,
     }
 }
 #[inline(always)]
 pub const fn winged_flipped3<U, const SINGLE: bool>(
-    start_outer: U::Item,
-    start_inner: U::Item,
-    end_inner: U::Item,
-    end_outer: U::Item,
+    outer_start: U::Item,
+    inner_start: U::Item,
+    inner_end: U::Item,
+    outer_end: U::Item,
 ) -> WingedFlipped<U, SINGLE>
 where
     U: ?Sized + ThinSlice,
 {
     WingedFlipped {
-        start_outer,
-        start_inner,
-        end_inner,
-        end_outer,
+        outer_start,
+        inner_start,
+        inner_end,
+        outer_end,
     }
 }
 
@@ -98,10 +98,10 @@ pub struct Winged<U, const SINGLE: bool>
 where
     U: ?Sized + ThinSlice,
 {
-    start_primary: U::Item,
-    start_secondary: U::Item,
-    end_secondary: U::Item,
-    end_primary: U::Item,
+    primary_start: U::Item,
+    secondary_start: U::Item,
+    secondary_end: U::Item,
+    primary_end: U::Item,
 }
 
 impl<'i, U, E, const SINGLE: bool> Pattern<'i, U, E> for Winged<U, SINGLE>
@@ -126,7 +126,7 @@ where
             let Some((ctr, (delim_delta, item))) = slice
                 .iter_indices()
                 .enumerate()
-                .skip_while(|(_ctr, (_off, item))| *item == self.start_primary)
+                .skip_while(|(_ctr, (_off, item))| *item == self.primary_start)
                 .next()
             else {
                 // This slice consists only of repeated `<`.
@@ -141,7 +141,7 @@ where
                 return E::raise_reject_at(0);
             }
 
-            if item != self.start_secondary {
+            if item != self.secondary_start {
                 // The subsequent `item` is not `{`.
                 return E::raise_reject_at(delim_delta);
             }
@@ -153,7 +153,7 @@ where
 
         loop {
             // Looking for the (offset - winged_content_off) of `}`.
-            let Some(content_delta) = slice.split_at(*winged_content_off).1.memchr(self.end_secondary) else {
+            let Some(content_delta) = slice.split_at(*winged_content_off).1.memchr(self.secondary_end) else {
                 return match eof {
                     true => E::raise_halt_at(slice.len()),
                     false => {
@@ -166,7 +166,7 @@ where
             *winged_content_off += content_delta; // the offset of `<<<{ ... `
 
             // Total offset of the consumed input, currently only `<<<{ ... }`.
-            let mut offset = *winged_content_off + U::len_of(self.end_secondary);
+            let mut offset = *winged_content_off + U::len_of(self.secondary_end);
 
             // Taking `>` at most n_primaries (= ctr + 1) times.
             let m_primaries = match slice
@@ -175,12 +175,12 @@ where
                 .iter_indices()
                 .enumerate()
                 .take(*n_primaries)
-                .take_while(|(_ctr, (_off, item))| *item == self.end_primary)
+                .take_while(|(_ctr, (_off, item))| *item == self.primary_end)
                 .last()
             {
                 None => 0,
                 Some((ctr, (delim_delta, _))) => {
-                    offset += delim_delta + U::len_of(self.end_primary); // the offset of `<<<{ ... }>>>`, or possibly `<<<{ ... }>` etc.
+                    offset += delim_delta + U::len_of(self.primary_end); // the offset of `<<<{ ... }>>>`, or possibly `<<<{ ... }>` etc.
                     ctr + 1
                 }
             };
@@ -215,10 +215,10 @@ pub struct WingedFlipped<U, const SINGLE: bool>
 where
     U: ?Sized + ThinSlice,
 {
-    start_outer: U::Item,
-    start_inner: U::Item,
-    end_inner: U::Item,
-    end_outer: U::Item,
+    outer_start: U::Item,
+    inner_start: U::Item,
+    inner_end: U::Item,
+    outer_end: U::Item,
 }
 
 impl<'i, U, E, const SINGLE: bool> Pattern<'i, U, E> for WingedFlipped<U, SINGLE>
@@ -243,11 +243,11 @@ where
             let Some(item) = slice.first() else {
                 return E::raise_reject_at(0);
             };
-            if item != self.start_outer {
+            if item != self.outer_start {
                 return E::raise_reject_at(0);
             }
 
-            let first_off = U::len_of(self.start_outer); // the offset of `{`
+            let first_off = U::len_of(self.outer_start); // the offset of `{`
 
             // Skipping `<` `ctr` times.
             let Some((ctr, (delim_delta, _))) = slice
@@ -255,7 +255,7 @@ where
                 .1
                 .iter_indices()
                 .enumerate()
-                .skip_while(|(_ctr, (_off, item))| *item == self.start_inner)
+                .skip_while(|(_ctr, (_off, item))| *item == self.inner_start)
                 .next()
             else {
                 // The item other than `<` is not encountered, the start sequence may not be completed yet.
@@ -277,12 +277,12 @@ where
 
         loop {
             // Looking for the (offset - winged_content_off) of `}`.
-            let Some(content_delim_delta) = slice.split_at(*winged_content_off).1.memchr(self.end_outer) else {
+            let Some(content_delim_delta) = slice.split_at(*winged_content_off).1.memchr(self.outer_end) else {
                 return match eof {
                     true => E::raise_halt_at(slice.len()),
                     false => {
                         // Step conservatively to ensure the end sequence is not missed.
-                        *winged_content_off = slice.len().saturating_sub(*n_inners * U::len_of(self.end_inner));
+                        *winged_content_off = slice.len().saturating_sub(*n_inners * U::len_of(self.inner_end));
                         E::raise_unfulfilled(None)
                     }
                 };
@@ -291,7 +291,7 @@ where
             let winged_content_winner_off = *winged_content_off + content_delim_delta; // the offset of `{<<< ... ???`
 
             // Total offset of the consumed input, currently is `{<<< ... ???}`.
-            let offset = winged_content_winner_off + U::len_of(self.end_outer);
+            let offset = winged_content_winner_off + U::len_of(self.outer_end);
 
             // Taking `>` (`???`) at most n_inners (= ctr + 1) times in reversed order.
             let (m_inners, real_winged_content_off) = match slice
@@ -301,7 +301,7 @@ where
                 .rev()
                 .enumerate()
                 .take(*n_inners)
-                .take_while(|(_ctr, (_off, item))| *item == self.end_inner)
+                .take_while(|(_ctr, (_off, item))| *item == self.inner_end)
                 .last()
             {
                 None => (0, winged_content_winner_off),
