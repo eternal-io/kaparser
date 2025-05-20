@@ -121,7 +121,6 @@ where
         // Use `winged3('<', '{', '}', '>')` as example, it accepts input like `<<<{ ... }>>>`.
         let (n_primaries, winged_off, winged_content_off) = entry;
 
-        // Matching `<`.
         if *winged_off == 0 {
             // Skipping `<` `ctr` times, and the subsequent `item` may be `{`.
             let Some((ctr, (delim_delta, item))) = slice
@@ -236,9 +235,11 @@ where
     }
     #[inline(always)]
     fn advance(&self, slice: &U, entry: &mut Self::Internal, eof: bool) -> Result<usize, E> {
+        // Use `winged_flipped3('{', '<', '>', '}')` as example, it accepts input like `{<<< ... >>>}`.
         let (n_inners, winged_off, winged_content_off) = entry;
 
         if *winged_off == 0 {
+            // Matching the leading `{`.
             let Some(item) = slice.first() else {
                 return E::raise_reject_at(0);
             };
@@ -246,7 +247,9 @@ where
                 return E::raise_reject_at(0);
             }
 
-            let first_off = U::len_of(self.start_outer);
+            let first_off = U::len_of(self.start_outer); // the offset of `{`
+
+            // Skipping `<` `ctr` times.
             let Some((ctr, (delim_delta, _))) = slice
                 .split_at(first_off)
                 .1
@@ -255,32 +258,44 @@ where
                 .skip_while(|(_ctr, (_off, item))| *item == self.start_inner)
                 .next()
             else {
+                // The item other than `<` is not encountered, the start sequence may not be completed yet.
                 return match eof {
-                    true => E::raise_reject_at(first_off),
+                    true => E::raise_reject_at(slice.len()),
                     false => E::raise_unfulfilled(None),
                 };
             };
 
+            if ctr == 0 && !SINGLE {
+                // `!SINGLE` expected at least one `<`.
+                return E::raise_reject_at(first_off);
+            }
+
             *n_inners = ctr;
-            *winged_off = first_off + delim_delta;
+            *winged_off = first_off + delim_delta; // the offset of `{<<<`
             *winged_content_off = *winged_off;
         }
 
         loop {
+            // Looking for the (offset - winged_content_off) of `}`.
             let Some(content_delim_delta) = slice.split_at(*winged_content_off).1.memchr(self.end_outer) else {
                 return match eof {
                     true => E::raise_halt_at(slice.len()),
                     false => {
-                        *winged_content_off = slice.len().saturating_sub(*n_inners);
+                        // Step conservatively to ensure the end sequence is not missed.
+                        *winged_content_off = slice.len().saturating_sub(*n_inners * U::len_of(self.end_inner));
                         E::raise_unfulfilled(None)
                     }
                 };
             };
 
-            let offset = *winged_content_off + content_delim_delta + U::len_of(self.end_outer);
+            let winged_content_winner_off = *winged_content_off + content_delim_delta; // the offset of `{<<< ... ???`
 
-            if let Some((ctr, (real_winged_content_off, _))) = slice
-                .split_at(offset - U::len_of(self.end_outer))
+            // Total offset of the consumed input, currently is `{<<< ... ???}`.
+            let offset = winged_content_winner_off + U::len_of(self.end_outer);
+
+            // Taking `>` (`???`) at most n_inners (= ctr + 1) times in reversed order.
+            let (m_inners, real_winged_content_off) = match slice
+                .split_at(winged_content_winner_off)
                 .0
                 .iter_indices()
                 .rev()
@@ -289,13 +304,18 @@ where
                 .take_while(|(_ctr, (_off, item))| *item == self.end_inner)
                 .last()
             {
-                if *n_inners == ctr + 1 {
-                    *winged_content_off = real_winged_content_off;
-                    return Ok(offset);
-                }
+                None => (0, winged_content_winner_off),
+                Some((ctr, (winged_content_off, _))) => (ctr + 1, winged_content_off),
+            };
+
+            if *n_inners == m_inners {
+                // Closed properly.
+                *winged_content_off = real_winged_content_off;
+                return Ok(offset);
             }
 
-            *winged_content_off = offset
+            // Fake end sequence (because not enough `>`), actually part of content.
+            *winged_content_off = offset;
         }
     }
     #[inline(always)]
@@ -324,6 +344,9 @@ mod tests {
                 ("＜＜｛ＫＡＥ｝｝＞＞", Ok((2, "ＫＡＥ｝"))),
                 ("＜＜｛ＫＡＥ｝＞｝＞＞", Ok((2, "ＫＡＥ｝＞"))),
                 ("＜＜｛＜｛ＫＡＥ｝＞｝＞＞", Ok((2, "＜｛ＫＡＥ｝＞"))),
+                ("ＫＡＥ｝", Err(0 * 3)),
+                ("＜ＫＡＥ｝", Err(1 * 3)),
+                ("＜ＫＡＥ＞", Err(1 * 3)),
                 ("｛ＫＡＥ", Err(4 * 3)),
                 ("＜｛ＫＡＥ｝", Err(6 * 3)),
                 ("＜＜｛ＫＡＥ｝＞", Err(8 * 3)),
@@ -342,6 +365,32 @@ mod tests {
 
     #[test]
     fn test_winged_flipped() {
-        test_full_match(winged_flipped3::<str, true>('｛', '＜', '＞', '｝'), vec![]);
+        test_full_match(
+            winged_flipped3::<str, true>('｛', '＜', '＞', '｝'),
+            vec![
+                ("｛ＫＡＥ｝", Ok((0, "ＫＡＥ"))),
+                ("｛＜ＫＡＥ＞｝", Ok((1, "ＫＡＥ"))),
+                ("｛＜＜ＫＡＥ＞＞｝", Ok((2, "ＫＡＥ"))),
+                ("｛＜＜ＫＡＥ＞＞＞｝", Ok((2, "ＫＡＥ＞"))),
+                ("｛＜＜ＫＡＥ＞｝＞＞｝", Ok((2, "ＫＡＥ＞｝"))),
+                ("｛＜＜ＫＡＥ＞＞＞＞｝", Ok((2, "ＫＡＥ＞＞"))),
+                ("｛＜＜＜ＫＡＥ＞＞＞｝", Ok((3, "ＫＡＥ"))),
+                ("｛ＫＡＥ＞｝", Ok((0, "ＫＡＥ＞"))),
+                ("｛＜ＫＡＥ＞＞｝", Ok((1, "ＫＡＥ＞"))),
+                ("ＫＡＥ｝", Err(0 * 3)),
+                ("｛ＫＡＥ｝＞", Err(5 * 3)),
+                ("｛＜ＫＡＥ｝", Err(6 * 3)),
+                ("｛＜＜ＫＡＥ｝", Err(7 * 3)),
+                ("｛＜＜ＫＡＥ＞｝", Err(8 * 3)),
+            ],
+        );
+        test_partial_match(
+            winged_flipped3::<str, true>('｛', '＜', '＞', '｝'),
+            vec![
+                ("｛ＫＡＥ｝＞", Ok(((0, "ＫＡＥ"), "＞"))),
+                ("｛＜ＫＡＥ＞｝＞", Ok(((1, "ＫＡＥ"), "＞"))),
+                ("｛＜＜ＫＡＥ＞＞｝＞＃", Ok(((2, "ＫＡＥ"), "＞＃"))),
+            ],
+        );
     }
 }
