@@ -12,26 +12,26 @@ pub fn test_full_match<'i, Cap: Debug + PartialEq>(
 ) {
     let mut ok_flag = true;
 
-    for (slice, expected) in samples.into_iter() {
+    for (i, (slice, expected)) in samples.into_iter().enumerate() {
         match pattern.full_match(slice) {
             Ok(cap) => match expected {
                 Ok(cap_exp) => match cap == cap_exp {
                     true => continue,
 
-                    false => eprintln!("expected Ok({:?}), found Ok({:?})", cap_exp, cap),
+                    false => eprintln!("#{i} expected Ok({:?}), found Ok({:?})", cap_exp, cap),
                 },
 
-                Err(_) => eprintln!("expected Err(_), found Ok({:?})", cap),
+                Err(off_exp) => eprintln!("#{i} expected Err({}), found Ok({:?})", off_exp, cap),
             },
 
             Err(e) => match expected {
                 Err(off_exp) => match e.offset() == off_exp {
                     true => continue,
 
-                    false => eprintln!("expected Err({}), found Err({})", off_exp, e.offset()),
+                    false => eprintln!("#{i} expected Err({}), found Err({})", off_exp, e.offset()),
                 },
 
-                Ok(_) => eprintln!("expected Ok(_), found Err({:?})", e.offset()),
+                Ok(cap_exp) => eprintln!("#{i} expected Ok({:?}), found Err({})", cap_exp, e.offset()),
             },
         }
 
@@ -47,7 +47,7 @@ pub fn test_partial_match<'i, Cap: Debug + PartialEq>(
 ) {
     let mut ok_flag = true;
 
-    for (mut slice, expected) in samples.into_iter() {
+    for (i, (mut slice, expected)) in samples.into_iter().enumerate() {
         let rest = &mut slice;
         match pattern.parse(rest) {
             Ok(cap) => match expected {
@@ -56,7 +56,7 @@ pub fn test_partial_match<'i, Cap: Debug + PartialEq>(
 
                     (cap_eq, rest_eq) => {
                         eprintln!(
-                            "expected Ok({}, {}),\n   found Ok({}, {})",
+                            "#{i} expected Ok({}, {}),\n       found Ok({}, {})",
                             match cap_eq {
                                 true => format!("_"),
                                 false => format!("{cap_exp:?}"),
@@ -77,17 +77,17 @@ pub fn test_partial_match<'i, Cap: Debug + PartialEq>(
                     }
                 },
 
-                Err(_) => eprintln!("expected Err(_), found Ok({:?})", cap),
+                Err(off_exp) => eprintln!("#{i} expected Err({}), found Ok({:?})", off_exp, cap),
             },
 
             Err(e) => match expected {
                 Err(off_exp) => match e.offset() == off_exp {
                     true => continue,
 
-                    false => eprintln!("expected Err({}), found Err({})", off_exp, e.offset()),
+                    false => eprintln!("#{i} expected Err({}), found Err({})", off_exp, e.offset()),
                 },
 
-                Ok(_) => eprintln!("expected Ok(_), found Err({:?})", e.offset()),
+                Ok(cap_exp) => eprintln!("#{i} expected Ok({:?}), found Err({})", cap_exp, e.offset()),
             },
         }
 
