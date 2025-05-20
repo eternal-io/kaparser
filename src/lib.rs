@@ -39,3 +39,10 @@ pub mod combine {
 
     pub mod not;
 }
+
+#[cfg(test)]
+mod tester;
+
+#[cfg(test)]
+#[cfg_attr(test, macro_use)]
+extern crate std;
