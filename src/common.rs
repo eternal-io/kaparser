@@ -275,10 +275,13 @@ fn next_code_point(bytes: &[u8]) -> u32 {
 fn memchr_utf8(needle: char, haystack: &str) -> Option<usize> {
     let haystack = haystack.as_bytes();
     let indicator = encode_utf8_first_byte(needle);
-    while let Some(pos) = memchr::memchr(indicator, haystack) {
-        if next_code_point(&haystack[pos..]) == needle as u32 {
-            return Some(pos);
+    let mut offset = 0;
+    while let Some(pos) = memchr::memchr(indicator, &haystack[offset..]) {
+        offset += pos;
+        if next_code_point(&haystack[offset..]) == needle as u32 {
+            return Some(offset);
         }
+        offset += 1;
     }
     None
 }
@@ -287,12 +290,14 @@ fn memchr2_utf8(needle1: char, needle2: char, haystack: &str) -> Option<(usize, 
     let haystack = haystack.as_bytes();
     let indicator1 = encode_utf8_first_byte(needle1);
     let indicator2 = encode_utf8_first_byte(needle2);
-    while let Some(pos) = memchr::memchr2(indicator1, indicator2, haystack) {
-        return Some(match next_code_point(&haystack[pos..]) {
-            needle if needle == needle1 as u32 => (pos, needle1),
-            needle if needle == needle2 as u32 => (pos, needle2),
-            _ => continue,
-        });
+    let mut offset = 0;
+    while let Some(pos) = memchr::memchr2(indicator1, indicator2, &haystack[offset..]) {
+        offset += pos;
+        match next_code_point(&haystack[offset..]) {
+            needle if needle == needle1 as u32 => return Some((offset, needle1)),
+            needle if needle == needle2 as u32 => return Some((offset, needle2)),
+            _ => offset += 1,
+        }
     }
     None
 }
@@ -302,13 +307,15 @@ fn memchr3_utf8(needle1: char, needle2: char, needle3: char, haystack: &str) -> 
     let indicator1 = encode_utf8_first_byte(needle1);
     let indicator2 = encode_utf8_first_byte(needle2);
     let indicator3 = encode_utf8_first_byte(needle3);
-    while let Some(pos) = memchr::memchr3(indicator1, indicator2, indicator3, haystack) {
-        return Some(match next_code_point(&haystack[pos..]) {
-            needle if needle == needle1 as u32 => (pos, needle1),
-            needle if needle == needle2 as u32 => (pos, needle2),
-            needle if needle == needle3 as u32 => (pos, needle3),
-            _ => continue,
-        });
+    let mut offset = 0;
+    while let Some(pos) = memchr::memchr3(indicator1, indicator2, indicator3, &haystack[offset..]) {
+        offset += pos;
+        match next_code_point(&haystack[offset..]) {
+            needle if needle == needle1 as u32 => return Some((offset, needle1)),
+            needle if needle == needle2 as u32 => return Some((offset, needle2)),
+            needle if needle == needle3 as u32 => return Some((offset, needle3)),
+            _ => offset += 1,
+        }
     }
     None
 }
@@ -529,5 +536,46 @@ macro_rules! __resume_advance {
             }
         }
         $ProcK
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use crate::tester::*;
+
+    const TEST_VECTOR: &str = "Hello🌍! 测试: 中文「你好」+ 日文「こんにちは」+ 韩文「안녕하세요」 ∑(π²) ≠ √∞ €¥₹$ Āãêī [] ♔♛♝ ♠♥♦♣ ก้้้้้้้้้้้้้้้้้้้ 𐐷 ( ͡° ͜ʖ ͡°) ⟰⏳⌘";
+
+    #[test]
+    fn test_utf8_first_byte() {
+        let mut buf = [0u8; 4];
+        for ch in TEST_VECTOR.chars() {
+            ch.encode_utf8(buf.as_mut());
+            assert_eq!(encode_utf8_first_byte(ch), buf[0]);
+        }
+    }
+
+    #[test]
+    fn test_next_code_point() {
+        for (pos, ch) in TEST_VECTOR.char_indices() {
+            assert_eq!(next_code_point(TEST_VECTOR.split_at(pos).1.as_ref()), ch as u32);
+        }
+    }
+
+    #[test]
+    fn test_memchr_utf8() {
+        for ch in TEST_VECTOR.chars() {
+            assert_eq!(TEST_VECTOR.memchr(ch).unwrap(), TEST_VECTOR.find(ch).unwrap());
+        }
+    }
+
+    #[test]
+    fn test_memchr() {
+        for &byte in TEST_VECTOR.as_bytes() {
+            assert_eq!(
+                TEST_VECTOR.as_bytes().memchr(byte).unwrap(),
+                TEST_VECTOR.as_bytes().iter().position(|b| *b == byte).unwrap(),
+            )
+        }
     }
 }
