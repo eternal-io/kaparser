@@ -30,7 +30,6 @@ pub mod combine {
 
     pub mod opt;
     pub mod peek;
-    pub mod behind;
     pub mod winged;
 
     pub mod control;

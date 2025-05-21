@@ -1,4 +1,6 @@
-use core::ops::{Range, RangeFrom, RangeFull, RangeInclusive, RangeTo, RangeToInclusive};
+pub(crate) use core::ops::Range;
+
+use core::ops::{RangeFrom, RangeFull, RangeInclusive, RangeTo, RangeToInclusive};
 
 #[doc(hidden)]
 pub use paste::paste;
@@ -75,6 +77,7 @@ pub trait Slice {
         self.len() == 0
     }
 
+    fn subslice(&self, range: Range<usize>) -> &Self;
     fn split_at(&self, mid: usize) -> (&Self, &Self);
     fn iter(&self) -> impl Iterator<Item = Self::Item> + DoubleEndedIterator;
     fn iter_indices(&self) -> impl Iterator<Item = (usize, Self::Item)> + DoubleEndedIterator;
@@ -99,6 +102,10 @@ impl Slice for str {
         (*self).starts_with(prefix)
     }
 
+    #[inline(always)]
+    fn subslice(&self, range: Range<usize>) -> &Self {
+        &self[range]
+    }
     #[inline(always)]
     fn split_at(&self, mid: usize) -> (&Self, &Self) {
         (*self).split_at(mid)
@@ -133,6 +140,10 @@ where
     }
 
     #[inline(always)]
+    fn subslice(&self, range: Range<usize>) -> &Self {
+        &self[range]
+    }
+    #[inline(always)]
     fn split_at(&self, mid: usize) -> (&Self, &Self) {
         (*self).split_at(mid)
     }
@@ -147,6 +158,8 @@ where
 }
 
 //------------------------------------------------------------------------------
+
+// IMPROVE: New trait `Needlable` for `Predicate<U::Item>` tuples of size at most 3, where `U: ThinSlice`.
 
 pub trait ThinSlice: Slice {
     fn eq_ignore_ascii_case(left: Self::Item, right: Self::Item) -> bool;
