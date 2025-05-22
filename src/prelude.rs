@@ -9,7 +9,7 @@ pub use crate::{
         peek::peek,
         repeat::rep,
         seq::{ixs, seq, sps},
-        skim::{till, until},
+        skim::{till, until, xtill, xuntil},
         special::{winged, winged_flipped, winged_flipped2, winged_flipped3, winged2, winged3},
         take::{take, take0more, take1more},
     },

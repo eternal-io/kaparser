@@ -10,7 +10,6 @@ where
 {
     RangeTo { end }
 }
-
 /// The terminator is required and also consumed.
 #[inline]
 pub const fn until<'i, U, E, P>(end: P) -> RangeToInclusive<P>
@@ -22,20 +21,20 @@ where
     RangeToInclusive { end }
 }
 
-pub const fn fast_till<U>(needle: U::Item)
+#[inline]
+pub const fn xtill<U, X>(needle: X) -> FastTill<X>
 where
     U: ?Sized + ThinSlice,
+    X: Needlable<U>,
 {
+    FastTill { needle }
 }
-
-pub const fn fast_till2() {}
-
-pub const fn fast_till3() {}
-
-pub const fn fast_until<U>(needle: &U)
+#[inline]
+pub const fn xuntil<U>(needle: &U) -> FastUntil<U>
 where
     U: ?Sized + ThinSlice,
 {
+    FastUntil { needle }
 }
 
 //------------------------------------------------------------------------------
@@ -73,8 +72,9 @@ where
     }
     #[inline]
     fn extract(&self, slice: &'i U, entry: Self::Internal) -> Self::Captured {
-        let (left, right) = slice.split_at(entry);
-        (left, right.first())
+        let (before, after) = slice.split_at(entry);
+
+        (before, after.first())
     }
 }
 
@@ -120,9 +120,72 @@ where
     }
     #[inline]
     fn extract(&self, slice: &'i U, entry: Self::Internal) -> Self::Captured {
-        let (off, state) = entry;
-        let (left, right) = slice.split_at(off);
-        (left, self.end.extract(right, state))
+        let (offset, state) = entry;
+        let (before, after) = slice.split_at(offset);
+
+        (before, self.end.extract(after, state))
+    }
+}
+
+//------------------------------------------------------------------------------
+
+pub struct FastTill<X> {
+    needle: X,
+}
+
+impl<'i, U, X, E> Pattern<'i, U, E> for FastTill<X>
+where
+    U: ?Sized + ThinSlice + 'i,
+    X: Needlable<U>,
+    E: Situation,
+{
+    type Captured = (&'i U, Option<U::Item>);
+    type Internal = usize;
+
+    #[inline]
+    fn init(&self) -> Self::Internal {
+        0
+    }
+    #[inline]
+    fn advance(&self, slice: &U, entry: &mut Self::Internal, eof: bool) -> Result<usize, E> {
+        todo!()
+    }
+    #[inline]
+    fn extract(&self, slice: &'i U, entry: Self::Internal) -> Self::Captured {
+        let (before, after) = slice.split_at(entry);
+
+        (before, after.first())
+    }
+}
+
+//------------------------------------------------------------------------------
+
+pub struct FastUntil<'s, U>
+where
+    U: ?Sized + ThinSlice + 's,
+{
+    needle: &'s U,
+}
+
+impl<'i, U, E> Pattern<'i, U, E> for FastUntil<'_, U>
+where
+    U: ?Sized + ThinSlice + 'i,
+    E: Situation,
+{
+    type Captured = &'i U;
+    type Internal = usize;
+
+    #[inline]
+    fn init(&self) -> Self::Internal {
+        todo!()
+    }
+    #[inline]
+    fn advance(&self, slice: &U, entry: &mut Self::Internal, eof: bool) -> Result<usize, E> {
+        todo!()
+    }
+    #[inline]
+    fn extract(&self, slice: &'i U, entry: Self::Internal) -> Self::Captured {
+        slice.before(entry)
     }
 }
 
