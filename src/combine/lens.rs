@@ -1,14 +1,14 @@
-#![allow(clippy::let_unit_value)]
 use super::*;
+use core::mem::MaybeUninit;
 
 #[doc(inline)]
 pub use crate::len;
 
 #[inline]
-pub const fn lens<'i, T, P, E, const LEN: usize>(predicate: P) -> Lens<'i, T, P, E, LEN>
+pub const fn lens<'i, U, P, E, const N: usize>(predicate: P) -> Lens<'i, U, P, E, N>
 where
-    T: Copy + PartialEq + 'i,
-    P: Predicate<T>,
+    U: ?Sized + Slice + 'i,
+    P: Predicate<U::Item>,
     E: Situation,
 {
     Lens {
@@ -19,46 +19,61 @@ where
 
 //------------------------------------------------------------------------------
 
-pub struct Lens<'i, T, P, E, const LEN: usize>
+pub struct Lens<'i, U, P, E, const N: usize>
 where
-    T: Copy + PartialEq + 'i,
-    P: Predicate<T>,
+    U: ?Sized + Slice + 'i,
+    P: Predicate<U::Item>,
     E: Situation,
 {
     predicate: P,
-    phantom: PhantomData<(&'i T, E)>,
+    phantom: PhantomData<(&'i U, E)>,
 }
 
-impl<'i, T, P, E, const LEN: usize> Pattern<'i, [T], E> for Lens<'i, T, P, E, LEN>
+impl<'i, U, P, E, const N: usize> Pattern<'i, U, E> for Lens<'i, U, P, E, N>
 where
-    T: Copy + PartialEq + 'i,
-    P: Predicate<T>,
+    U: ?Sized + Slice + 'i,
+    P: Predicate<U::Item>,
     E: Situation,
 {
-    type Captured = [T; LEN];
+    type Captured = [U::Item; N];
     type Internal = ();
 
     #[inline]
     fn init(&self) -> Self::Internal {}
     #[inline]
-    fn advance(&self, slice: &[T], _ntry: &mut Self::Internal, eof: bool) -> Result<usize, E> {
-        if slice.len() < LEN {
-            match eof {
-                true => E::raise_reject_at(slice.len()),
-                false => E::raise_unfulfilled(Some((LEN - slice.len()).try_into().unwrap())),
-            }
-        } else {
-            for (off, item) in slice[..LEN].iter_indices() {
-                if !self.predicate.predicate(&item) {
-                    return E::raise_reject_at(off);
-                }
-            }
-            Ok(LEN)
+    fn advance(&self, slice: &U, _ntry: &mut Self::Internal, eof: bool) -> Result<usize, E> {
+        let (m_items, offset) = match slice
+            .iter_indices()
+            .take(N)
+            .enumerate()
+            .take_while(|(_ctr, (_off, item))| self.predicate.predicate(item))
+            .last()
+        {
+            None => (0, 0),
+            Some((ctr, (off, item))) => (ctr + 1, off + U::len_of(item)),
+        };
+
+        if m_items < N {
+            return match eof {
+                true => E::raise_reject_at(offset),
+                false => E::raise_unfulfilled(None),
+            };
         }
+
+        Ok(offset)
     }
     #[inline]
-    fn extract(&self, slice: &'i [T], _ntry: Self::Internal) -> Self::Captured {
-        slice.split_at(LEN).0.try_into().unwrap()
+    #[allow(unsafe_code)]
+    fn extract(&self, slice: &'i U, _ntry: Self::Internal) -> Self::Captured {
+        let mut array: MaybeUninit<[U::Item; N]> = MaybeUninit::uninit();
+
+        for (i, item) in slice.iter().enumerate().take(N) {
+            unsafe {
+                (&raw mut (*array.as_mut_ptr())[i]).write(item);
+            }
+        }
+
+        unsafe { array.assume_init() }
     }
 }
 
@@ -76,5 +91,9 @@ mod tests {
         assert_eq!(pat.full_match([0x80, 0x7F, 0x80].as_ref()).unwrap_err().offset(), 1);
         assert_eq!(pat.full_match([0x80, 0x80, 0xAA].as_ref()).unwrap_err().offset(), 2);
         assert!(pat.full_match([0x80, 0x80, 0xA9].as_ref()).is_ok());
+
+        let pat = len!(2, ..).opaque_simple::<str, _>();
+        assert_eq!(pat.full_match("你好").unwrap(), ['你', '好']);
+        assert_eq!(pat.full_match("孬").unwrap_err().offset(), 1 * 3);
     }
 }
