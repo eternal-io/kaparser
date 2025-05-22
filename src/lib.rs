@@ -32,8 +32,7 @@ pub mod combine {
 
     pub mod opt;
     pub mod peek;
-    pub mod winged;
-
+    pub mod special;
     pub mod control;
     pub mod convert;
     pub mod modifier;

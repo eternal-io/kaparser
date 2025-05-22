@@ -28,10 +28,26 @@ pub fn test_full_match<'i, Cap: Debug + PartialEq>(
                 Err(off_exp) => match e.offset() == off_exp {
                     true => continue,
 
-                    false => eprintln!("#{i} expected Err({}), found Err({})", off_exp, e.offset()),
+                    false => eprintln!(
+                        "#{i} expected Err({}), found Err({}) ({})",
+                        off_exp,
+                        e.offset(),
+                        match e.is_rejected() {
+                            true => "reject",
+                            false => "HALT",
+                        }
+                    ),
                 },
 
-                Ok(cap_exp) => eprintln!("#{i} expected Ok({:?}), found Err({})", cap_exp, e.offset()),
+                Ok(cap_exp) => eprintln!(
+                    "#{i} expected Ok({:?}), found Err({}) ({})",
+                    cap_exp,
+                    e.offset(),
+                    match e.is_rejected() {
+                        true => "reject",
+                        false => "HALT",
+                    }
+                ),
             },
         }
 
@@ -84,10 +100,26 @@ pub fn test_partial_match<'i, Cap: Debug + PartialEq>(
                 Err(off_exp) => match e.offset() == off_exp {
                     true => continue,
 
-                    false => eprintln!("#{i} expected Err({}), found Err({})", off_exp, e.offset()),
+                    false => eprintln!(
+                        "#{i} expected Err({}), found Err({}) ({})",
+                        off_exp,
+                        e.offset(),
+                        match e.is_rejected() {
+                            true => "reject",
+                            false => "HALT",
+                        }
+                    ),
                 },
 
-                Ok(cap_exp) => eprintln!("#{i} expected Ok({:?}), found Err({})", cap_exp, e.offset()),
+                Ok(cap_exp) => eprintln!(
+                    "#{i} expected Ok({:?}), found Err({}) ({})",
+                    cap_exp,
+                    e.offset(),
+                    match e.is_rejected() {
+                        true => "reject",
+                        false => "HALT",
+                    }
+                ),
             },
         }
 
