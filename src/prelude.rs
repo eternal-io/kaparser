@@ -3,7 +3,6 @@ pub use crate::{
         alt::alt,
         com::com,
         control::{EOF, Halt, Reject, TODO, cond, cut, igc},
-        dispatch::{disp, dispatch},
         lens::len,
         not::not,
         opt::opt,

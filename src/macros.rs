@@ -1,22 +1,5 @@
 #[doc(hidden)]
 #[macro_export]
-macro_rules! disp {
-    (   $head:expr ;
-      $($case:expr => $body:expr),+ $(,)?
-    ) => {
-        $crate::combine::dispatch::dispatch::<_, _, _>((
-            $head,
-            ( $(
-                ($case, $body),
-            )+ ),
-        ))
-    };
-}
-
-//------------------------------------------------------------------------------
-
-#[doc(hidden)]
-#[macro_export]
 macro_rules! len {
     ($n:expr, $patt:expr) => {
         $crate::combine::lens::lens::<_, _, _, { $n }>($patt)
