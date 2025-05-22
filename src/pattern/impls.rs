@@ -20,22 +20,24 @@ where
 
 //------------------------------------------------------------------------------
 
-pub struct Reiter<'p, 'i, U, E, P>
+pub struct Reiter<'s, 'p, 'i, U, E, P, S>
 where
     U: ?Sized + Slice + 'i,
     E: Situation,
     P: Pattern<'i, U, E>,
+    S: AdvanceSlice<'i, U>,
 {
     pub(super) body: &'p P,
-    pub(super) src: &'p mut &'i U,
-    pub(super) phantom: PhantomData<E>,
+    pub(super) src: &'s mut S,
+    pub(super) phantom: PhantomData<(&'i U, E)>,
 }
 
-impl<'i, U, E, P> Iterator for Reiter<'_, 'i, U, E, P>
+impl<'i, U, E, P, S> Iterator for Reiter<'_, '_, 'i, U, E, P, S>
 where
     U: ?Sized + Slice + 'i,
     E: Situation,
     P: Pattern<'i, U, E>,
+    S: AdvanceSlice<'i, U>,
 {
     type Item = Result<P::Captured, E>;
 
@@ -52,26 +54,28 @@ where
 
 //------------------------------------------------------------------------------
 
-pub struct Joined<'p, 'i, U, E, P, Q>
+pub struct Joined<'s, 'p, 'i, U, E, P, Q, S>
 where
     U: ?Sized + Slice + 'i,
     E: Situation,
     P: Pattern<'i, U, E>,
     Q: Pattern<'i, U, E>,
+    S: AdvanceSlice<'i, U>,
 {
     pub(super) body: &'p P,
     pub(super) sep: &'p Q,
-    pub(super) src: &'p mut &'i U,
+    pub(super) src: &'s mut S,
     pub(super) end: bool,
-    pub(super) phantom: PhantomData<E>,
+    pub(super) phantom: PhantomData<(&'i U, E)>,
 }
 
-impl<'i, U, E, P, Q> Iterator for Joined<'_, 'i, U, E, P, Q>
+impl<'i, U, E, P, Q, S> Iterator for Joined<'_, '_, 'i, U, E, P, Q, S>
 where
     U: ?Sized + Slice + 'i,
     E: Situation,
     P: Pattern<'i, U, E>,
     Q: Pattern<'i, U, E>,
+    S: AdvanceSlice<'i, U>,
 {
     type Item = Result<(P::Captured, bool), E>;
 

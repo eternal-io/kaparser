@@ -33,37 +33,15 @@ where
     //------------------------------------------------------------------------------
 
     #[inline]
-    fn parse2<S>(&self, mut slice: S) -> Result<Self::Captured, E>
+    fn parse<S>(&self, slice: &mut S) -> Result<Self::Captured, E>
     where
         S: AdvanceSlice<'i, U>,
     {
         let mut state = self.init();
         match self.advance(slice.rest(), &mut state, true) {
             Ok(len) => Ok(self.extract(slice.bump(len), state)),
-            Err(e) => {
-                if e.is_unfulfilled() {
-                    panic!("implementation: pull after EOF")
-                }
-                Err(e)
-            }
-        }
-    }
-
-    #[inline]
-    fn parse(&self, slice: &mut &'i U) -> Result<Self::Captured, E> {
-        let mut state = self.init();
-        match self.advance(*slice, &mut state, true) {
-            Ok(len) => {
-                let (left, right) = slice.split_at(len);
-                *slice = right;
-                Ok(self.extract(left, state))
-            }
-            Err(e) => {
-                if e.is_unfulfilled() {
-                    panic!("implementation: pull after EOF")
-                }
-                Err(e)
-            }
+            Err(e) if e.is_unfulfilled() => panic!("implementation: pull after EOF"),
+            Err(e) => Err(e),
         }
     }
 
@@ -101,9 +79,10 @@ where
     //------------------------------------------------------------------------------
 
     #[inline]
-    fn reiter<'p>(&'p self, slice: &'p mut &'i U) -> Reiter<'p, 'i, U, E, Self>
+    fn reiter<'s, 'p, S>(&'p self, slice: &'s mut S) -> Reiter<'s, 'p, 'i, U, E, Self, S>
     where
         Self: Sized,
+        S: AdvanceSlice<'i, U>,
     {
         Reiter {
             body: self,
@@ -113,10 +92,11 @@ where
     }
 
     #[inline]
-    fn joined<'p, Q>(&'p self, sep: &'p Q, slice: &'p mut &'i U) -> Joined<'p, 'i, U, E, Self, Q>
+    fn joined<'s, 'p, Q, S>(&'p self, sep: &'p Q, slice: &'s mut S) -> Joined<'s, 'p, 'i, U, E, Self, Q, S>
     where
         Self: Sized,
         Q: Pattern<'i, U, E>,
+        S: AdvanceSlice<'i, U>,
     {
         Joined {
             body: self,

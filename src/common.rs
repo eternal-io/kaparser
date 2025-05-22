@@ -98,7 +98,7 @@ pub trait Slice {
     }
 
     #[inline]
-    fn as_stateful(&self) -> StatefulSlice<Self> {
+    fn make_stateful(&self) -> StatefulSlice<Self> {
         StatefulSlice {
             source: self,
             consumed: 0,
@@ -251,14 +251,14 @@ where
     fn consumed(&self) -> usize;
 }
 
-impl<'i, U> AdvanceSlice<'i, U> for &mut &'i U
+impl<'i, U> AdvanceSlice<'i, U> for &'i U
 where
     U: ?Sized + Slice + 'i,
 {
     #[inline]
     fn bump(&mut self, n: usize) -> &'i U {
         let (before, after) = self.split_at(n);
-        **self = after;
+        *self = after;
         before
     }
     #[inline]
