@@ -252,12 +252,12 @@ pub trait ThinSlice: Slice {
     fn as_bytes(&self) -> &[u8];
     fn eq_ignore_ascii_case(left: Self::Item, right: Self::Item) -> bool;
 
-    fn memchr1_impl(&self, a: Self::Item) -> Option<usize>;
+    fn memchr1_impl(&self, a: Self::Item) -> Option<(usize, Self::Item)>;
     fn memchr2_impl(&self, a: Self::Item, b: Self::Item) -> Option<(usize, Self::Item)>;
     fn memchr3_impl(&self, a: Self::Item, b: Self::Item, c: Self::Item) -> Option<(usize, Self::Item)>;
 
     #[inline]
-    fn memchr<X: Needlable<Self>>(&self, needles: X) -> Option<X::Report> {
+    fn memchr<X: Needlable<Self>>(&self, needles: X) -> Option<(usize, Self::Item)> {
         needles.memchr_invoke(self)
     }
 
@@ -278,14 +278,14 @@ impl ThinSlice for str {
     }
 
     #[inline]
-    fn memchr1_impl(&self, a: Self::Item) -> Option<usize> {
+    fn memchr1_impl(&self, a: Self::Item) -> Option<(usize, Self::Item)> {
         let haystack = self.as_bytes();
         let indicator = encode_utf8_first_byte(a);
         let mut offset = 0;
         while let Some(pos) = memchr::memchr(indicator, &haystack[offset..]) {
             offset += pos;
             if next_code_point(&haystack[offset..]) == a as u32 {
-                return Some(offset);
+                return Some((offset, a));
             }
             offset += 1;
         }
@@ -338,8 +338,8 @@ impl ThinSlice for [u8] {
     }
 
     #[inline]
-    fn memchr1_impl(&self, a: Self::Item) -> Option<usize> {
-        memchr::memchr(a, self)
+    fn memchr1_impl(&self, a: Self::Item) -> Option<(usize, Self::Item)> {
+        Some((memchr::memchr(a, self)?, a))
     }
     #[inline]
     #[allow(unsafe_code)]
@@ -367,29 +367,24 @@ impl ThinSlice for [u8] {
 //------------------------------------------------------------------------------
 
 pub trait Needlable<U: ?Sized + ThinSlice> {
-    type Report;
-
-    fn memchr_invoke(&self, haystack: &U) -> Option<Self::Report>;
+    fn memchr_invoke(&self, haystack: &U) -> Option<(usize, U::Item)>;
 }
 
 impl<U: ?Sized + ThinSlice> Needlable<U> for [U::Item; 1] {
-    type Report = usize;
     #[inline]
-    fn memchr_invoke(&self, haystack: &U) -> Option<Self::Report> {
+    fn memchr_invoke(&self, haystack: &U) -> Option<(usize, U::Item)> {
         haystack.memchr1_impl(self[0])
     }
 }
 impl<U: ?Sized + ThinSlice> Needlable<U> for [U::Item; 2] {
-    type Report = (usize, U::Item);
     #[inline]
-    fn memchr_invoke(&self, haystack: &U) -> Option<Self::Report> {
+    fn memchr_invoke(&self, haystack: &U) -> Option<(usize, U::Item)> {
         haystack.memchr2_impl(self[0], self[1])
     }
 }
 impl<U: ?Sized + ThinSlice> Needlable<U> for [U::Item; 3] {
-    type Report = (usize, U::Item);
     #[inline]
-    fn memchr_invoke(&self, haystack: &U) -> Option<Self::Report> {
+    fn memchr_invoke(&self, haystack: &U) -> Option<(usize, U::Item)> {
         haystack.memchr3_impl(self[0], self[1], self[2])
     }
 }
@@ -676,7 +671,7 @@ mod tests {
     #[test]
     fn test_memchr_utf8() {
         for ch in TEST_VECTOR.chars() {
-            assert_eq!(TEST_VECTOR.memchr1_impl(ch).unwrap(), TEST_VECTOR.find(ch).unwrap());
+            assert_eq!(TEST_VECTOR.memchr1_impl(ch).unwrap().0, TEST_VECTOR.find(ch).unwrap());
         }
     }
 
@@ -684,7 +679,7 @@ mod tests {
     fn test_memchr() {
         for &byte in TEST_VECTOR.as_bytes() {
             assert_eq!(
-                TEST_VECTOR.as_bytes().memchr1_impl(byte).unwrap(),
+                TEST_VECTOR.as_bytes().memchr1_impl(byte).unwrap().0,
                 TEST_VECTOR.as_bytes().iter().position(|b| *b == byte).unwrap(),
             )
         }
