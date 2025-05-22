@@ -5,14 +5,14 @@ use core::ops::{RangeFrom, RangeFull, RangeInclusive, RangeTo, RangeToInclusive}
 #[doc(hidden)]
 pub use paste::paste;
 
-#[inline(always)]
+#[inline]
 pub(crate) const fn likely(cond: bool) -> bool {
     if !cond {
         cold_path();
     }
     cond
 }
-#[inline(always)]
+#[inline]
 pub(crate) const fn unlikely(cond: bool) -> bool {
     if cond {
         cold_path();
@@ -20,7 +20,7 @@ pub(crate) const fn unlikely(cond: bool) -> bool {
     cond
 }
 #[cold]
-#[inline(always)]
+#[inline]
 pub(crate) const fn cold_path() {}
 
 //------------------------------------------------------------------------------
@@ -73,50 +73,70 @@ pub trait Slice {
     fn len(&self) -> usize;
     fn len_of(item: Self::Item) -> usize;
     fn starts_with(&self, prefix: &Self) -> bool;
+
+    fn iter(&self) -> impl Iterator<Item = Self::Item> + DoubleEndedIterator;
+    fn iter_indices(&self) -> impl Iterator<Item = (usize, Self::Item)> + DoubleEndedIterator;
+    fn subslice(&self, range: Range<usize>) -> &Self;
+    fn split_at(&self, mid: usize) -> (&Self, &Self);
+
+    #[inline]
     fn is_empty(&self) -> bool {
         self.len() == 0
     }
-
-    fn subslice(&self, range: Range<usize>) -> &Self;
-    fn split_at(&self, mid: usize) -> (&Self, &Self);
-    fn iter(&self) -> impl Iterator<Item = Self::Item> + DoubleEndedIterator;
-    fn iter_indices(&self) -> impl Iterator<Item = (usize, Self::Item)> + DoubleEndedIterator;
+    #[inline]
     fn first(&self) -> Option<Self::Item> {
         self.iter().next()
+    }
+
+    #[inline]
+    fn before(&self, off: usize) -> &Self {
+        self.split_at(off).0
+    }
+    #[inline]
+    fn after(&self, off: usize) -> &Self {
+        self.split_at(off).1
+    }
+
+    #[inline]
+    fn as_stateful(&self) -> StatefulSlice<Self> {
+        StatefulSlice {
+            source: self,
+            consumed: 0,
+        }
     }
 }
 
 impl Slice for str {
     type Item = char;
 
-    #[inline(always)]
+    #[inline]
     fn len(&self) -> usize {
         (*self).len()
     }
-    #[inline(always)]
+    #[inline]
     fn len_of(item: Self::Item) -> usize {
         item.len_utf8()
     }
-    #[inline(always)]
+    #[inline]
     fn starts_with(&self, prefix: &Self) -> bool {
         (*self).starts_with(prefix)
     }
 
-    #[inline(always)]
-    fn subslice(&self, range: Range<usize>) -> &Self {
-        &self[range]
-    }
-    #[inline(always)]
-    fn split_at(&self, mid: usize) -> (&Self, &Self) {
-        (*self).split_at(mid)
-    }
-    #[inline(always)]
+    #[inline]
     fn iter(&self) -> impl Iterator<Item = Self::Item> + DoubleEndedIterator {
         self.chars()
     }
-    #[inline(always)]
+    #[inline]
     fn iter_indices(&self) -> impl Iterator<Item = (usize, Self::Item)> + DoubleEndedIterator {
         self.char_indices()
+    }
+    #[inline]
+    fn subslice(&self, range: Range<usize>) -> &Self {
+        &self[range]
+    }
+    #[inline]
+    fn split_at(&self, mid: usize) -> (&Self, &Self) {
+        (*self).split_at(mid)
     }
 }
 
@@ -126,40 +146,38 @@ where
 {
     type Item = T;
 
-    #[inline(always)]
+    #[inline]
     fn len(&self) -> usize {
         (*self).len()
     }
-    #[inline(always)]
+    #[inline]
     fn len_of(_tem: Self::Item) -> usize {
         1
     }
-    #[inline(always)]
+    #[inline]
     fn starts_with(&self, prefix: &Self) -> bool {
         (*self).starts_with(prefix)
     }
 
-    #[inline(always)]
-    fn subslice(&self, range: Range<usize>) -> &Self {
-        &self[range]
-    }
-    #[inline(always)]
-    fn split_at(&self, mid: usize) -> (&Self, &Self) {
-        (*self).split_at(mid)
-    }
-    #[inline(always)]
+    #[inline]
     fn iter(&self) -> impl Iterator<Item = Self::Item> + DoubleEndedIterator {
         (*self).iter().copied()
     }
-    #[inline(always)]
+    #[inline]
     fn iter_indices(&self) -> impl Iterator<Item = (usize, Self::Item)> + DoubleEndedIterator {
         (*self).iter().copied().enumerate()
+    }
+    #[inline]
+    fn subslice(&self, range: Range<usize>) -> &Self {
+        &self[range]
+    }
+    #[inline]
+    fn split_at(&self, mid: usize) -> (&Self, &Self) {
+        (*self).split_at(mid)
     }
 }
 
 //------------------------------------------------------------------------------
-
-// IMPROVE: New trait `Needlable` for `Predicate<U::Item>` tuples of size at most 3, where `U: ThinSlice`.
 
 pub trait ThinSlice: Slice {
     fn eq_ignore_ascii_case(left: Self::Item, right: Self::Item) -> bool;
@@ -172,53 +190,117 @@ pub trait ThinSlice: Slice {
 }
 
 impl ThinSlice for str {
-    #[inline(always)]
+    #[inline]
     fn eq_ignore_ascii_case(left: Self::Item, right: Self::Item) -> bool {
         left.eq_ignore_ascii_case(&right)
     }
 
-    #[inline(always)]
+    #[inline]
     fn memchr(&self, needle: Self::Item) -> Option<usize> {
         memchr_utf8(needle, self)
     }
-    #[inline(always)]
+    #[inline]
     fn memchr2(&self, needle1: Self::Item, needle2: Self::Item) -> Option<(usize, Self::Item)> {
         memchr2_utf8(needle1, needle2, self)
     }
-    #[inline(always)]
+    #[inline]
     fn memchr3(&self, needle1: Self::Item, needle2: Self::Item, needle3: Self::Item) -> Option<(usize, Self::Item)> {
         memchr3_utf8(needle1, needle2, needle3, self)
     }
 
-    #[inline(always)]
+    #[inline]
     fn memmem(&self, needle: &Self) -> Option<usize> {
         memchr::memmem::find(self.as_bytes(), needle.as_bytes())
     }
 }
 
 impl ThinSlice for [u8] {
-    #[inline(always)]
+    #[inline]
     fn eq_ignore_ascii_case(left: Self::Item, right: Self::Item) -> bool {
         left.eq_ignore_ascii_case(&right)
     }
 
-    #[inline(always)]
+    #[inline]
     fn memchr(&self, needle: Self::Item) -> Option<usize> {
         memchr(needle, self)
     }
-    #[inline(always)]
+    #[inline]
     fn memchr2(&self, needle1: Self::Item, needle2: Self::Item) -> Option<(usize, Self::Item)> {
         memchr2(needle1, needle2, self)
     }
-    #[inline(always)]
+    #[inline]
     fn memchr3(&self, needle1: Self::Item, needle2: Self::Item, needle3: Self::Item) -> Option<(usize, Self::Item)> {
         memchr3(needle1, needle2, needle3, self)
     }
 
-    #[inline(always)]
+    #[inline]
     fn memmem(&self, needle: &Self) -> Option<usize> {
         memchr::memmem::find(self, needle)
     }
+}
+
+//------------------------------------------------------------------------------
+
+pub trait AdvanceSlice<U>
+where
+    U: ?Sized + Slice,
+{
+    fn bump(&mut self, n: usize);
+    fn rest(&self) -> &U;
+    fn source(&self) -> &U;
+    fn consumed(&self) -> usize;
+}
+
+impl<'i, U> AdvanceSlice<U> for &mut &'i U
+where
+    U: ?Sized + Slice,
+{
+    #[inline]
+    fn bump(&mut self, n: usize) {
+        **self = self.after(n)
+    }
+    #[inline]
+    fn rest(&self) -> &'i U {
+        self
+    }
+    #[inline]
+    fn source(&self) -> &'i U {
+        self
+    }
+    #[inline]
+    fn consumed(&self) -> usize {
+        0
+    }
+}
+
+impl<'i, U> AdvanceSlice<U> for StatefulSlice<'i, U>
+where
+    U: ?Sized + Slice,
+{
+    #[inline]
+    fn bump(&mut self, n: usize) {
+        self.consumed += n;
+    }
+    #[inline]
+    fn rest(&self) -> &'i U {
+        self.source.after(self.consumed)
+    }
+    #[inline]
+    fn source(&self) -> &'i U {
+        self.source
+    }
+    #[inline]
+    fn consumed(&self) -> usize {
+        self.consumed
+    }
+}
+
+pub struct StatefulSlice<'i, U>
+where
+    U: ?Sized + Slice,
+{
+    source: &'i U,
+    consumed: usize,
 }
 
 //------------------------------------------------------------------------------
@@ -229,7 +311,7 @@ const TAG_TWO_B: u8 = 0b1100_0000;
 const TAG_THREE_B: u8 = 0b1110_0000;
 const TAG_FOUR_B: u8 = 0b1111_0000;
 
-#[inline(always)]
+#[inline]
 const fn encode_utf8_first_byte(ch: char) -> u8 {
     let code = ch as u32;
     match ch.len_utf8() {
@@ -241,12 +323,12 @@ const fn encode_utf8_first_byte(ch: char) -> u8 {
     }
 }
 
-#[inline(always)]
+#[inline]
 const fn decode_utf8_first_byte(byte: u8, width: u32) -> u32 {
     (byte & (0x7F >> width)) as u32
 }
 
-#[inline(always)]
+#[inline]
 const fn decode_utf8_acc_cont_byte(ch: u32, byte: u8) -> u32 {
     (ch << 6) | (byte & CONT_MASK) as u32
 }
@@ -254,7 +336,7 @@ const fn decode_utf8_acc_cont_byte(ch: u32, byte: u8) -> u32 {
 /// # SAFETY
 ///
 /// The `bytes` must be valid UTF-8.
-#[inline(always)]
+#[inline]
 #[allow(unsafe_code)]
 fn next_code_point(bytes: &[u8]) -> u32 {
     let x = unsafe { *bytes.get_unchecked(0) };
@@ -284,7 +366,7 @@ fn next_code_point(bytes: &[u8]) -> u32 {
     ch
 }
 
-#[inline(always)]
+#[inline]
 fn memchr_utf8(needle: char, haystack: &str) -> Option<usize> {
     let haystack = haystack.as_bytes();
     let indicator = encode_utf8_first_byte(needle);
@@ -298,7 +380,7 @@ fn memchr_utf8(needle: char, haystack: &str) -> Option<usize> {
     }
     None
 }
-#[inline(always)]
+#[inline]
 fn memchr2_utf8(needle1: char, needle2: char, haystack: &str) -> Option<(usize, char)> {
     let haystack = haystack.as_bytes();
     let indicator1 = encode_utf8_first_byte(needle1);
@@ -314,7 +396,7 @@ fn memchr2_utf8(needle1: char, needle2: char, haystack: &str) -> Option<(usize, 
     }
     None
 }
-#[inline(always)]
+#[inline]
 fn memchr3_utf8(needle1: char, needle2: char, needle3: char, haystack: &str) -> Option<(usize, char)> {
     let haystack = haystack.as_bytes();
     let indicator1 = encode_utf8_first_byte(needle1);
@@ -333,11 +415,11 @@ fn memchr3_utf8(needle1: char, needle2: char, needle3: char, haystack: &str) -> 
     None
 }
 
-#[inline(always)]
+#[inline]
 fn memchr(needle: u8, haystack: &[u8]) -> Option<usize> {
     memchr::memchr(needle, haystack)
 }
-#[inline(always)]
+#[inline]
 #[allow(unsafe_code)]
 fn memchr2(needle1: u8, needle2: u8, haystack: &[u8]) -> Option<(usize, u8)> {
     let pos = memchr::memchr2(needle1, needle2, haystack)?;
@@ -347,7 +429,7 @@ fn memchr2(needle1: u8, needle2: u8, haystack: &[u8]) -> Option<(usize, u8)> {
         _ => unsafe { core::hint::unreachable_unchecked() },
     })
 }
-#[inline(always)]
+#[inline]
 #[allow(unsafe_code)]
 fn memchr3(needle1: u8, needle2: u8, needle3: u8, haystack: &[u8]) -> Option<(usize, u8)> {
     let pos = memchr::memchr3(needle1, needle2, needle3, haystack)?;
@@ -444,7 +526,7 @@ pub mod alts {
             )+ }
 
             impl<A> Convergable<A> for [<Alt $Len>]<$($ConN),+> {
-                #[inline(always)]
+                #[inline]
                 fn converge(self) -> A {
                     match self { $(
                         Self::$VarN(v) => v,

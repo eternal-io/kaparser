@@ -4,7 +4,7 @@ use core::mem::MaybeUninit;
 #[doc(inline)]
 pub use crate::rep;
 
-#[inline(always)]
+#[inline]
 pub const fn repeat<'i, U, E, P, const AT_LEAST: usize, const MAY_MORE: usize>(
     body: P,
 ) -> Repeat<'i, U, E, P, AT_LEAST, MAY_MORE>
@@ -19,7 +19,7 @@ where
     }
 }
 
-#[inline(always)]
+#[inline]
 pub const fn repeat_exact<'i, U, E, P, const TIMES: usize>(body: P) -> RepeatExact<'i, U, E, P, TIMES>
 where
     U: ?Sized + Slice,
@@ -29,7 +29,7 @@ where
     RepeatExact { body: repeat(body) }
 }
 
-#[inline(always)]
+#[inline]
 pub const fn repeat_at_most<'i, U, E, P, const TIMES: usize>(body: P) -> RepeatAtMost<'i, U, E, P, TIMES>
 where
     U: ?Sized + Slice,
@@ -65,7 +65,7 @@ where
         [(usize, P::Internal); MAY_MORE],
     );
 
-    #[inline(always)]
+    #[inline]
     #[allow(unsafe_code)]
     fn init(&self) -> Self::Internal {
         let mut at_least: MaybeUninit<[(usize, P::Internal); AT_LEAST]> = MaybeUninit::uninit();
@@ -86,7 +86,7 @@ where
         unsafe { (0, at_least.assume_init(), may_more.assume_init()) }
     }
 
-    #[inline(always)]
+    #[inline]
     fn advance(&self, slice: &U, entry: &mut Self::Internal, eof: bool) -> Result<usize, E> {
         let (checkpoint, at_least, may_more) = entry;
         let mut resuming = *checkpoint;
@@ -121,7 +121,7 @@ where
         Ok(offset)
     }
 
-    #[inline(always)]
+    #[inline]
     #[allow(unsafe_code)]
     fn extract(&self, slice: &'i U, entry: Self::Internal) -> Self::Captured {
         let (mut checkpoint, at_least, may_more) = entry;
@@ -173,15 +173,15 @@ where
     type Captured = [P::Captured; TIMES];
     type Internal = <Repeat<'i, U, E, P, TIMES, 0> as Pattern<'i, U, E>>::Internal;
 
-    #[inline(always)]
+    #[inline]
     fn init(&self) -> Self::Internal {
         self.body.init()
     }
-    #[inline(always)]
+    #[inline]
     fn advance(&self, slice: &U, entry: &mut Self::Internal, eof: bool) -> Result<usize, E> {
         self.body.advance(slice, entry, eof)
     }
-    #[inline(always)]
+    #[inline]
     fn extract(&self, slice: &'i U, entry: Self::Internal) -> Self::Captured {
         self.body.extract(slice, entry).0
     }
@@ -207,15 +207,15 @@ where
     type Captured = [Option<P::Captured>; TIMES];
     type Internal = <Repeat<'i, U, E, P, 0, TIMES> as Pattern<'i, U, E>>::Internal;
 
-    #[inline(always)]
+    #[inline]
     fn init(&self) -> Self::Internal {
         self.body.init()
     }
-    #[inline(always)]
+    #[inline]
     fn advance(&self, slice: &U, entry: &mut Self::Internal, eof: bool) -> Result<usize, E> {
         self.body.advance(slice, entry, eof)
     }
-    #[inline(always)]
+    #[inline]
     fn extract(&self, slice: &'i U, entry: Self::Internal) -> Self::Captured {
         self.body.extract(slice, entry).1
     }

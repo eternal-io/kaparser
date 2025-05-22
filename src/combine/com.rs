@@ -1,6 +1,6 @@
 use super::*;
 
-#[inline(always)]
+#[inline]
 pub const fn com<'i, U, E, C>(com: C) -> Compound<'i, U, E, C>
 where
     U: ?Sized + Slice,
@@ -49,15 +49,15 @@ where
     type Captured = C::Captured;
     type Internal = C::Internal;
 
-    #[inline(always)]
+    #[inline]
     fn init(&self) -> Self::Internal {
         self.com.init_com()
     }
-    #[inline(always)]
+    #[inline]
     fn advance(&self, slice: &U, entry: &mut Self::Internal, eof: bool) -> Result<usize, E> {
         self.com.advance_com(slice, entry, eof)
     }
-    #[inline(always)]
+    #[inline]
     fn extract(&self, slice: &'i U, entry: Self::Internal) -> Self::Captured {
         self.com.extract_com(slice, entry)
     }
@@ -73,12 +73,12 @@ macro_rules! impl_compoundable_for_tuple {
             type Captured = &'i U;
             type Internal = usize;
 
-            #[inline(always)]
+            #[inline]
             fn init_com(&self) -> Self::Internal {
                 0
             }
 
-            #[inline(always)]
+            #[inline]
             fn advance_com(&self, slice: &U, entry: &mut Self::Internal, eof: bool) -> Result<usize, E> {
                 *entry = 0;
             $( {
@@ -91,7 +91,7 @@ macro_rules! impl_compoundable_for_tuple {
                 Ok(*entry)
             }
 
-            #[inline(always)]
+            #[inline]
             fn extract_com(&self, slice: &'i U, entry: Self::Internal) -> Self::Captured {
                 slice.split_at(entry).0
             }

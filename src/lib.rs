@@ -15,6 +15,8 @@ pub mod prelude;
 #[rustfmt::skip]
 #[doc = include_str!("../docs/combinators.md")]
 pub mod combine {
+    #[cfg(test)]
+    use crate::tester::*;
     use crate::{common::*, prelude::*};
     use core::marker::PhantomData;
 

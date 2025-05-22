@@ -4,7 +4,7 @@ use core::mem;
 #[doc(inline)]
 pub use crate::disp;
 
-#[inline(always)]
+#[inline]
 pub const fn dispatch<'i, U, E, D>(disp: D) -> Dispatch<'i, U, E, D>
 where
     U: ?Sized + Slice,
@@ -53,15 +53,15 @@ where
     type Captured = D::Captured;
     type Internal = D::Internal;
 
-    #[inline(always)]
+    #[inline]
     fn init(&self) -> Self::Internal {
         self.disp.init_disp()
     }
-    #[inline(always)]
+    #[inline]
     fn advance(&self, slice: &U, entry: &mut Self::Internal, eof: bool) -> Result<usize, E> {
         self.disp.advance_disp(slice, entry, eof)
     }
-    #[inline(always)]
+    #[inline]
     fn extract(&self, slice: &'i U, entry: Self::Internal) -> Self::Captured {
         self.disp.extract_disp(slice, entry)
     }
@@ -80,12 +80,12 @@ macro_rules! impl_dispatchable_for_tuple {
             type Captured = [<Alt $Len>]<$($GenN::Captured),+>;
             type Internal = Alt3<P0::Internal, (), (usize, [<Alt $Len>]<$($GenN::Internal),+>)>;
 
-            #[inline(always)]
+            #[inline]
             fn init_disp(&self) -> Self::Internal {
                 Alt3::Var1(self.0.init())
             }
 
-            #[inline(always)]
+            #[inline]
             #[allow(unsafe_code)]
             #[allow(irrefutable_let_patterns)]
             fn advance_disp(&self, slice: &U, entry: &mut Self::Internal, eof: bool) -> Result<usize, E> {
@@ -118,7 +118,7 @@ macro_rules! impl_dispatchable_for_tuple {
                 )+ }.map(|off| *offset + off)
             }
 
-            #[inline(always)]
+            #[inline]
             fn extract_disp(&self, slice: &'i U, entry: Self::Internal) -> Self::Captured {
                 use [<Alt $Len>]::*;
 

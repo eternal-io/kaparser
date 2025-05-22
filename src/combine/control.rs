@@ -5,7 +5,7 @@ pub struct Halt;
 pub struct Reject;
 pub struct TODO;
 
-#[inline(always)]
+#[inline]
 pub const fn igc<U>(slice: &U) -> IgnoreCase<U>
 where
     U: ?Sized + ThinSlice,
@@ -13,7 +13,7 @@ where
     IgnoreCase { slice }
 }
 
-#[inline(always)]
+#[inline]
 pub const fn cut<'i, U, E, P>(body: P) -> Cut<'i, U, E, P>
 where
     U: ?Sized + Slice,
@@ -26,7 +26,7 @@ where
     }
 }
 
-#[inline(always)]
+#[inline]
 pub const fn cond<'i, U, E, P>(b: bool, body: P) -> Cond<'i, U, E, P>
 where
     U: ?Sized + Slice,
@@ -50,16 +50,16 @@ where
     type Captured = ();
     type Internal = ();
 
-    #[inline(always)]
+    #[inline]
     fn init(&self) -> Self::Internal {}
-    #[inline(always)]
+    #[inline]
     fn advance(&self, slice: &U, _ntry: &mut Self::Internal, eof: bool) -> Result<usize, E> {
         match slice.is_empty() && eof {
             true => Ok(0),
             false => E::raise_reject_at(0),
         }
     }
-    #[inline(always)]
+    #[inline]
     fn extract(&self, _lice: &'i U, _ntry: Self::Internal) -> Self::Captured {}
 }
 
@@ -71,13 +71,13 @@ where
     type Captured = ();
     type Internal = ();
 
-    #[inline(always)]
+    #[inline]
     fn init(&self) -> Self::Internal {}
-    #[inline(always)]
+    #[inline]
     fn advance(&self, _lice: &U, _ntry: &mut Self::Internal, _of: bool) -> Result<usize, E> {
         E::raise_halt_at(0)
     }
-    #[inline(always)]
+    #[inline]
     fn extract(&self, _lice: &'i U, _ntry: Self::Internal) -> Self::Captured {}
 }
 
@@ -89,13 +89,13 @@ where
     type Captured = ();
     type Internal = ();
 
-    #[inline(always)]
+    #[inline]
     fn init(&self) -> Self::Internal {}
-    #[inline(always)]
+    #[inline]
     fn advance(&self, _lice: &U, _ntry: &mut Self::Internal, _of: bool) -> Result<usize, E> {
         E::raise_reject_at(0)
     }
-    #[inline(always)]
+    #[inline]
     fn extract(&self, _lice: &'i U, _ntry: Self::Internal) -> Self::Captured {}
 }
 
@@ -107,13 +107,13 @@ where
     type Captured = ();
     type Internal = ();
 
-    #[inline(always)]
+    #[inline]
     fn init(&self) -> Self::Internal {}
-    #[inline(always)]
+    #[inline]
     fn advance(&self, _lice: &U, _ntry: &mut Self::Internal, _of: bool) -> Result<usize, E> {
         panic!("not yet implemented")
     }
-    #[inline(always)]
+    #[inline]
     fn extract(&self, _lice: &'i U, _ntry: Self::Internal) -> Self::Captured {}
 }
 
@@ -134,9 +134,9 @@ where
     type Captured = &'i U;
     type Internal = ();
 
-    #[inline(always)]
+    #[inline]
     fn init(&self) -> Self::Internal {}
-    #[inline(always)]
+    #[inline]
     fn advance(&self, slice: &U, _ntry: &mut Self::Internal, eof: bool) -> Result<usize, E> {
         if slice.len() < self.slice.len() {
             match eof {
@@ -152,7 +152,7 @@ where
             Ok(self.slice.len())
         }
     }
-    #[inline(always)]
+    #[inline]
     fn extract(&self, slice: &'i U, _ntry: Self::Internal) -> Self::Captured {
         slice.split_at(self.slice.len()).0
     }
@@ -179,15 +179,15 @@ where
     type Captured = P::Captured;
     type Internal = P::Internal;
 
-    #[inline(always)]
+    #[inline]
     fn init(&self) -> Self::Internal {
         self.body.init()
     }
-    #[inline(always)]
+    #[inline]
     fn advance(&self, slice: &U, entry: &mut Self::Internal, eof: bool) -> Result<usize, E> {
         self.body.advance(slice, entry, eof).map_err(Situation::cut)
     }
-    #[inline(always)]
+    #[inline]
     fn extract(&self, slice: &'i U, entry: Self::Internal) -> Self::Captured {
         self.body.extract(slice, entry)
     }
@@ -215,18 +215,18 @@ where
     type Captured = Option<P::Captured>;
     type Internal = P::Internal;
 
-    #[inline(always)]
+    #[inline]
     fn init(&self) -> Self::Internal {
         self.body.init()
     }
-    #[inline(always)]
+    #[inline]
     fn advance(&self, slice: &U, entry: &mut Self::Internal, eof: bool) -> Result<usize, E> {
         match self.cond {
             true => self.body.advance(slice, entry, eof),
             false => Ok(0),
         }
     }
-    #[inline(always)]
+    #[inline]
     fn extract(&self, slice: &'i U, entry: Self::Internal) -> Self::Captured {
         match self.cond {
             true => Some(self.body.extract(slice, entry)),

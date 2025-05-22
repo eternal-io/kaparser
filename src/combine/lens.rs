@@ -4,7 +4,7 @@ use super::*;
 #[doc(inline)]
 pub use crate::len;
 
-#[inline(always)]
+#[inline]
 pub const fn lens<T, P, E, const LEN: usize>(predicate: P) -> Lens<T, P, E, LEN>
 where
     T: Copy + PartialEq,
@@ -38,9 +38,9 @@ where
     type Captured = [T; LEN];
     type Internal = ();
 
-    #[inline(always)]
+    #[inline]
     fn init(&self) -> Self::Internal {}
-    #[inline(always)]
+    #[inline]
     fn advance(&self, slice: &[T], _ntry: &mut Self::Internal, eof: bool) -> Result<usize, E> {
         if slice.len() < LEN {
             match eof {
@@ -56,7 +56,7 @@ where
             Ok(LEN)
         }
     }
-    #[inline(always)]
+    #[inline]
     fn extract(&self, slice: &'i [T], _ntry: Self::Internal) -> Self::Captured {
         slice.split_at(LEN).0.try_into().unwrap()
     }

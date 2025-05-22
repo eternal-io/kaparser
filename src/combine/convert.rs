@@ -1,7 +1,7 @@
 use super::*;
 use core::mem;
 
-#[inline(always)]
+#[inline]
 pub const fn converge<'i, U, E, P, A>(body: P) -> Converge<'i, U, E, P, A>
 where
     U: ?Sized + Slice,
@@ -15,7 +15,7 @@ where
     }
 }
 
-#[inline(always)]
+#[inline]
 pub const fn filter<'i, U, E, P, F>(pred: F, body: P) -> Filter<'i, U, E, P, F>
 where
     U: ?Sized + Slice,
@@ -29,7 +29,7 @@ where
         phantom: PhantomData,
     }
 }
-#[inline(always)]
+#[inline]
 pub const fn filter_map<'i, U, E, P, F, T>(filter: F, body: P) -> FilterMap<'i, U, E, P, F, T>
 where
     U: ?Sized + Slice,
@@ -45,7 +45,7 @@ where
     }
 }
 
-#[inline(always)]
+#[inline]
 pub const fn and_then<'i, U, E, P, F, T>(op: F, body: P) -> AndThen<'i, U, E, P, F, T>
 where
     U: ?Sized + Slice,
@@ -60,7 +60,7 @@ where
         phantom: PhantomData,
     }
 }
-#[inline(always)]
+#[inline]
 pub const fn then_some<'i, U, E, P, T>(value: T, body: P) -> ThenSome<'i, U, E, P, T>
 where
     U: ?Sized + Slice,
@@ -75,7 +75,7 @@ where
     }
 }
 
-#[inline(always)]
+#[inline]
 pub const fn complex<'i, U, E, P, Q>(body: P, then: Q) -> Complex<'i, U, E, P, Q>
 where
     U: ?Sized + Slice,
@@ -90,7 +90,7 @@ where
     }
 }
 
-#[inline(always)]
+#[inline]
 pub const fn map<'i, U, E, P, F, T>(op: F, body: P) -> Map<'i, U, E, P, F, T>
 where
     U: ?Sized + Slice,
@@ -104,7 +104,7 @@ where
         phantom: PhantomData,
     }
 }
-#[inline(always)]
+#[inline]
 pub const fn map_err<'i, U, E1, P, F, E2>(op: F, body: P) -> MapErr<'i, U, E1, P, F, E2>
 where
     U: ?Sized + Slice,
@@ -120,7 +120,7 @@ where
     }
 }
 
-#[inline(always)]
+#[inline]
 pub const fn expect<'i, U, E, P>(msg: &'static str, body: P) -> Expect<'i, U, E, P>
 where
     U: ?Sized + Slice,
@@ -133,7 +133,7 @@ where
         phantom: PhantomData,
     }
 }
-#[inline(always)]
+#[inline]
 pub const fn unwrap<'i, U, E, P>(body: P) -> Unwrap<'i, U, E, P>
 where
     U: ?Sized + Slice,
@@ -146,7 +146,7 @@ where
     }
 }
 
-#[inline(always)]
+#[inline]
 pub const fn unwrap_or<'i, U, E, P>(default: P::Captured, body: P) -> UnwrapOr<'i, U, E, P>
 where
     U: ?Sized + Slice,
@@ -160,7 +160,7 @@ where
         phantom: PhantomData,
     }
 }
-#[inline(always)]
+#[inline]
 pub const fn unwrap_or_else<'i, U, E, P, F>(f: F, body: P) -> UnwrapOrElse<'i, U, E, P, F>
 where
     U: ?Sized + Slice,
@@ -174,7 +174,7 @@ where
         phantom: PhantomData,
     }
 }
-#[inline(always)]
+#[inline]
 pub const fn unwrap_or_default<'i, U, E, P>(body: P) -> UnwrapOrDefault<'i, U, E, P>
 where
     U: ?Sized + Slice,
@@ -210,15 +210,15 @@ where
     type Captured = A;
     type Internal = P::Internal;
 
-    #[inline(always)]
+    #[inline]
     fn init(&self) -> Self::Internal {
         self.body.init()
     }
-    #[inline(always)]
+    #[inline]
     fn advance(&self, slice: &U, entry: &mut Self::Internal, eof: bool) -> Result<usize, E> {
         self.body.advance(slice, entry, eof)
     }
-    #[inline(always)]
+    #[inline]
     fn extract(&self, slice: &'i U, entry: Self::Internal) -> Self::Captured {
         self.body.extract(slice, entry).converge()
     }
@@ -247,11 +247,11 @@ where
     type Captured = P::Captured;
     type Internal = P::Internal;
 
-    #[inline(always)]
+    #[inline]
     fn init(&self) -> Self::Internal {
         self.body.init()
     }
-    #[inline(always)]
+    #[inline]
     #[allow(unsafe_code)]
     fn advance(&self, slice: &U, entry: &mut Self::Internal, eof: bool) -> Result<usize, E> {
         let offset = self.body.advance(slice, entry, eof)?;
@@ -263,7 +263,7 @@ where
             false => E::raise_reject_at(0),
         }
     }
-    #[inline(always)]
+    #[inline]
     fn extract(&self, slice: &'i U, entry: Self::Internal) -> Self::Captured {
         self.body.extract(slice, entry)
     }
@@ -292,11 +292,11 @@ where
     type Captured = T;
     type Internal = Alt3<P::Internal, (), T>;
 
-    #[inline(always)]
+    #[inline]
     fn init(&self) -> Self::Internal {
         Alt3::Var2(())
     }
-    #[inline(always)]
+    #[inline]
     #[allow(unsafe_code)]
     fn advance(&self, slice: &U, entry: &mut Self::Internal, eof: bool) -> Result<usize, E> {
         if !matches!(entry, Alt3::Var1(_)) {
@@ -319,7 +319,7 @@ where
 
         Ok(offset)
     }
-    #[inline(always)]
+    #[inline]
     fn extract(&self, _lice: &'i U, entry: Self::Internal) -> Self::Captured {
         let Alt3::Var3(output) = entry else {
             panic!("contract violation")
@@ -353,11 +353,11 @@ where
     type Captured = T;
     type Internal = Alt3<P::Internal, (), T>;
 
-    #[inline(always)]
+    #[inline]
     fn init(&self) -> Self::Internal {
         Alt3::Var2(())
     }
-    #[inline(always)]
+    #[inline]
     #[allow(unsafe_code)]
     fn advance(&self, slice: &U, entry: &mut Self::Internal, eof: bool) -> Result<usize, E> {
         if !matches!(entry, Alt3::Var1(_)) {
@@ -379,7 +379,7 @@ where
 
         Ok(offset)
     }
-    #[inline(always)]
+    #[inline]
     fn extract(&self, _lice: &'i U, entry: Self::Internal) -> Self::Captured {
         let Alt3::Var3(output) = entry else {
             panic!("contract violation")
@@ -409,15 +409,15 @@ where
     type Captured = T;
     type Internal = P::Internal;
 
-    #[inline(always)]
+    #[inline]
     fn init(&self) -> Self::Internal {
         self.body.init()
     }
-    #[inline(always)]
+    #[inline]
     fn advance(&self, slice: &U, entry: &mut Self::Internal, eof: bool) -> Result<usize, E> {
         self.body.advance(slice, entry, eof)
     }
-    #[inline(always)]
+    #[inline]
     fn extract(&self, _lice: &'i U, _ntry: Self::Internal) -> Self::Captured {
         self.value.clone()
     }
@@ -446,11 +446,11 @@ where
     type Captured = Q::Captured;
     type Internal = Alt2<P::Internal, Q::Internal>;
 
-    #[inline(always)]
+    #[inline]
     fn init(&self) -> Self::Internal {
         Alt2::Var1(self.body.init())
     }
-    #[inline(always)]
+    #[inline]
     fn advance(&self, slice: &U, entry: &mut Self::Internal, eof: bool) -> Result<usize, E> {
         let Alt2::Var1(state) = entry else {
             panic!("contract violation")
@@ -462,7 +462,7 @@ where
         let Alt2::Var2(state) = entry else { unreachable!() };
         self.then.advance(slice.split_at(len).0, state, true)
     }
-    #[inline(always)]
+    #[inline]
     fn extract(&self, slice: &'i U, entry: Self::Internal) -> Self::Captured {
         let Alt2::Var2(state) = entry else {
             panic!("contract violation")
@@ -494,15 +494,15 @@ where
     type Captured = T;
     type Internal = P::Internal;
 
-    #[inline(always)]
+    #[inline]
     fn init(&self) -> Self::Internal {
         self.body.init()
     }
-    #[inline(always)]
+    #[inline]
     fn advance(&self, slice: &U, entry: &mut Self::Internal, eof: bool) -> Result<usize, E> {
         self.body.advance(slice, entry, eof)
     }
-    #[inline(always)]
+    #[inline]
     fn extract(&self, slice: &'i U, entry: Self::Internal) -> Self::Captured {
         (self.op)(self.body.extract(slice, entry))
     }
@@ -531,15 +531,15 @@ where
     type Captured = P::Captured;
     type Internal = P::Internal;
 
-    #[inline(always)]
+    #[inline]
     fn init(&self) -> Self::Internal {
         self.body.init()
     }
-    #[inline(always)]
+    #[inline]
     fn advance(&self, slice: &U, entry: &mut Self::Internal, eof: bool) -> Result<usize, E2> {
         self.body.advance(slice, entry, eof).map_err(|e| (self.op)(e))
     }
-    #[inline(always)]
+    #[inline]
     fn extract(&self, slice: &'i U, entry: Self::Internal) -> Self::Captured {
         self.body.extract(slice, entry)
     }
@@ -566,15 +566,15 @@ where
     type Captured = P::Captured;
     type Internal = P::Internal;
 
-    #[inline(always)]
+    #[inline]
     fn init(&self) -> Self::Internal {
         self.body.init()
     }
-    #[inline(always)]
+    #[inline]
     fn advance(&self, slice: &U, entry: &mut Self::Internal, eof: bool) -> Result<usize, E> {
         Ok(self.body.advance(slice, entry, eof).expect(self.msg))
     }
-    #[inline(always)]
+    #[inline]
     fn extract(&self, slice: &'i U, entry: Self::Internal) -> Self::Captured {
         self.body.extract(slice, entry)
     }
@@ -598,15 +598,15 @@ where
     type Captured = P::Captured;
     type Internal = P::Internal;
 
-    #[inline(always)]
+    #[inline]
     fn init(&self) -> Self::Internal {
         self.body.init()
     }
-    #[inline(always)]
+    #[inline]
     fn advance(&self, slice: &U, entry: &mut Self::Internal, eof: bool) -> Result<usize, E> {
         Ok(self.body.advance(slice, entry, eof).expect("unexpected input"))
     }
-    #[inline(always)]
+    #[inline]
     fn extract(&self, slice: &'i U, entry: Self::Internal) -> Self::Captured {
         self.body.extract(slice, entry)
     }
@@ -635,11 +635,11 @@ where
     type Captured = P::Captured;
     type Internal = Option<P::Internal>;
 
-    #[inline(always)]
+    #[inline]
     fn init(&self) -> Self::Internal {
         Some(self.body.init())
     }
-    #[inline(always)]
+    #[inline]
     fn advance(&self, slice: &U, entry: &mut Self::Internal, eof: bool) -> Result<usize, E> {
         let res = self
             .body
@@ -651,7 +651,7 @@ where
         }
         res
     }
-    #[inline(always)]
+    #[inline]
     fn extract(&self, slice: &'i U, entry: Self::Internal) -> Self::Captured {
         match entry {
             None => self.default.clone(),
@@ -681,11 +681,11 @@ where
     type Captured = P::Captured;
     type Internal = Option<P::Internal>;
 
-    #[inline(always)]
+    #[inline]
     fn init(&self) -> Self::Internal {
         Some(self.body.init())
     }
-    #[inline(always)]
+    #[inline]
     fn advance(&self, slice: &U, entry: &mut Self::Internal, eof: bool) -> Result<usize, E> {
         let res = self
             .body
@@ -697,7 +697,7 @@ where
         }
         res
     }
-    #[inline(always)]
+    #[inline]
     fn extract(&self, slice: &'i U, entry: Self::Internal) -> Self::Captured {
         match entry {
             None => (self.f)(),
@@ -726,11 +726,11 @@ where
     type Captured = P::Captured;
     type Internal = Option<P::Internal>;
 
-    #[inline(always)]
+    #[inline]
     fn init(&self) -> Self::Internal {
         Some(self.body.init())
     }
-    #[inline(always)]
+    #[inline]
     fn advance(&self, slice: &U, entry: &mut Self::Internal, eof: bool) -> Result<usize, E> {
         let res = self
             .body
@@ -742,7 +742,7 @@ where
         }
         res
     }
-    #[inline(always)]
+    #[inline]
     fn extract(&self, slice: &'i U, entry: Self::Internal) -> Self::Captured {
         match entry {
             None => Default::default(),

@@ -6,52 +6,52 @@ pub trait Predicate<T>: Sized {
 }
 
 impl<T, F: Fn(&T) -> bool> Predicate<T> for F {
-    #[inline(always)]
+    #[inline]
     fn predicate(&self, item: &T) -> bool {
         self(item)
     }
 }
 impl<T: PartialOrd> Predicate<T> for Range<T> {
-    #[inline(always)]
+    #[inline]
     fn predicate(&self, item: &T) -> bool {
         self.contains(item)
     }
 }
 impl<T: PartialOrd> Predicate<T> for RangeInclusive<T> {
-    #[inline(always)]
+    #[inline]
     fn predicate(&self, item: &T) -> bool {
         self.contains(item)
     }
 }
 
 impl<T: PartialOrd> Predicate<T> for RangeFrom<T> {
-    #[inline(always)]
+    #[inline]
     fn predicate(&self, item: &T) -> bool {
         self.contains(item)
     }
 }
 impl<T: PartialOrd> Predicate<T> for RangeTo<T> {
-    #[inline(always)]
+    #[inline]
     fn predicate(&self, item: &T) -> bool {
         self.contains(item)
     }
 }
 impl<T: PartialOrd> Predicate<T> for RangeToInclusive<T> {
-    #[inline(always)]
+    #[inline]
     fn predicate(&self, item: &T) -> bool {
         self.contains(item)
     }
 }
 
 impl<T> Predicate<T> for RangeFull {
-    #[inline(always)]
+    #[inline]
     fn predicate(&self, item: &T) -> bool {
         let _ = item;
         true
     }
 }
 impl<T> Predicate<T> for () {
-    #[inline(always)]
+    #[inline]
     fn predicate(&self, item: &T) -> bool {
         let _ = item;
         false
@@ -63,7 +63,7 @@ impl<T> Predicate<T> for () {
 macro_rules! impl_predicate_for_primitives {
     ( $($ty:ty),+$(,)? ) => { $(
         impl Predicate<$ty> for $ty {
-            #[inline(always)]
+            #[inline]
             fn predicate(&self, item: &$ty) -> bool {
                 *self == *item
             }
@@ -83,7 +83,7 @@ impl_predicate_for_primitives! {
 macro_rules! impl_predicate_for_tuple {
     ( $Len:literal, $($OrdN:literal ~ ($GenN:ident) ~ $_gen:ident ~ $_con:ident ~ $IdxN:tt)+ ) => {
         impl<T, $($GenN: Predicate<T>),+> Predicate<T> for ($($GenN,)+) {
-            #[inline(always)]
+            #[inline]
             fn predicate(&self, item: &T) -> bool {
                 impl_predicate_for_tuple!( @ self item $($IdxN),+ )
             }
@@ -110,7 +110,7 @@ macro_rules! gen_ascii_predicates {
     ),* $(,)? ) => { paste::paste! { $(
         #[doc = "ASCII " $desc ".\n\n"]
       $(#[$attr])*
-        #[inline(always)]
+        #[inline]
         pub const fn $func($ch: &char) -> bool {
             $expr
         }
@@ -124,7 +124,7 @@ macro_rules! gen_unicode_predicates {
     ),* $(,)? ) => { paste::paste! { $(
         #[doc = "Unicode character " $prop ".\n\n"]
       $(#[$attr])*
-        #[inline(always)]
+        #[inline]
         pub fn $func($ch: &char) -> bool {
             $expr
         }

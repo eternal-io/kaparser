@@ -1,6 +1,6 @@
 use super::*;
 
-#[inline(always)]
+#[inline]
 pub const fn alt<'i, U, E, A>(alt: A) -> Alternative<'i, U, E, A>
 where
     U: ?Sized + Slice,
@@ -49,15 +49,15 @@ where
     type Captured = A::Captured;
     type Internal = A::Internal;
 
-    #[inline(always)]
+    #[inline]
     fn init(&self) -> Self::Internal {
         self.alt.init_alt()
     }
-    #[inline(always)]
+    #[inline]
     fn advance(&self, slice: &U, entry: &mut Self::Internal, eof: bool) -> Result<usize, E> {
         self.alt.advance_alt(slice, entry, eof)
     }
-    #[inline(always)]
+    #[inline]
     fn extract(&self, slice: &'i U, entry: Self::Internal) -> Self::Captured {
         self.alt.extract_alt(slice, entry)
     }
@@ -73,12 +73,12 @@ macro_rules! impl_alternatable_for_tuple {
             type Captured = [<Alt $Len>]<$($GenN::Captured),+>;
             type Internal = [<Alt $Len>]<$($GenN::Internal),+>;
 
-            #[inline(always)]
+            #[inline]
             fn init_alt(&self) -> Self::Internal {
                 [<Alt $Len>]::Var1(self.0.init())
             }
 
-            #[inline(always)]
+            #[inline]
             #[allow(irrefutable_let_patterns)]
             fn advance_alt(&self, slice: &U, entry: &mut Self::Internal, eof: bool) -> Result<usize, E> {
                 use [<Alt $Len>]::*;
@@ -100,7 +100,7 @@ macro_rules! impl_alternatable_for_tuple {
                 E::raise_reject_at(0)
             }
 
-            #[inline(always)]
+            #[inline]
             fn extract_alt(&self, slice: &'i U, entry: Self::Internal) -> Self::Captured {
                 use [<Alt $Len>]::*;
                 match entry { $(

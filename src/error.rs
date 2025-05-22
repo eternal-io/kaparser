@@ -30,20 +30,20 @@ pub trait Situation: Sized + Debug {
     /// Get the description of the situation.
     fn description(self) -> Self::Description;
 
-    #[inline(always)]
+    #[inline]
     fn raise_unfulfilled<T>(ext: Option<NonZeroUsize>) -> Result<T, Self> {
         Err(Self::unfulfilled(ext))
     }
-    #[inline(always)]
+    #[inline]
     fn raise_reject_at<T>(off: usize) -> Result<T, Self> {
         Err(Self::reject_at(off))
     }
-    #[inline(always)]
+    #[inline]
     fn raise_halt_at<T>(off: usize) -> Result<T, Self> {
         Err(Self::halt_at(off))
     }
 
-    #[inline(always)]
+    #[inline]
     fn raise_backtrack<T>(self, off: usize) -> Result<T, Self> {
         Err(self.backtrack(off))
     }
@@ -73,21 +73,21 @@ where
 {
     type Description = D;
 
-    #[inline(always)]
+    #[inline]
     fn unfulfilled(ext: Option<NonZeroUsize>) -> Self {
         Self {
             kind: SimpleErrorKind::Unfulfilled(ext),
             desc: Default::default(),
         }
     }
-    #[inline(always)]
+    #[inline]
     fn reject_at(off: usize) -> Self {
         Self {
             kind: SimpleErrorKind::Rejected(off),
             desc: Default::default(),
         }
     }
-    #[inline(always)]
+    #[inline]
     fn halt_at(off: usize) -> Self {
         Self {
             kind: SimpleErrorKind::Halted(off),
@@ -95,7 +95,7 @@ where
         }
     }
 
-    #[inline(always)]
+    #[inline]
     fn cut(self) -> Self {
         let Self { kind, desc } = self;
         match kind {
@@ -107,20 +107,20 @@ where
         }
     }
 
-    #[inline(always)]
+    #[inline]
     fn is_unfulfilled(&self) -> bool {
         matches!(self.kind, SimpleErrorKind::Unfulfilled(_))
     }
-    #[inline(always)]
+    #[inline]
     fn is_rejected(&self) -> bool {
         matches!(self.kind, SimpleErrorKind::Rejected(_))
     }
-    #[inline(always)]
+    #[inline]
     fn is_halted(&self) -> bool {
         matches!(self.kind, SimpleErrorKind::Halted(_))
     }
 
-    #[inline(always)]
+    #[inline]
     fn backtrack(mut self, off: usize) -> Self {
         match &mut self.kind {
             SimpleErrorKind::Unfulfilled(_) => (),
@@ -129,7 +129,7 @@ where
         }
         self
     }
-    #[inline(always)]
+    #[inline]
     fn offset(&self) -> usize {
         match self.kind {
             SimpleErrorKind::Unfulfilled(n) => n.map(usize::from).unwrap_or(0),
@@ -138,12 +138,12 @@ where
         }
     }
 
-    #[inline(always)]
+    #[inline]
     fn describe(mut self, desc: Self::Description) -> Self {
         self.desc = desc;
         self
     }
-    #[inline(always)]
+    #[inline]
     fn description(self) -> Self::Description {
         self.desc
     }

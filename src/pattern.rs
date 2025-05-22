@@ -32,7 +32,7 @@ where
 
     //------------------------------------------------------------------------------
 
-    #[inline(always)]
+    #[inline]
     fn parse(&self, slice: &mut &'i U) -> Result<Self::Captured, E> {
         let mut state = self.init();
         match self.advance(*slice, &mut state, true) {
@@ -50,7 +50,7 @@ where
         }
     }
 
-    #[inline(always)]
+    #[inline]
     fn full_match(&self, slice: &'i U) -> Result<Self::Captured, E> {
         let mut sli = slice;
         let cap = self.parse(&mut sli)?;
@@ -62,7 +62,7 @@ where
 
     //------------------------------------------------------------------------------
 
-    #[inline(always)]
+    #[inline]
     fn opaque<Ui, Ei, Cap>(self) -> impl Pattern<'i, Ui, Ei, Captured = Cap>
     where
         Self: Sized + Pattern<'i, Ui, Ei, Captured = Cap>,
@@ -72,7 +72,7 @@ where
         self
     }
 
-    #[inline(always)]
+    #[inline]
     fn opaque_simple<Ui, Cap>(self) -> impl Pattern<'i, Ui, SimpleError, Captured = Cap>
     where
         Self: Sized + Pattern<'i, Ui, SimpleError, Captured = Cap>,
@@ -83,7 +83,7 @@ where
 
     //------------------------------------------------------------------------------
 
-    #[inline(always)]
+    #[inline]
     fn reiter<'p>(&'p self, slice: &'p mut &'i U) -> Reiter<'p, 'i, U, E, Self>
     where
         Self: Sized,
@@ -95,7 +95,7 @@ where
         }
     }
 
-    #[inline(always)]
+    #[inline]
     fn joined<'p, Q>(&'p self, sep: &'p Q, slice: &'p mut &'i U) -> Joined<'p, 'i, U, E, Self, Q>
     where
         Self: Sized,
@@ -112,7 +112,7 @@ where
 
     //------------------------------------------------------------------------------
 
-    #[inline(always)]
+    #[inline]
     fn converge<A>(self) -> convert::Converge<'i, U, E, Self, A>
     where
         Self: Sized,
@@ -121,7 +121,7 @@ where
         convert::converge(self)
     }
 
-    #[inline(always)]
+    #[inline]
     fn filter<F>(self, pred: F) -> convert::Filter<'i, U, E, Self, F>
     where
         Self: Sized,
@@ -129,7 +129,7 @@ where
     {
         convert::filter(pred, self)
     }
-    #[inline(always)]
+    #[inline]
     fn filter_map<F, T>(self, filter: F) -> convert::FilterMap<'i, U, E, Self, F, T>
     where
         Self: Sized,
@@ -139,7 +139,7 @@ where
         convert::filter_map(filter, self)
     }
 
-    #[inline(always)]
+    #[inline]
     fn and_then<F, T>(self, op: F) -> convert::AndThen<'i, U, E, Self, F, T>
     where
         Self: Sized,
@@ -148,7 +148,7 @@ where
     {
         convert::and_then(op, self)
     }
-    #[inline(always)]
+    #[inline]
     fn then_some<T>(self, value: T) -> convert::ThenSome<'i, U, E, Self, T>
     where
         Self: Sized,
@@ -157,7 +157,7 @@ where
         convert::then_some(value, self)
     }
 
-    #[inline(always)]
+    #[inline]
     fn complex<Q>(self, then: Q) -> convert::Complex<'i, U, E, Self, Q>
     where
         Self: Sized,
@@ -166,7 +166,7 @@ where
         convert::complex(self, then)
     }
 
-    #[inline(always)]
+    #[inline]
     fn map<F, T>(self, op: F) -> convert::Map<'i, U, E, Self, F, T>
     where
         Self: Sized,
@@ -174,7 +174,7 @@ where
     {
         convert::map(op, self)
     }
-    #[inline(always)]
+    #[inline]
     fn map_err<F, E2>(self, op: F) -> convert::MapErr<'i, U, E, Self, F, E2>
     where
         Self: Sized,
@@ -184,14 +184,14 @@ where
         convert::map_err(op, self)
     }
 
-    #[inline(always)]
+    #[inline]
     fn expect(self, msg: &'static str) -> convert::Expect<'i, U, E, Self>
     where
         Self: Sized,
     {
         convert::expect(msg, self)
     }
-    #[inline(always)]
+    #[inline]
     fn unwrap(self) -> convert::Unwrap<'i, U, E, Self>
     where
         Self: Sized,
@@ -199,7 +199,7 @@ where
         convert::unwrap(self)
     }
 
-    #[inline(always)]
+    #[inline]
     fn unwrap_or(self, default: Self::Captured) -> convert::UnwrapOr<'i, U, E, Self>
     where
         Self: Sized,
@@ -207,7 +207,7 @@ where
     {
         convert::unwrap_or(default, self)
     }
-    #[inline(always)]
+    #[inline]
     fn unwrap_or_else<F>(self, f: F) -> convert::UnwrapOrElse<'i, U, E, Self, F>
     where
         Self: Sized,
@@ -215,7 +215,7 @@ where
     {
         convert::unwrap_or_else(f, self)
     }
-    #[inline(always)]
+    #[inline]
     fn unwrap_or_default(self) -> convert::UnwrapOrDefault<'i, U, E, Self>
     where
         Self: Sized,
@@ -226,7 +226,7 @@ where
 
     //------------------------------------------------------------------------------
 
-    #[inline(always)]
+    #[inline]
     fn parallel(self) -> modifier::Parallel<'i, U, E, Self>
     where
         Self: Sized,
@@ -234,7 +234,7 @@ where
         modifier::parallel(self)
     }
 
-    #[inline(always)]
+    #[inline]
     fn trace<I>(self, info: I) -> modifier::Trace<'i, U, E, Self, I>
     where
         Self: Sized,
@@ -243,7 +243,7 @@ where
         modifier::trace(info, self)
     }
 
-    #[inline(always)]
+    #[inline]
     fn desc(self, desc: E::Description) -> modifier::Describe<'i, U, E, Self>
     where
         Self: Sized,
@@ -251,7 +251,7 @@ where
     {
         modifier::desc(desc, self)
     }
-    #[inline(always)]
+    #[inline]
     fn desc_with<F>(self, f: F) -> modifier::DescribeWith<'i, U, E, Self, F>
     where
         Self: Sized,
@@ -260,7 +260,7 @@ where
         modifier::desc_with(f, self)
     }
 
-    #[inline(always)]
+    #[inline]
     fn void(self) -> modifier::Void<'i, U, E, Self>
     where
         Self: Sized,
@@ -279,10 +279,10 @@ where
     type Captured = &'i U;
     type Internal = ();
 
-    #[inline(always)]
+    #[inline]
     fn init(&self) -> Self::Internal {}
 
-    #[inline(always)]
+    #[inline]
     fn advance(&self, slice: &U, _ntry: &mut Self::Internal, eof: bool) -> Result<usize, E> {
         if slice.len() < self.len() {
             match eof {
@@ -299,7 +299,7 @@ where
         }
     }
 
-    #[inline(always)]
+    #[inline]
     fn extract(&self, slice: &'i U, _ntry: Self::Internal) -> Self::Captured {
         slice.split_at(self.len()).0
     }
@@ -314,10 +314,10 @@ where
     type Captured = U::Item;
     type Internal = ();
 
-    #[inline(always)]
+    #[inline]
     fn init(&self) -> Self::Internal {}
 
-    #[inline(always)]
+    #[inline]
     fn advance(&self, slice: &U, _ntry: &mut Self::Internal, eof: bool) -> Result<usize, E> {
         match slice.first() {
             Some(item) => match self[0].predicate(&item) {
@@ -331,7 +331,7 @@ where
         }
     }
 
-    #[inline(always)]
+    #[inline]
     fn extract(&self, slice: &'i U, _ntry: Self::Internal) -> Self::Captured {
         slice.first().unwrap()
     }

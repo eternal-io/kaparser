@@ -1,6 +1,6 @@
 use super::*;
 
-#[inline(always)]
+#[inline]
 pub const fn opt<'i, U, E, P>(opt: P) -> Optional<'i, U, E, P>
 where
     U: ?Sized + Slice,
@@ -34,11 +34,11 @@ where
     type Captured = Option<P::Captured>;
     type Internal = Option<P::Internal>;
 
-    #[inline(always)]
+    #[inline]
     fn init(&self) -> Self::Internal {
         Some(self.opt.init())
     }
-    #[inline(always)]
+    #[inline]
     fn advance(&self, slice: &U, entry: &mut Self::Internal, eof: bool) -> Result<usize, E> {
         let res = self.opt.advance(slice, entry.as_mut().unwrap(), eof);
         if let Err(e) = &res {
@@ -49,7 +49,7 @@ where
         }
         res
     }
-    #[inline(always)]
+    #[inline]
     fn extract(&self, slice: &'i U, entry: Self::Internal) -> Self::Captured {
         entry.map(|state| self.opt.extract(slice, state))
     }

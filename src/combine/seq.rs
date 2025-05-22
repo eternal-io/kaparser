@@ -13,7 +13,7 @@ where
     }
 }
 
-#[inline(always)]
+#[inline]
 pub const fn ixs<'i, U, E, S>(ixs: S) -> IndexedSequence<'i, U, E, S>
 where
     U: ?Sized + Slice,
@@ -26,7 +26,7 @@ where
     }
 }
 
-#[inline(always)]
+#[inline]
 pub const fn sps<'i, U, E, S>(sps: S) -> SpannedSequence<'i, U, E, S>
 where
     U: ?Sized + Slice,
@@ -75,15 +75,15 @@ where
     type Captured = S::Captured;
     type Internal = S::Internal;
 
-    #[inline(always)]
+    #[inline]
     fn init(&self) -> Self::Internal {
         self.seq.init_seq()
     }
-    #[inline(always)]
+    #[inline]
     fn advance(&self, slice: &U, entry: &mut Self::Internal, eof: bool) -> Result<usize, E> {
         self.seq.advance_seq(slice, entry, eof)
     }
-    #[inline(always)]
+    #[inline]
     fn extract(&self, slice: &'i U, entry: Self::Internal) -> Self::Captured {
         self.seq.extract_seq(slice, entry)
     }
@@ -100,12 +100,12 @@ macro_rules! impl_sequencable_for_tuple {
             type Captured = ($($GenN::Captured,)+);
             type Internal = ([<Check $Len>], ($((usize, $GenN::Internal),)+));
 
-            #[inline(always)]
+            #[inline]
             fn init_seq(&self) -> Self::Internal {
                 ([<Check $Len>]::Point1, ($((0, self.$IdxN.init()),)+))
             }
 
-            #[inline(always)]
+            #[inline]
             fn advance_seq(&self, slice: &U, entry: &mut Self::Internal, eof: bool) -> Result<usize, E> {
                 use [<Check $Len>]::*;
                 let (checkpoint, states) = entry;
@@ -130,7 +130,7 @@ macro_rules! impl_sequencable_for_tuple {
                 Ok(offset)
             }
 
-            #[inline(always)]
+            #[inline]
             fn extract_seq(&self, slice: &'i U, entry: Self::Internal) -> Self::Captured {
                 $(
                     let $ValN = entry.1.$IdxN;
@@ -180,15 +180,15 @@ where
     type Captured = S::Captured;
     type Internal = S::Internal;
 
-    #[inline(always)]
+    #[inline]
     fn init(&self) -> Self::Internal {
         self.ixs.init_ixs()
     }
-    #[inline(always)]
+    #[inline]
     fn advance(&self, slice: &U, entry: &mut Self::Internal, eof: bool) -> Result<usize, E> {
         self.ixs.advance_ixs(slice, entry, eof)
     }
-    #[inline(always)]
+    #[inline]
     fn extract(&self, slice: &'i U, entry: Self::Internal) -> Self::Captured {
         self.ixs.extract_ixs(slice, entry)
     }
@@ -204,12 +204,12 @@ macro_rules! impl_indexedable_for_tuple {
             type Captured = ($((usize, $GenN::Captured),)+);
             type Internal = ([<Check $Len>], ($((usize, $GenN::Internal),)+));
 
-            #[inline(always)]
+            #[inline]
             fn init_ixs(&self) -> Self::Internal {
                 ([<Check $Len>]::Point1, ($((0, self.$IdxN.init()),)+))
             }
 
-            #[inline(always)]
+            #[inline]
             fn advance_ixs(&self, slice: &U, entry: &mut Self::Internal, eof: bool) -> Result<usize, E> {
                 use [<Check $Len>]::*;
                 let (checkpoint, states) = entry;
@@ -234,7 +234,7 @@ macro_rules! impl_indexedable_for_tuple {
                 Ok(offset)
             }
 
-            #[inline(always)]
+            #[inline]
             fn extract_ixs(&self, slice: &'i U, entry: Self::Internal) -> Self::Captured {
                 $(
                     let $ValN = entry.1.$IdxN;
@@ -284,15 +284,15 @@ where
     type Captured = S::Captured;
     type Internal = S::Internal;
 
-    #[inline(always)]
+    #[inline]
     fn init(&self) -> Self::Internal {
         self.sps.init_sps()
     }
-    #[inline(always)]
+    #[inline]
     fn advance(&self, slice: &U, entry: &mut Self::Internal, eof: bool) -> Result<usize, E> {
         self.sps.advance_sps(slice, entry, eof)
     }
-    #[inline(always)]
+    #[inline]
     fn extract(&self, slice: &'i U, entry: Self::Internal) -> Self::Captured {
         self.sps.extract_sps(slice, entry)
     }
@@ -308,12 +308,12 @@ macro_rules! impl_spannedable_for_tuple {
             type Captured = ($((Range<usize>, $GenN::Captured),)+);
             type Internal = ([<Check $Len>], ($((Range<usize>, $GenN::Internal),)+));
 
-            #[inline(always)]
+            #[inline]
             fn init_sps(&self) -> Self::Internal {
                 ([<Check $Len>]::Point1, ($((0..0, self.$IdxN.init()),)+))
             }
 
-            #[inline(always)]
+            #[inline]
             fn advance_sps(&self, slice: &U, entry: &mut Self::Internal, eof: bool) -> Result<usize, E> {
                 use [<Check $Len>]::*;
                 let (checkpoint, states) = entry;
@@ -338,7 +338,7 @@ macro_rules! impl_spannedable_for_tuple {
                 Ok(offset)
             }
 
-            #[inline(always)]
+            #[inline]
             fn extract_sps(&self, slice: &'i U, entry: Self::Internal) -> Self::Captured {
                 $(
                     let $ValN = entry.1.$IdxN;

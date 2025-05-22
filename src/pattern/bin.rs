@@ -6,7 +6,7 @@ macro_rules! gen_binary_patterns {
         $f:ident, $ty:ty, $len:tt;
     )* ) => { paste::paste! { $(
       $(#[$attr])*
-        #[inline(always)]
+        #[inline]
         pub const fn [<$f _ $ty>]<'i, E: Situation>()
             -> impl Pattern<'i, [u8], E, Captured = $ty>
         {

@@ -1,34 +1,34 @@
 use crate::prelude::*;
 
-#[inline(always)]
+#[inline]
 pub const fn line_end<'i, E: Situation>() -> impl Pattern<'i, str, E, Captured = &'i str> {
     com((opt("\r"), "\n"))
 }
 
-#[inline(always)]
+#[inline]
 pub const fn ident<'i, E: Situation>() -> impl Pattern<'i, str, E, Captured = &'i str> {
     com(([('_', is_alpha)], take0(is_alnum)))
 }
 
-#[inline(always)]
+#[inline]
 #[cfg(feature = "unicode-ident")]
 pub const fn unc_ident<'i, E: Situation>() -> impl Pattern<'i, str, E, Captured = &'i str> {
     com(([('_', unc::xid_start)], take0(unc::xid_conti)))
 }
 
-#[inline(always)]
+#[inline]
 pub const fn hex_<'i, E: Situation>() -> impl Pattern<'i, str, E, Captured = &'i str> {
     com(([is_hex], take0(('_', is_hex))))
 }
-#[inline(always)]
+#[inline]
 pub const fn dec_<'i, E: Situation>() -> impl Pattern<'i, str, E, Captured = &'i str> {
     com(([is_dec], take0(('_', is_dec))))
 }
-#[inline(always)]
+#[inline]
 pub const fn oct_<'i, E: Situation>() -> impl Pattern<'i, str, E, Captured = &'i str> {
     com(([is_oct], take0(('_', is_oct))))
 }
-#[inline(always)]
+#[inline]
 pub const fn bin_<'i, E: Situation>() -> impl Pattern<'i, str, E, Captured = &'i str> {
     com(([is_bin], take0(('_', is_bin))))
 }
@@ -40,14 +40,14 @@ macro_rules! gen_string_patterns {
     )* ) => { paste::paste! { $(
         #[doc = "Zero or more ASCII " $desc ".\n\n"]
       $(#[$attr])*
-        #[inline(always)]
+        #[inline]
         pub const fn [<$name 0>]<'i, E: Situation>()
            -> impl Pattern<'i, str, E, Captured = &'i str>
             { take0([<is_ $name>]) }
 
         #[doc = "One or more ASCII " $desc ".\n\n"]
       $(#[$attr])*
-        #[inline(always)]
+        #[inline]
         pub const fn [<$name 1>]<'i, E: Situation>()
            -> impl Pattern<'i, str, E, Captured = &'i str>
             { take1([<is_ $name>]) }

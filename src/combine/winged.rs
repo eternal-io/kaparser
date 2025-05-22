@@ -1,6 +1,6 @@
 use super::*;
 
-#[inline(always)]
+#[inline]
 pub const fn winged<U, const SINGLE: bool>(primary: U::Item, secondary: U::Item) -> Winged<U, SINGLE>
 where
     U: ?Sized + ThinSlice,
@@ -12,7 +12,7 @@ where
         primary_end: primary,
     }
 }
-#[inline(always)]
+#[inline]
 pub const fn winged2<U, const SINGLE: bool>(
     primary: U::Item,
     secondary_start: U::Item,
@@ -28,7 +28,7 @@ where
         primary_end: primary,
     }
 }
-#[inline(always)]
+#[inline]
 pub const fn winged3<U, const SINGLE: bool>(
     primary_start: U::Item,
     secondary_start: U::Item,
@@ -46,7 +46,7 @@ where
     }
 }
 
-#[inline(always)]
+#[inline]
 pub const fn winged_flipped<U, const SINGLE: bool>(outer: U::Item, inner: U::Item) -> WingedFlipped<U, SINGLE>
 where
     U: ?Sized + ThinSlice,
@@ -58,7 +58,7 @@ where
         outer_end: outer,
     }
 }
-#[inline(always)]
+#[inline]
 pub const fn winged_flipped2<U, const SINGLE: bool>(
     outer_start: U::Item,
     inner: U::Item,
@@ -74,7 +74,7 @@ where
         outer_end,
     }
 }
-#[inline(always)]
+#[inline]
 pub const fn winged_flipped3<U, const SINGLE: bool>(
     outer_start: U::Item,
     inner_start: U::Item,
@@ -112,11 +112,11 @@ where
     type Captured = (usize, &'i U);
     type Internal = (usize, usize, usize);
 
-    #[inline(always)]
+    #[inline]
     fn init(&self) -> Self::Internal {
         (0, 0, 0)
     }
-    #[inline(always)]
+    #[inline]
     fn advance(&self, slice: &U, entry: &mut Self::Internal, eof: bool) -> Result<usize, E> {
         // Use `winged3('<', '{', '}', '>')` as example, it accepts input like `<<<{ ... }>>>`.
         let (n_primaries, winged_off, winged_content_off) = entry;
@@ -201,7 +201,7 @@ where
             }
         }
     }
-    #[inline(always)]
+    #[inline]
     fn extract(&self, slice: &'i U, entry: Self::Internal) -> Self::Captured {
         let (n_primaries, winged_off, winged_content_off) = entry;
 
@@ -229,11 +229,11 @@ where
     type Captured = (usize, &'i U);
     type Internal = (usize, usize, usize);
 
-    #[inline(always)]
+    #[inline]
     fn init(&self) -> Self::Internal {
         (0, 0, 0)
     }
-    #[inline(always)]
+    #[inline]
     fn advance(&self, slice: &U, entry: &mut Self::Internal, eof: bool) -> Result<usize, E> {
         // Use `winged_flipped3('{', '<', '>', '}')` as example, it accepts input like `{<<< ... >>>}`.
         let (n_inners, winged_off, winged_content_off) = entry;
@@ -318,7 +318,7 @@ where
             *winged_content_off = offset;
         }
     }
-    #[inline(always)]
+    #[inline]
     fn extract(&self, slice: &'i U, entry: Self::Internal) -> Self::Captured {
         let (n_inners, winged_off, winged_content_off) = entry;
 
@@ -331,7 +331,6 @@ where
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::tester::*;
 
     #[test]
     fn test_winged() {

@@ -2,7 +2,7 @@ use super::*;
 use core::ops::{RangeTo, RangeToInclusive};
 
 /// The terminator is optional but also consumed.
-#[inline(always)]
+#[inline]
 pub const fn till<T, P>(end: P) -> RangeTo<P>
 where
     T: Copy + PartialEq,
@@ -12,7 +12,7 @@ where
 }
 
 /// The terminator is required and also consumed.
-#[inline(always)]
+#[inline]
 pub const fn until<'i, U, E, P>(end: P) -> RangeToInclusive<P>
 where
     U: ?Sized + Slice,
@@ -49,11 +49,11 @@ where
     type Captured = (&'i U, Option<U::Item>);
     type Internal = usize;
 
-    #[inline(always)]
+    #[inline]
     fn init(&self) -> Self::Internal {
         0
     }
-    #[inline(always)]
+    #[inline]
     fn advance(&self, slice: &U, entry: &mut Self::Internal, eof: bool) -> Result<usize, E> {
         match slice
             .split_at(*entry)
@@ -71,7 +71,7 @@ where
             }
         }
     }
-    #[inline(always)]
+    #[inline]
     fn extract(&self, slice: &'i U, entry: Self::Internal) -> Self::Captured {
         let (left, right) = slice.split_at(entry);
         (left, right.first())
@@ -89,11 +89,11 @@ where
     type Captured = (&'i U, P::Captured);
     type Internal = (usize, P::Internal);
 
-    #[inline(always)]
+    #[inline]
     fn init(&self) -> Self::Internal {
         (0, self.end.init())
     }
-    #[inline(always)]
+    #[inline]
     fn advance(&self, slice: &U, entry: &mut Self::Internal, eof: bool) -> Result<usize, E> {
         let (offset, state) = entry;
         for item in slice.split_at(*offset).1.iter() {
@@ -118,7 +118,7 @@ where
             false => E::raise_unfulfilled(None),
         }
     }
-    #[inline(always)]
+    #[inline]
     fn extract(&self, slice: &'i U, entry: Self::Internal) -> Self::Captured {
         let (off, state) = entry;
         let (left, right) = slice.split_at(off);

@@ -88,12 +88,12 @@ macro_rules! token_set {
             type Captured = $name;
             type Internal = ::core::option::Option<$name>;
 
-            #[inline(always)]
+            #[inline]
             fn init(&self) -> Self::Internal {
                 ::core::option::Option::None
             }
 
-            #[inline(always)]
+            #[inline]
             #[allow(unused_variables)]
             fn advance(&self, slice: &$sli, entry: &mut Self::Internal, eof: bool) -> ::core::result::Result<usize, E> {
                 if !eof && slice.len() < Self::max_len() {
@@ -108,7 +108,7 @@ macro_rules! token_set {
                 E::raise_reject_at(0)
             }
 
-            #[inline(always)]
+            #[inline]
             fn extract(&self, _lice: &'i $sli, entry: Self::Internal) -> Self::Captured {
                 entry.expect("contract violation")
             }

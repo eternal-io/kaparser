@@ -1,7 +1,7 @@
 use super::*;
 use core::ops::RangeFrom;
 
-#[inline(always)]
+#[inline]
 pub const fn take<T, P, R>(range: R, predicate: P) -> Take<T, P, R>
 where
     T: Copy + PartialEq,
@@ -15,7 +15,7 @@ where
     }
 }
 
-#[inline(always)]
+#[inline]
 pub const fn take0<T, P>(predicate: P) -> Take0<T, P>
 where
     T: Copy + PartialEq,
@@ -27,7 +27,7 @@ where
     }
 }
 
-#[inline(always)]
+#[inline]
 pub const fn take1<T, P>(predicate: P) -> RangeFrom<P>
 where
     T: Copy + PartialEq,
@@ -59,11 +59,11 @@ where
     type Captured = &'i U;
     type Internal = (usize, usize);
 
-    #[inline(always)]
+    #[inline]
     fn init(&self) -> Self::Internal {
         (0, 0)
     }
-    #[inline(always)]
+    #[inline]
     fn advance(&self, slice: &U, entry: &mut Self::Internal, eof: bool) -> Result<usize, E> {
         let (offset, times) = entry;
         if let Some((i, (off, item))) = slice
@@ -89,7 +89,7 @@ where
             },
         }
     }
-    #[inline(always)]
+    #[inline]
     fn extract(&self, slice: &'i U, entry: Self::Internal) -> Self::Captured {
         slice.split_at(entry.0).0
     }
@@ -115,11 +115,11 @@ where
     type Captured = &'i U;
     type Internal = usize;
 
-    #[inline(always)]
+    #[inline]
     fn init(&self) -> Self::Internal {
         0
     }
-    #[inline(always)]
+    #[inline]
     fn advance(&self, slice: &U, entry: &mut Self::Internal, eof: bool) -> Result<usize, E> {
         match slice
             .split_at(*entry)
@@ -140,7 +140,7 @@ where
             }
         }
     }
-    #[inline(always)]
+    #[inline]
     fn extract(&self, slice: &'i U, entry: Self::Internal) -> Self::Captured {
         slice.split_at(entry).0
     }
@@ -157,11 +157,11 @@ where
     type Captured = &'i U;
     type Internal = usize;
 
-    #[inline(always)]
+    #[inline]
     fn init(&self) -> Self::Internal {
         0
     }
-    #[inline(always)]
+    #[inline]
     fn advance(&self, slice: &U, entry: &mut Self::Internal, eof: bool) -> Result<usize, E> {
         match slice
             .split_at(*entry)
@@ -188,7 +188,7 @@ where
             }
         }
     }
-    #[inline(always)]
+    #[inline]
     fn extract(&self, slice: &'i U, entry: Self::Internal) -> Self::Captured {
         slice.split_at(entry).0
     }
