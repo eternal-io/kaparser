@@ -179,68 +179,6 @@ where
 
 //------------------------------------------------------------------------------
 
-pub trait ThinSlice: Slice {
-    fn eq_ignore_ascii_case(left: Self::Item, right: Self::Item) -> bool;
-
-    fn memchr(&self, needle: Self::Item) -> Option<usize>;
-    fn memchr2(&self, needle1: Self::Item, needle2: Self::Item) -> Option<(usize, Self::Item)>;
-    fn memchr3(&self, needle1: Self::Item, needle2: Self::Item, needle3: Self::Item) -> Option<(usize, Self::Item)>;
-
-    fn memmem(&self, slice: &Self) -> Option<usize>;
-}
-
-impl ThinSlice for str {
-    #[inline]
-    fn eq_ignore_ascii_case(left: Self::Item, right: Self::Item) -> bool {
-        left.eq_ignore_ascii_case(&right)
-    }
-
-    #[inline]
-    fn memchr(&self, needle: Self::Item) -> Option<usize> {
-        memchr_utf8(needle, self)
-    }
-    #[inline]
-    fn memchr2(&self, needle1: Self::Item, needle2: Self::Item) -> Option<(usize, Self::Item)> {
-        memchr2_utf8(needle1, needle2, self)
-    }
-    #[inline]
-    fn memchr3(&self, needle1: Self::Item, needle2: Self::Item, needle3: Self::Item) -> Option<(usize, Self::Item)> {
-        memchr3_utf8(needle1, needle2, needle3, self)
-    }
-
-    #[inline]
-    fn memmem(&self, needle: &Self) -> Option<usize> {
-        memchr::memmem::find(self.as_bytes(), needle.as_bytes())
-    }
-}
-
-impl ThinSlice for [u8] {
-    #[inline]
-    fn eq_ignore_ascii_case(left: Self::Item, right: Self::Item) -> bool {
-        left.eq_ignore_ascii_case(&right)
-    }
-
-    #[inline]
-    fn memchr(&self, needle: Self::Item) -> Option<usize> {
-        memchr(needle, self)
-    }
-    #[inline]
-    fn memchr2(&self, needle1: Self::Item, needle2: Self::Item) -> Option<(usize, Self::Item)> {
-        memchr2(needle1, needle2, self)
-    }
-    #[inline]
-    fn memchr3(&self, needle1: Self::Item, needle2: Self::Item, needle3: Self::Item) -> Option<(usize, Self::Item)> {
-        memchr3(needle1, needle2, needle3, self)
-    }
-
-    #[inline]
-    fn memmem(&self, needle: &Self) -> Option<usize> {
-        memchr::memmem::find(self, needle)
-    }
-}
-
-//------------------------------------------------------------------------------
-
 pub trait AdvanceSlice<'i, U>
 where
     U: ?Sized + Slice + 'i,
@@ -309,6 +247,154 @@ where
 }
 
 //------------------------------------------------------------------------------
+
+pub trait ThinSlice: Slice {
+    fn as_bytes(&self) -> &[u8];
+    fn eq_ignore_ascii_case(left: Self::Item, right: Self::Item) -> bool;
+
+    fn memchr1_impl(&self, a: Self::Item) -> Option<usize>;
+    fn memchr2_impl(&self, a: Self::Item, b: Self::Item) -> Option<(usize, Self::Item)>;
+    fn memchr3_impl(&self, a: Self::Item, b: Self::Item, c: Self::Item) -> Option<(usize, Self::Item)>;
+
+    #[inline]
+    fn memchr<X: Needlable<Self>>(&self, needles: X) -> Option<X::Report> {
+        needles.memchr_invoke(self)
+    }
+
+    #[inline]
+    fn memmem(&self, needle: &Self) -> Option<usize> {
+        memchr::memmem::find(self.as_bytes(), needle.as_bytes())
+    }
+}
+
+impl ThinSlice for str {
+    #[inline]
+    fn as_bytes(&self) -> &[u8] {
+        self.as_bytes()
+    }
+    #[inline]
+    fn eq_ignore_ascii_case(left: Self::Item, right: Self::Item) -> bool {
+        left.eq_ignore_ascii_case(&right)
+    }
+
+    #[inline]
+    fn memchr1_impl(&self, a: Self::Item) -> Option<usize> {
+        let haystack = self.as_bytes();
+        let indicator = encode_utf8_first_byte(a);
+        let mut offset = 0;
+        while let Some(pos) = memchr::memchr(indicator, &haystack[offset..]) {
+            offset += pos;
+            if next_code_point(&haystack[offset..]) == a as u32 {
+                return Some(offset);
+            }
+            offset += 1;
+        }
+        None
+    }
+    #[inline]
+    fn memchr2_impl(&self, a: Self::Item, b: Self::Item) -> Option<(usize, Self::Item)> {
+        let haystack = self.as_bytes();
+        let indicator1 = encode_utf8_first_byte(a);
+        let indicator2 = encode_utf8_first_byte(b);
+        let mut offset = 0;
+        while let Some(pos) = memchr::memchr2(indicator1, indicator2, &haystack[offset..]) {
+            offset += pos;
+            match next_code_point(&haystack[offset..]) {
+                needle if needle == a as u32 => return Some((offset, a)),
+                needle if needle == b as u32 => return Some((offset, b)),
+                _ => offset += 1,
+            }
+        }
+        None
+    }
+    #[inline]
+    fn memchr3_impl(&self, a: Self::Item, b: Self::Item, c: Self::Item) -> Option<(usize, Self::Item)> {
+        let haystack = self.as_bytes();
+        let indicator1 = encode_utf8_first_byte(a);
+        let indicator2 = encode_utf8_first_byte(b);
+        let indicator3 = encode_utf8_first_byte(c);
+        let mut offset = 0;
+        while let Some(pos) = memchr::memchr3(indicator1, indicator2, indicator3, &haystack[offset..]) {
+            offset += pos;
+            match next_code_point(&haystack[offset..]) {
+                needle if needle == a as u32 => return Some((offset, a)),
+                needle if needle == b as u32 => return Some((offset, b)),
+                needle if needle == c as u32 => return Some((offset, c)),
+                _ => offset += 1,
+            }
+        }
+        None
+    }
+}
+
+impl ThinSlice for [u8] {
+    #[inline]
+    fn as_bytes(&self) -> &[u8] {
+        self
+    }
+    #[inline]
+    fn eq_ignore_ascii_case(left: Self::Item, right: Self::Item) -> bool {
+        left.eq_ignore_ascii_case(&right)
+    }
+
+    #[inline]
+    fn memchr1_impl(&self, a: Self::Item) -> Option<usize> {
+        memchr::memchr(a, self)
+    }
+    #[inline]
+    #[allow(unsafe_code)]
+    fn memchr2_impl(&self, a: Self::Item, b: Self::Item) -> Option<(usize, Self::Item)> {
+        let pos = memchr::memchr2(a, b, self)?;
+        Some(match self[pos] {
+            needle if needle == a => (pos, a),
+            needle if needle == b => (pos, b),
+            _ => unsafe { core::hint::unreachable_unchecked() },
+        })
+    }
+    #[inline]
+    #[allow(unsafe_code)]
+    fn memchr3_impl(&self, a: Self::Item, b: Self::Item, c: Self::Item) -> Option<(usize, Self::Item)> {
+        let pos = memchr::memchr3(a, b, c, self)?;
+        Some(match self[pos] {
+            needle if needle == a => (pos, a),
+            needle if needle == b => (pos, b),
+            needle if needle == c => (pos, c),
+            _ => unsafe { core::hint::unreachable_unchecked() },
+        })
+    }
+}
+
+//------------------------------------------------------------------------------
+
+pub trait Needlable<U: ?Sized + ThinSlice> {
+    type Report;
+
+    fn memchr_invoke(&self, haystack: &U) -> Option<Self::Report>;
+}
+
+impl<U: ?Sized + ThinSlice> Needlable<U> for [U::Item; 1] {
+    type Report = usize;
+    #[inline]
+    fn memchr_invoke(&self, haystack: &U) -> Option<Self::Report> {
+        haystack.memchr1_impl(self[0])
+    }
+}
+impl<U: ?Sized + ThinSlice> Needlable<U> for [U::Item; 2] {
+    type Report = (usize, U::Item);
+    #[inline]
+    fn memchr_invoke(&self, haystack: &U) -> Option<Self::Report> {
+        haystack.memchr2_impl(self[0], self[1])
+    }
+}
+impl<U: ?Sized + ThinSlice> Needlable<U> for [U::Item; 3] {
+    type Report = (usize, U::Item);
+    #[inline]
+    fn memchr_invoke(&self, haystack: &U) -> Option<Self::Report> {
+        haystack.memchr3_impl(self[0], self[1], self[2])
+    }
+}
+
+//------------------------------------------------------------------------------
 // Reference: rust-src (str_internals)
 
 const CONT_MASK: u8 = 0b0011_1111;
@@ -369,81 +455,6 @@ fn next_code_point(bytes: &[u8]) -> u32 {
     }
 
     ch
-}
-
-#[inline]
-fn memchr_utf8(needle: char, haystack: &str) -> Option<usize> {
-    let haystack = haystack.as_bytes();
-    let indicator = encode_utf8_first_byte(needle);
-    let mut offset = 0;
-    while let Some(pos) = memchr::memchr(indicator, &haystack[offset..]) {
-        offset += pos;
-        if next_code_point(&haystack[offset..]) == needle as u32 {
-            return Some(offset);
-        }
-        offset += 1;
-    }
-    None
-}
-#[inline]
-fn memchr2_utf8(needle1: char, needle2: char, haystack: &str) -> Option<(usize, char)> {
-    let haystack = haystack.as_bytes();
-    let indicator1 = encode_utf8_first_byte(needle1);
-    let indicator2 = encode_utf8_first_byte(needle2);
-    let mut offset = 0;
-    while let Some(pos) = memchr::memchr2(indicator1, indicator2, &haystack[offset..]) {
-        offset += pos;
-        match next_code_point(&haystack[offset..]) {
-            needle if needle == needle1 as u32 => return Some((offset, needle1)),
-            needle if needle == needle2 as u32 => return Some((offset, needle2)),
-            _ => offset += 1,
-        }
-    }
-    None
-}
-#[inline]
-fn memchr3_utf8(needle1: char, needle2: char, needle3: char, haystack: &str) -> Option<(usize, char)> {
-    let haystack = haystack.as_bytes();
-    let indicator1 = encode_utf8_first_byte(needle1);
-    let indicator2 = encode_utf8_first_byte(needle2);
-    let indicator3 = encode_utf8_first_byte(needle3);
-    let mut offset = 0;
-    while let Some(pos) = memchr::memchr3(indicator1, indicator2, indicator3, &haystack[offset..]) {
-        offset += pos;
-        match next_code_point(&haystack[offset..]) {
-            needle if needle == needle1 as u32 => return Some((offset, needle1)),
-            needle if needle == needle2 as u32 => return Some((offset, needle2)),
-            needle if needle == needle3 as u32 => return Some((offset, needle3)),
-            _ => offset += 1,
-        }
-    }
-    None
-}
-
-#[inline]
-fn memchr(needle: u8, haystack: &[u8]) -> Option<usize> {
-    memchr::memchr(needle, haystack)
-}
-#[inline]
-#[allow(unsafe_code)]
-fn memchr2(needle1: u8, needle2: u8, haystack: &[u8]) -> Option<(usize, u8)> {
-    let pos = memchr::memchr2(needle1, needle2, haystack)?;
-    Some(match haystack[pos] {
-        needle if needle == needle1 => (pos, needle1),
-        needle if needle == needle2 => (pos, needle2),
-        _ => unsafe { core::hint::unreachable_unchecked() },
-    })
-}
-#[inline]
-#[allow(unsafe_code)]
-fn memchr3(needle1: u8, needle2: u8, needle3: u8, haystack: &[u8]) -> Option<(usize, u8)> {
-    let pos = memchr::memchr3(needle1, needle2, needle3, haystack)?;
-    Some(match haystack[pos] {
-        needle if needle == needle1 => (pos, needle1),
-        needle if needle == needle2 => (pos, needle2),
-        needle if needle == needle3 => (pos, needle3),
-        _ => unsafe { core::hint::unreachable_unchecked() },
-    })
 }
 
 //------------------------------------------------------------------------------
@@ -665,7 +676,7 @@ mod tests {
     #[test]
     fn test_memchr_utf8() {
         for ch in TEST_VECTOR.chars() {
-            assert_eq!(TEST_VECTOR.memchr(ch).unwrap(), TEST_VECTOR.find(ch).unwrap());
+            assert_eq!(TEST_VECTOR.memchr1_impl(ch).unwrap(), TEST_VECTOR.find(ch).unwrap());
         }
     }
 
@@ -673,7 +684,7 @@ mod tests {
     fn test_memchr() {
         for &byte in TEST_VECTOR.as_bytes() {
             assert_eq!(
-                TEST_VECTOR.as_bytes().memchr(byte).unwrap(),
+                TEST_VECTOR.as_bytes().memchr1_impl(byte).unwrap(),
                 TEST_VECTOR.as_bytes().iter().position(|b| *b == byte).unwrap(),
             )
         }
