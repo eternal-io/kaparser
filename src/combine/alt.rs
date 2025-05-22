@@ -65,10 +65,11 @@ where
 
 macro_rules! impl_alternatable_for_tuple {
     ( $Len:literal, $($OrdN:literal ~ ($GenN:ident ~ $VarN:ident) ~ $_gen:ident ~ $_con:ident ~ $IdxN:tt)+ ) => { paste::paste! {
-        impl<'i, U, E, $($GenN: Pattern<'i, U, E>),+> Alternatable<'i, U, E> for ($($GenN,)+)
+        impl<'i, U, E, $($GenN),+> Alternatable<'i, U, E> for ($($GenN,)+)
         where
             U: ?Sized + Slice + 'i,
             E: Situation,
+          $($GenN: Pattern<'i, U, E>,)+
         {
             type Captured = [<Alt $Len>]<$($GenN::Captured),+>;
             type Internal = [<Alt $Len>]<$($GenN::Internal),+>;

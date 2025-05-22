@@ -65,10 +65,11 @@ where
 
 macro_rules! impl_compoundable_for_tuple {
     ( $Len:literal, $($OrdN:literal ~ ($GenN:ident) ~ $_gen:ident ~ $_con:ident ~ $IdxN:tt)+ ) => { paste::paste! {
-        impl<'i, U, E, $($GenN: Pattern<'i, U, E>),+> Compoundable<'i, U, E> for ($($GenN,)+)
+        impl<'i, U, E, $($GenN),+> Compoundable<'i, U, E> for ($($GenN,)+)
         where
             U: ?Sized + Slice + 'i,
             E: Situation,
+          $($GenN: Pattern<'i, U, E>,)+
         {
             type Captured = &'i U;
             type Internal = usize;
