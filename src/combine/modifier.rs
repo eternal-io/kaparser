@@ -7,7 +7,7 @@ extern crate std;
 #[inline]
 pub const fn parallel<'i, U, E, P>(body: P) -> Parallel<'i, U, E, P>
 where
-    U: ?Sized + Slice,
+    U: ?Sized + Slice + 'i,
     E: Situation,
     P: Pattern<'i, U, E>,
 {
@@ -20,7 +20,7 @@ where
 #[inline]
 pub const fn trace<'i, U, E, P, I>(info: I, body: P) -> Trace<'i, U, E, P, I>
 where
-    U: ?Sized + Slice,
+    U: ?Sized + Slice + 'i,
     E: Situation,
     P: Pattern<'i, U, E>,
     I: Display,
@@ -35,7 +35,7 @@ where
 #[inline]
 pub const fn desc<'i, U, E, P>(desc: E::Description, body: P) -> Describe<'i, U, E, P>
 where
-    U: ?Sized + Slice,
+    U: ?Sized + Slice + 'i,
     E: Situation,
     E::Description: Clone,
     P: Pattern<'i, U, E>,
@@ -49,7 +49,7 @@ where
 #[inline]
 pub const fn desc_with<'i, U, E, P, F>(f: F, body: P) -> DescribeWith<'i, U, E, P, F>
 where
-    U: ?Sized + Slice,
+    U: ?Sized + Slice + 'i,
     E: Situation,
     P: Pattern<'i, U, E>,
     F: Fn(&E) -> E::Description,
@@ -64,7 +64,7 @@ where
 #[inline]
 pub const fn void<'i, U, E, P>(body: P) -> Void<'i, U, E, P>
 where
-    U: ?Sized + Slice,
+    U: ?Sized + Slice + 'i,
     E: Situation,
     P: Pattern<'i, U, E>,
 {
@@ -78,7 +78,7 @@ where
 
 pub struct Parallel<'i, U, E, P>
 where
-    U: ?Sized + Slice,
+    U: ?Sized + Slice + 'i,
     E: Situation,
     P: Pattern<'i, U, E>,
 {
@@ -88,7 +88,7 @@ where
 
 impl<'i, U, E, P> Pattern<'i, U, E> for Parallel<'i, U, E, P>
 where
-    U: ?Sized + Slice,
+    U: ?Sized + Slice + 'i,
     E: Situation,
     P: Pattern<'i, U, E>,
 {
@@ -117,7 +117,7 @@ where
 #[cfg_attr(not(feature = "debug"), allow(dead_code))]
 pub struct Trace<'i, U, E, P, I>
 where
-    U: ?Sized + Slice,
+    U: ?Sized + Slice + 'i,
     E: Situation,
     P: Pattern<'i, U, E>,
     I: Display,
@@ -129,7 +129,7 @@ where
 
 impl<'i, U, E, P, I> Pattern<'i, U, E> for Trace<'i, U, E, P, I>
 where
-    U: ?Sized + Slice,
+    U: ?Sized + Slice + 'i,
     E: Situation,
     P: Pattern<'i, U, E>,
     I: Display,
@@ -157,7 +157,7 @@ where
 
 pub struct Describe<'i, U, E, P>
 where
-    U: ?Sized + Slice,
+    U: ?Sized + Slice + 'i,
     E: Situation,
     E::Description: Clone,
     P: Pattern<'i, U, E>,
@@ -169,7 +169,7 @@ where
 
 impl<'i, U, E, P> Pattern<'i, U, E> for Describe<'i, U, E, P>
 where
-    U: ?Sized + Slice,
+    U: ?Sized + Slice + 'i,
     E: Situation,
     E::Description: Clone,
     P: Pattern<'i, U, E>,
@@ -197,7 +197,7 @@ where
 
 pub struct DescribeWith<'i, U, E, P, F>
 where
-    U: ?Sized + Slice,
+    U: ?Sized + Slice + 'i,
     E: Situation,
     P: Pattern<'i, U, E>,
     F: Fn(&E) -> E::Description,
@@ -209,7 +209,7 @@ where
 
 impl<'i, U, E, P, F> Pattern<'i, U, E> for DescribeWith<'i, U, E, P, F>
 where
-    U: ?Sized + Slice,
+    U: ?Sized + Slice + 'i,
     E: Situation,
     P: Pattern<'i, U, E>,
     F: Fn(&E) -> E::Description,
@@ -238,7 +238,7 @@ where
 
 pub struct Void<'i, U, E, P>
 where
-    U: ?Sized + Slice,
+    U: ?Sized + Slice + 'i,
     E: Situation,
     P: Pattern<'i, U, E>,
 {
@@ -248,7 +248,7 @@ where
 
 impl<'i, U, E, P> Pattern<'i, U, E> for Void<'i, U, E, P>
 where
-    U: ?Sized + Slice,
+    U: ?Sized + Slice + 'i,
     E: Situation,
     P: Pattern<'i, U, E>,
 {

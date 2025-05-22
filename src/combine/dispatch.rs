@@ -7,7 +7,7 @@ pub use crate::disp;
 #[inline]
 pub const fn dispatch<'i, U, E, D>(disp: D) -> Dispatch<'i, U, E, D>
 where
-    U: ?Sized + Slice,
+    U: ?Sized + Slice + 'i,
     E: Situation,
     D: Dispatchable<'i, U, E>,
 {
@@ -21,7 +21,7 @@ where
 
 pub struct Dispatch<'i, U, E, D>
 where
-    U: ?Sized + Slice,
+    U: ?Sized + Slice + 'i,
     E: Situation,
     D: Dispatchable<'i, U, E>,
 {
@@ -31,7 +31,7 @@ where
 
 pub trait Dispatchable<'i, U, E>
 where
-    U: ?Sized + Slice,
+    U: ?Sized + Slice + 'i,
     E: Situation,
 {
     type Captured;
@@ -46,7 +46,7 @@ where
 
 impl<'i, U, E, D> Pattern<'i, U, E> for Dispatch<'i, U, E, D>
 where
-    U: ?Sized + Slice,
+    U: ?Sized + Slice + 'i,
     E: Situation,
     D: Dispatchable<'i, U, E>,
 {

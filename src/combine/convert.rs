@@ -4,7 +4,7 @@ use core::mem;
 #[inline]
 pub const fn converge<'i, U, E, P, A>(body: P) -> Converge<'i, U, E, P, A>
 where
-    U: ?Sized + Slice,
+    U: ?Sized + Slice + 'i,
     E: Situation,
     P: Pattern<'i, U, E>,
     P::Captured: Convergable<A>,
@@ -18,7 +18,7 @@ where
 #[inline]
 pub const fn filter<'i, U, E, P, F>(pred: F, body: P) -> Filter<'i, U, E, P, F>
 where
-    U: ?Sized + Slice,
+    U: ?Sized + Slice + 'i,
     E: Situation,
     P: Pattern<'i, U, E>,
     F: Fn(&P::Captured) -> bool,
@@ -32,7 +32,7 @@ where
 #[inline]
 pub const fn filter_map<'i, U, E, P, F, T>(filter: F, body: P) -> FilterMap<'i, U, E, P, F, T>
 where
-    U: ?Sized + Slice,
+    U: ?Sized + Slice + 'i,
     E: Situation,
     P: Pattern<'i, U, E>,
     F: Fn(P::Captured) -> Option<T>,
@@ -48,7 +48,7 @@ where
 #[inline]
 pub const fn and_then<'i, U, E, P, F, T>(op: F, body: P) -> AndThen<'i, U, E, P, F, T>
 where
-    U: ?Sized + Slice,
+    U: ?Sized + Slice + 'i,
     E: Situation,
     P: Pattern<'i, U, E>,
     F: Fn(P::Captured) -> Result<T, E>,
@@ -63,7 +63,7 @@ where
 #[inline]
 pub const fn then_some<'i, U, E, P, T>(value: T, body: P) -> ThenSome<'i, U, E, P, T>
 where
-    U: ?Sized + Slice,
+    U: ?Sized + Slice + 'i,
     E: Situation,
     P: Pattern<'i, U, E>,
     T: Clone,
@@ -78,7 +78,7 @@ where
 #[inline]
 pub const fn complex<'i, U, E, P, Q>(body: P, then: Q) -> Complex<'i, U, E, P, Q>
 where
-    U: ?Sized + Slice,
+    U: ?Sized + Slice + 'i,
     E: Situation,
     P: Pattern<'i, U, E>,
     Q: Pattern<'i, U, E>,
@@ -93,7 +93,7 @@ where
 #[inline]
 pub const fn map<'i, U, E, P, F, T>(op: F, body: P) -> Map<'i, U, E, P, F, T>
 where
-    U: ?Sized + Slice,
+    U: ?Sized + Slice + 'i,
     E: Situation,
     P: Pattern<'i, U, E>,
     F: Fn(P::Captured) -> T,
@@ -107,7 +107,7 @@ where
 #[inline]
 pub const fn map_err<'i, U, E1, P, F, E2>(op: F, body: P) -> MapErr<'i, U, E1, P, F, E2>
 where
-    U: ?Sized + Slice,
+    U: ?Sized + Slice + 'i,
     E1: Situation,
     P: Pattern<'i, U, E1>,
     F: Fn(E1) -> E2,
@@ -123,7 +123,7 @@ where
 #[inline]
 pub const fn expect<'i, U, E, P>(msg: &'static str, body: P) -> Expect<'i, U, E, P>
 where
-    U: ?Sized + Slice,
+    U: ?Sized + Slice + 'i,
     E: Situation,
     P: Pattern<'i, U, E>,
 {
@@ -136,7 +136,7 @@ where
 #[inline]
 pub const fn unwrap<'i, U, E, P>(body: P) -> Unwrap<'i, U, E, P>
 where
-    U: ?Sized + Slice,
+    U: ?Sized + Slice + 'i,
     E: Situation,
     P: Pattern<'i, U, E>,
 {
@@ -149,7 +149,7 @@ where
 #[inline]
 pub const fn unwrap_or<'i, U, E, P>(default: P::Captured, body: P) -> UnwrapOr<'i, U, E, P>
 where
-    U: ?Sized + Slice,
+    U: ?Sized + Slice + 'i,
     E: Situation,
     P: Pattern<'i, U, E>,
     P::Captured: Clone,
@@ -163,7 +163,7 @@ where
 #[inline]
 pub const fn unwrap_or_else<'i, U, E, P, F>(f: F, body: P) -> UnwrapOrElse<'i, U, E, P, F>
 where
-    U: ?Sized + Slice,
+    U: ?Sized + Slice + 'i,
     E: Situation,
     P: Pattern<'i, U, E>,
     F: Fn() -> P::Captured,
@@ -177,7 +177,7 @@ where
 #[inline]
 pub const fn unwrap_or_default<'i, U, E, P>(body: P) -> UnwrapOrDefault<'i, U, E, P>
 where
-    U: ?Sized + Slice,
+    U: ?Sized + Slice + 'i,
     E: Situation,
     P: Pattern<'i, U, E>,
     P::Captured: Default,
@@ -192,7 +192,7 @@ where
 
 pub struct Converge<'i, U, E, P, A>
 where
-    U: ?Sized + Slice,
+    U: ?Sized + Slice + 'i,
     E: Situation,
     P: Pattern<'i, U, E>,
     P::Captured: Convergable<A>,
@@ -202,7 +202,7 @@ where
 }
 impl<'i, U, E, P, A> Pattern<'i, U, E> for Converge<'i, U, E, P, A>
 where
-    U: ?Sized + Slice,
+    U: ?Sized + Slice + 'i,
     E: Situation,
     P: Pattern<'i, U, E>,
     P::Captured: Convergable<A>,
@@ -228,7 +228,7 @@ where
 
 pub struct Filter<'i, U, E, P, F>
 where
-    U: ?Sized + Slice,
+    U: ?Sized + Slice + 'i,
     E: Situation,
     P: Pattern<'i, U, E>,
     F: Fn(&P::Captured) -> bool,
@@ -239,7 +239,7 @@ where
 }
 impl<'i, U, E, P, F> Pattern<'i, U, E> for Filter<'i, U, E, P, F>
 where
-    U: ?Sized + Slice,
+    U: ?Sized + Slice + 'i,
     E: Situation,
     P: Pattern<'i, U, E>,
     F: Fn(&P::Captured) -> bool,
@@ -271,7 +271,7 @@ where
 
 pub struct FilterMap<'i, U, E, P, F, T>
 where
-    U: ?Sized + Slice,
+    U: ?Sized + Slice + 'i,
     E: Situation,
     P: Pattern<'i, U, E>,
     F: Fn(P::Captured) -> Option<T>,
@@ -283,7 +283,7 @@ where
 }
 impl<'i, U, E, P, F, T> Pattern<'i, U, E> for FilterMap<'i, U, E, P, F, T>
 where
-    U: ?Sized + Slice,
+    U: ?Sized + Slice + 'i,
     E: Situation,
     P: Pattern<'i, U, E>,
     F: Fn(P::Captured) -> Option<T>,
@@ -332,7 +332,7 @@ where
 
 pub struct AndThen<'i, U, E, P, F, T>
 where
-    U: ?Sized + Slice,
+    U: ?Sized + Slice + 'i,
     E: Situation,
     P: Pattern<'i, U, E>,
     F: Fn(P::Captured) -> Result<T, E>,
@@ -344,7 +344,7 @@ where
 }
 impl<'i, U, E, P, F, T> Pattern<'i, U, E> for AndThen<'i, U, E, P, F, T>
 where
-    U: ?Sized + Slice,
+    U: ?Sized + Slice + 'i,
     E: Situation,
     P: Pattern<'i, U, E>,
     F: Fn(P::Captured) -> Result<T, E>,
@@ -390,7 +390,7 @@ where
 
 pub struct ThenSome<'i, U, E, P, T>
 where
-    U: ?Sized + Slice,
+    U: ?Sized + Slice + 'i,
     E: Situation,
     P: Pattern<'i, U, E>,
     T: Clone,
@@ -401,7 +401,7 @@ where
 }
 impl<'i, U, E, P, T> Pattern<'i, U, E> for ThenSome<'i, U, E, P, T>
 where
-    U: ?Sized + Slice,
+    U: ?Sized + Slice + 'i,
     E: Situation,
     P: Pattern<'i, U, E>,
     T: Clone,
@@ -427,7 +427,7 @@ where
 
 pub struct Complex<'i, U, E, P, Q>
 where
-    U: ?Sized + Slice,
+    U: ?Sized + Slice + 'i,
     E: Situation,
     P: Pattern<'i, U, E>,
     Q: Pattern<'i, U, E>,
@@ -438,7 +438,7 @@ where
 }
 impl<'i, U, E, P, Q> Pattern<'i, U, E> for Complex<'i, U, E, P, Q>
 where
-    U: ?Sized + Slice,
+    U: ?Sized + Slice + 'i,
     E: Situation,
     P: Pattern<'i, U, E>,
     Q: Pattern<'i, U, E>,
@@ -475,7 +475,7 @@ where
 
 pub struct Map<'i, U, E, P, F, T>
 where
-    U: ?Sized + Slice,
+    U: ?Sized + Slice + 'i,
     E: Situation,
     P: Pattern<'i, U, E>,
     F: Fn(P::Captured) -> T,
@@ -486,7 +486,7 @@ where
 }
 impl<'i, U, E, P, F, T> Pattern<'i, U, E> for Map<'i, U, E, P, F, T>
 where
-    U: ?Sized + Slice,
+    U: ?Sized + Slice + 'i,
     E: Situation,
     P: Pattern<'i, U, E>,
     F: Fn(P::Captured) -> T,
@@ -510,7 +510,7 @@ where
 
 pub struct MapErr<'i, U, E1, P, F, E2>
 where
-    U: ?Sized + Slice,
+    U: ?Sized + Slice + 'i,
     E1: Situation,
     P: Pattern<'i, U, E1>,
     F: Fn(E1) -> E2,
@@ -522,7 +522,7 @@ where
 }
 impl<'i, U, E1, P, F, E2> Pattern<'i, U, E2> for MapErr<'i, U, E1, P, F, E2>
 where
-    U: ?Sized + Slice,
+    U: ?Sized + Slice + 'i,
     E1: Situation,
     P: Pattern<'i, U, E1>,
     F: Fn(E1) -> E2,
@@ -549,7 +549,7 @@ where
 
 pub struct Expect<'i, U, E, P>
 where
-    U: ?Sized + Slice,
+    U: ?Sized + Slice + 'i,
     E: Situation,
     P: Pattern<'i, U, E>,
 {
@@ -559,7 +559,7 @@ where
 }
 impl<'i, U, E, P> Pattern<'i, U, E> for Expect<'i, U, E, P>
 where
-    U: ?Sized + Slice,
+    U: ?Sized + Slice + 'i,
     E: Situation,
     P: Pattern<'i, U, E>,
 {
@@ -582,7 +582,7 @@ where
 
 pub struct Unwrap<'i, U, E, P>
 where
-    U: ?Sized + Slice,
+    U: ?Sized + Slice + 'i,
     E: Situation,
     P: Pattern<'i, U, E>,
 {
@@ -591,7 +591,7 @@ where
 }
 impl<'i, U, E, P> Pattern<'i, U, E> for Unwrap<'i, U, E, P>
 where
-    U: ?Sized + Slice,
+    U: ?Sized + Slice + 'i,
     E: Situation,
     P: Pattern<'i, U, E>,
 {
@@ -616,7 +616,7 @@ where
 
 pub struct UnwrapOr<'i, U, E, P>
 where
-    U: ?Sized + Slice,
+    U: ?Sized + Slice + 'i,
     E: Situation,
     P: Pattern<'i, U, E>,
     P::Captured: Clone,
@@ -627,7 +627,7 @@ where
 }
 impl<'i, U, E, P> Pattern<'i, U, E> for UnwrapOr<'i, U, E, P>
 where
-    U: ?Sized + Slice,
+    U: ?Sized + Slice + 'i,
     E: Situation,
     P: Pattern<'i, U, E>,
     P::Captured: Clone,
@@ -662,7 +662,7 @@ where
 
 pub struct UnwrapOrElse<'i, U, E, P, F>
 where
-    U: ?Sized + Slice,
+    U: ?Sized + Slice + 'i,
     E: Situation,
     P: Pattern<'i, U, E>,
     F: Fn() -> P::Captured,
@@ -673,7 +673,7 @@ where
 }
 impl<'i, U, E, P, F> Pattern<'i, U, E> for UnwrapOrElse<'i, U, E, P, F>
 where
-    U: ?Sized + Slice,
+    U: ?Sized + Slice + 'i,
     E: Situation,
     P: Pattern<'i, U, E>,
     F: Fn() -> P::Captured,
@@ -708,7 +708,7 @@ where
 
 pub struct UnwrapOrDefault<'i, U, E, P>
 where
-    U: ?Sized + Slice,
+    U: ?Sized + Slice + 'i,
     E: Situation,
     P: Pattern<'i, U, E>,
     P::Captured: Default,
@@ -718,7 +718,7 @@ where
 }
 impl<'i, U, E, P> Pattern<'i, U, E> for UnwrapOrDefault<'i, U, E, P>
 where
-    U: ?Sized + Slice,
+    U: ?Sized + Slice + 'i,
     E: Situation,
     P: Pattern<'i, U, E>,
     P::Captured: Default,

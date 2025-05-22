@@ -18,7 +18,7 @@ pub type ParseResult<T, E = SimpleError> = Result<T, E>;
 
 pub trait Pattern<'i, U, E>
 where
-    U: ?Sized + Slice,
+    U: ?Sized + Slice + 'i,
     E: Situation,
 {
     type Captured;
@@ -31,6 +31,23 @@ where
     fn extract(&self, slice: &'i U, entry: Self::Internal) -> Self::Captured;
 
     //------------------------------------------------------------------------------
+
+    #[inline]
+    fn parse2<S>(&self, mut slice: S) -> Result<Self::Captured, E>
+    where
+        S: AdvanceSlice<'i, U>,
+    {
+        let mut state = self.init();
+        match self.advance(slice.rest(), &mut state, true) {
+            Ok(len) => Ok(self.extract(slice.bump(len), state)),
+            Err(e) => {
+                if e.is_unfulfilled() {
+                    panic!("implementation: pull after EOF")
+                }
+                Err(e)
+            }
+        }
+    }
 
     #[inline]
     fn parse(&self, slice: &mut &'i U) -> Result<Self::Captured, E> {
@@ -66,7 +83,7 @@ where
     fn opaque<Ui, Ei, Cap>(self) -> impl Pattern<'i, Ui, Ei, Captured = Cap>
     where
         Self: Sized + Pattern<'i, Ui, Ei, Captured = Cap>,
-        Ui: ?Sized + Slice,
+        Ui: ?Sized + Slice + 'i,
         Ei: Situation,
     {
         self
@@ -76,7 +93,7 @@ where
     fn opaque_simple<Ui, Cap>(self) -> impl Pattern<'i, Ui, SimpleError, Captured = Cap>
     where
         Self: Sized + Pattern<'i, Ui, SimpleError, Captured = Cap>,
-        Ui: ?Sized + Slice,
+        Ui: ?Sized + Slice + 'i,
     {
         self
     }
@@ -273,7 +290,7 @@ where
 
 impl<'i, U, E> Pattern<'i, U, E> for &'i U
 where
-    U: ?Sized + Slice,
+    U: ?Sized + Slice + 'i,
     E: Situation,
 {
     type Captured = &'i U;
@@ -307,7 +324,7 @@ where
 
 impl<'i, U, E, P> Pattern<'i, U, E> for [P; 1]
 where
-    U: ?Sized + Slice,
+    U: ?Sized + Slice + 'i,
     E: Situation,
     P: Predicate<U::Item>,
 {

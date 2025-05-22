@@ -241,23 +241,25 @@ impl ThinSlice for [u8] {
 
 //------------------------------------------------------------------------------
 
-pub trait AdvanceSlice<U>
+pub trait AdvanceSlice<'i, U>
 where
-    U: ?Sized + Slice,
+    U: ?Sized + Slice + 'i,
 {
-    fn bump(&mut self, n: usize);
-    fn rest(&self) -> &U;
-    fn source(&self) -> &U;
+    fn bump(&mut self, n: usize) -> &'i U;
+    fn rest(&self) -> &'i U;
+    fn source(&self) -> &'i U;
     fn consumed(&self) -> usize;
 }
 
-impl<'i, U> AdvanceSlice<U> for &mut &'i U
+impl<'i, U> AdvanceSlice<'i, U> for &mut &'i U
 where
-    U: ?Sized + Slice,
+    U: ?Sized + Slice + 'i,
 {
     #[inline]
-    fn bump(&mut self, n: usize) {
-        **self = self.after(n)
+    fn bump(&mut self, n: usize) -> &'i U {
+        let (before, after) = self.split_at(n);
+        **self = after;
+        before
     }
     #[inline]
     fn rest(&self) -> &'i U {
@@ -273,13 +275,16 @@ where
     }
 }
 
-impl<'i, U> AdvanceSlice<U> for StatefulSlice<'i, U>
+impl<'i, U> AdvanceSlice<'i, U> for StatefulSlice<'i, U>
 where
-    U: ?Sized + Slice,
+    U: ?Sized + Slice + 'i,
 {
     #[inline]
-    fn bump(&mut self, n: usize) {
+    fn bump(&mut self, n: usize) -> &'i U {
+        let start = self.consumed;
         self.consumed += n;
+        let end = self.consumed;
+        self.source.subslice(start..end)
     }
     #[inline]
     fn rest(&self) -> &'i U {
@@ -297,7 +302,7 @@ where
 
 pub struct StatefulSlice<'i, U>
 where
-    U: ?Sized + Slice,
+    U: ?Sized + Slice + 'i,
 {
     source: &'i U,
     consumed: usize,

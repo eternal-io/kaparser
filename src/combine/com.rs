@@ -3,7 +3,7 @@ use super::*;
 #[inline]
 pub const fn com<'i, U, E, C>(com: C) -> Compound<'i, U, E, C>
 where
-    U: ?Sized + Slice,
+    U: ?Sized + Slice + 'i,
     E: Situation,
     C: Compoundable<'i, U, E>,
 {
@@ -17,7 +17,7 @@ where
 
 pub struct Compound<'i, U, E, C>
 where
-    U: ?Sized + Slice,
+    U: ?Sized + Slice + 'i,
     E: Situation,
     C: Compoundable<'i, U, E>,
 {
@@ -27,7 +27,7 @@ where
 
 pub trait Compoundable<'i, U, E>
 where
-    U: ?Sized + Slice,
+    U: ?Sized + Slice + 'i,
     E: Situation,
 {
     type Captured;
@@ -42,7 +42,7 @@ where
 
 impl<'i, U, E, C> Pattern<'i, U, E> for Compound<'i, U, E, C>
 where
-    U: ?Sized + Slice,
+    U: ?Sized + Slice + 'i,
     E: Situation,
     C: Compoundable<'i, U, E>,
 {

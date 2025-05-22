@@ -5,9 +5,9 @@ use super::*;
 pub use crate::len;
 
 #[inline]
-pub const fn lens<T, P, E, const LEN: usize>(predicate: P) -> Lens<T, P, E, LEN>
+pub const fn lens<'i, T, P, E, const LEN: usize>(predicate: P) -> Lens<'i, T, P, E, LEN>
 where
-    T: Copy + PartialEq,
+    T: Copy + PartialEq + 'i,
     P: Predicate<T>,
     E: Situation,
 {
@@ -19,19 +19,19 @@ where
 
 //------------------------------------------------------------------------------
 
-pub struct Lens<T, P, E, const LEN: usize>
+pub struct Lens<'i, T, P, E, const LEN: usize>
 where
-    T: Copy + PartialEq,
+    T: Copy + PartialEq + 'i,
     P: Predicate<T>,
     E: Situation,
 {
     predicate: P,
-    phantom: PhantomData<(T, E)>,
+    phantom: PhantomData<(&'i T, E)>,
 }
 
-impl<'i, T, P, E, const LEN: usize> Pattern<'i, [T], E> for Lens<T, P, E, LEN>
+impl<'i, T, P, E, const LEN: usize> Pattern<'i, [T], E> for Lens<'i, T, P, E, LEN>
 where
-    T: Copy + PartialEq,
+    T: Copy + PartialEq + 'i,
     P: Predicate<T>,
     E: Situation,
 {

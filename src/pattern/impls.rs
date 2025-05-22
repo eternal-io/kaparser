@@ -3,7 +3,7 @@ use super::*;
 /// Note the generic parameter order.
 pub const fn opaque<'i, U, C, E>(pat: impl Pattern<'i, U, E, Captured = C>) -> impl Pattern<'i, U, E, Captured = C>
 where
-    U: ?Sized + Slice,
+    U: ?Sized + Slice + 'i,
     E: Situation,
 {
     pat
@@ -13,7 +13,7 @@ pub const fn opaque_simple<'i, U, C>(
     pat: impl Pattern<'i, U, SimpleError, Captured = C>,
 ) -> impl Pattern<'i, U, SimpleError, Captured = C>
 where
-    U: ?Sized + Slice,
+    U: ?Sized + Slice + 'i,
 {
     pat
 }
@@ -22,7 +22,7 @@ where
 
 pub struct Reiter<'p, 'i, U, E, P>
 where
-    U: ?Sized + Slice,
+    U: ?Sized + Slice + 'i,
     E: Situation,
     P: Pattern<'i, U, E>,
 {
@@ -33,7 +33,7 @@ where
 
 impl<'i, U, E, P> Iterator for Reiter<'_, 'i, U, E, P>
 where
-    U: ?Sized + Slice,
+    U: ?Sized + Slice + 'i,
     E: Situation,
     P: Pattern<'i, U, E>,
 {
@@ -54,7 +54,7 @@ where
 
 pub struct Joined<'p, 'i, U, E, P, Q>
 where
-    U: ?Sized + Slice,
+    U: ?Sized + Slice + 'i,
     E: Situation,
     P: Pattern<'i, U, E>,
     Q: Pattern<'i, U, E>,
@@ -68,7 +68,7 @@ where
 
 impl<'i, U, E, P, Q> Iterator for Joined<'_, 'i, U, E, P, Q>
 where
-    U: ?Sized + Slice,
+    U: ?Sized + Slice + 'i,
     E: Situation,
     P: Pattern<'i, U, E>,
     Q: Pattern<'i, U, E>,

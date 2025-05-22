@@ -3,7 +3,7 @@ use super::*;
 #[inline]
 pub const fn alt<'i, U, E, A>(alt: A) -> Alternative<'i, U, E, A>
 where
-    U: ?Sized + Slice,
+    U: ?Sized + Slice + 'i,
     E: Situation,
     A: Alternatable<'i, U, E>,
 {
@@ -17,7 +17,7 @@ where
 
 pub struct Alternative<'i, U, E, A>
 where
-    U: ?Sized + Slice,
+    U: ?Sized + Slice + 'i,
     E: Situation,
     A: Alternatable<'i, U, E>,
 {
@@ -27,7 +27,7 @@ where
 
 pub trait Alternatable<'i, U, E>
 where
-    U: ?Sized + Slice,
+    U: ?Sized + Slice + 'i,
     E: Situation,
 {
     type Captured;
@@ -42,7 +42,7 @@ where
 
 impl<'i, U, E, A> Pattern<'i, U, E> for Alternative<'i, U, E, A>
 where
-    U: ?Sized + Slice,
+    U: ?Sized + Slice + 'i,
     E: Situation,
     A: Alternatable<'i, U, E>,
 {
@@ -67,7 +67,7 @@ macro_rules! impl_alternatable_for_tuple {
     ( $Len:literal, $($OrdN:literal ~ ($GenN:ident ~ $VarN:ident) ~ $_gen:ident ~ $_con:ident ~ $IdxN:tt)+ ) => { paste::paste! {
         impl<'i, U, E, $($GenN: Pattern<'i, U, E>),+> Alternatable<'i, U, E> for ($($GenN,)+)
         where
-            U: ?Sized + Slice,
+            U: ?Sized + Slice + 'i,
             E: Situation,
         {
             type Captured = [<Alt $Len>]<$($GenN::Captured),+>;

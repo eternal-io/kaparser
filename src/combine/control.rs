@@ -16,7 +16,7 @@ where
 #[inline]
 pub const fn cut<'i, U, E, P>(body: P) -> Cut<'i, U, E, P>
 where
-    U: ?Sized + Slice,
+    U: ?Sized + Slice + 'i,
     E: Situation,
     P: Pattern<'i, U, E>,
 {
@@ -29,7 +29,7 @@ where
 #[inline]
 pub const fn cond<'i, U, E, P>(b: bool, body: P) -> Cond<'i, U, E, P>
 where
-    U: ?Sized + Slice,
+    U: ?Sized + Slice + 'i,
     E: Situation,
     P: Pattern<'i, U, E>,
 {
@@ -44,7 +44,7 @@ where
 
 impl<'i, U, E> Pattern<'i, U, E> for EOF
 where
-    U: ?Sized + Slice,
+    U: ?Sized + Slice + 'i,
     E: Situation,
 {
     type Captured = ();
@@ -65,7 +65,7 @@ where
 
 impl<'i, U, E> Pattern<'i, U, E> for Halt
 where
-    U: ?Sized + Slice,
+    U: ?Sized + Slice + 'i,
     E: Situation,
 {
     type Captured = ();
@@ -83,7 +83,7 @@ where
 
 impl<'i, U, E> Pattern<'i, U, E> for Reject
 where
-    U: ?Sized + Slice,
+    U: ?Sized + Slice + 'i,
     E: Situation,
 {
     type Captured = ();
@@ -101,7 +101,7 @@ where
 
 impl<'i, U, E> Pattern<'i, U, E> for TODO
 where
-    U: ?Sized + Slice,
+    U: ?Sized + Slice + 'i,
     E: Situation,
 {
     type Captured = ();
@@ -162,7 +162,7 @@ where
 
 pub struct Cut<'i, U, E, P>
 where
-    U: ?Sized + Slice,
+    U: ?Sized + Slice + 'i,
     E: Situation,
     P: Pattern<'i, U, E>,
 {
@@ -172,7 +172,7 @@ where
 
 impl<'i, U, E, P> Pattern<'i, U, E> for Cut<'i, U, E, P>
 where
-    U: ?Sized + Slice,
+    U: ?Sized + Slice + 'i,
     E: Situation,
     P: Pattern<'i, U, E>,
 {
@@ -197,7 +197,7 @@ where
 
 pub struct Cond<'i, U, E, P>
 where
-    U: ?Sized + Slice,
+    U: ?Sized + Slice + 'i,
     E: Situation,
     P: Pattern<'i, U, E>,
 {
@@ -208,7 +208,7 @@ where
 
 impl<'i, U, E, P> Pattern<'i, U, E> for Cond<'i, U, E, P>
 where
-    U: ?Sized + Slice,
+    U: ?Sized + Slice + 'i,
     E: Situation,
     P: Pattern<'i, U, E>,
 {

@@ -15,7 +15,7 @@ where
 #[inline]
 pub const fn until<'i, U, E, P>(end: P) -> RangeToInclusive<P>
 where
-    U: ?Sized + Slice,
+    U: ?Sized + Slice + 'i,
     E: Situation,
     P: Pattern<'i, U, E>,
 {

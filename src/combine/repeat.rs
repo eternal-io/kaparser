@@ -9,7 +9,7 @@ pub const fn repeat<'i, U, E, P, const AT_LEAST: usize, const MAY_MORE: usize>(
     body: P,
 ) -> Repeat<'i, U, E, P, AT_LEAST, MAY_MORE>
 where
-    U: ?Sized + Slice,
+    U: ?Sized + Slice + 'i,
     E: Situation,
     P: Pattern<'i, U, E>,
 {
@@ -22,7 +22,7 @@ where
 #[inline]
 pub const fn repeat_exact<'i, U, E, P, const TIMES: usize>(body: P) -> RepeatExact<'i, U, E, P, TIMES>
 where
-    U: ?Sized + Slice,
+    U: ?Sized + Slice + 'i,
     E: Situation,
     P: Pattern<'i, U, E>,
 {
@@ -32,7 +32,7 @@ where
 #[inline]
 pub const fn repeat_at_most<'i, U, E, P, const TIMES: usize>(body: P) -> RepeatAtMost<'i, U, E, P, TIMES>
 where
-    U: ?Sized + Slice,
+    U: ?Sized + Slice + 'i,
     E: Situation,
     P: Pattern<'i, U, E>,
 {
@@ -43,7 +43,7 @@ where
 
 pub struct Repeat<'i, U, E, P, const AT_LEAST: usize, const MAY_MORE: usize>
 where
-    U: ?Sized + Slice,
+    U: ?Sized + Slice + 'i,
     E: Situation,
     P: Pattern<'i, U, E>,
 {
@@ -54,7 +54,7 @@ where
 impl<'i, U, E, P, const AT_LEAST: usize, const MAY_MORE: usize> Pattern<'i, U, E>
     for Repeat<'i, U, E, P, AT_LEAST, MAY_MORE>
 where
-    U: ?Sized + Slice,
+    U: ?Sized + Slice + 'i,
     E: Situation,
     P: Pattern<'i, U, E>,
 {
@@ -157,7 +157,7 @@ where
 
 pub struct RepeatExact<'i, U, E, P, const TIMES: usize>
 where
-    U: ?Sized + Slice,
+    U: ?Sized + Slice + 'i,
     E: Situation,
     P: Pattern<'i, U, E>,
 {
@@ -166,7 +166,7 @@ where
 
 impl<'i, U, E, P, const TIMES: usize> Pattern<'i, U, E> for RepeatExact<'i, U, E, P, TIMES>
 where
-    U: ?Sized + Slice,
+    U: ?Sized + Slice + 'i,
     E: Situation,
     P: Pattern<'i, U, E>,
 {
@@ -191,7 +191,7 @@ where
 
 pub struct RepeatAtMost<'i, U, E, P, const TIMES: usize>
 where
-    U: ?Sized + Slice,
+    U: ?Sized + Slice + 'i,
     E: Situation,
     P: Pattern<'i, U, E>,
 {
@@ -200,7 +200,7 @@ where
 
 impl<'i, U, E, P, const TIMES: usize> Pattern<'i, U, E> for RepeatAtMost<'i, U, E, P, TIMES>
 where
-    U: ?Sized + Slice,
+    U: ?Sized + Slice + 'i,
     E: Situation,
     P: Pattern<'i, U, E>,
 {

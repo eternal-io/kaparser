@@ -3,7 +3,7 @@ use core::ops::Range;
 
 pub const fn seq<'i, U, E, S>(seq: S) -> Sequence<'i, U, E, S>
 where
-    U: ?Sized + Slice,
+    U: ?Sized + Slice + 'i,
     E: Situation,
     S: Sequencable<'i, U, E>,
 {
@@ -16,7 +16,7 @@ where
 #[inline]
 pub const fn ixs<'i, U, E, S>(ixs: S) -> IndexedSequence<'i, U, E, S>
 where
-    U: ?Sized + Slice,
+    U: ?Sized + Slice + 'i,
     E: Situation,
     S: Indexedable<'i, U, E>,
 {
@@ -29,7 +29,7 @@ where
 #[inline]
 pub const fn sps<'i, U, E, S>(sps: S) -> SpannedSequence<'i, U, E, S>
 where
-    U: ?Sized + Slice,
+    U: ?Sized + Slice + 'i,
     E: Situation,
     S: Spannedable<'i, U, E>,
 {
@@ -43,7 +43,7 @@ where
 
 pub struct Sequence<'i, U, E, S>
 where
-    U: ?Sized + Slice,
+    U: ?Sized + Slice + 'i,
     E: Situation,
     S: Sequencable<'i, U, E>,
 {
@@ -53,7 +53,7 @@ where
 
 pub trait Sequencable<'i, U, E>
 where
-    U: ?Sized + Slice,
+    U: ?Sized + Slice + 'i,
     E: Situation,
 {
     type Captured;
@@ -68,7 +68,7 @@ where
 
 impl<'i, U, E, S> Pattern<'i, U, E> for Sequence<'i, U, E, S>
 where
-    U: ?Sized + Slice,
+    U: ?Sized + Slice + 'i,
     E: Situation,
     S: Sequencable<'i, U, E>,
 {
@@ -93,7 +93,7 @@ macro_rules! impl_sequencable_for_tuple {
     ( $Len:literal, $($OrdN:literal ~ ($GenN:ident ~ $ValN:ident) ~ $_gen:ident ~ $_con:ident ~ $IdxN:tt)+ ) => { paste::paste! {
         impl<'i, U, E, $($GenN),+> Sequencable<'i, U, E> for ($($GenN,)+)
         where
-            U: ?Sized + Slice,
+            U: ?Sized + Slice + 'i,
             E: Situation,
           $($GenN: Pattern<'i, U, E>,)+
         {
@@ -148,7 +148,7 @@ __generate_codes! { impl_sequencable_for_tuple ( P ~ val ) }
 
 pub struct IndexedSequence<'i, U, E, S>
 where
-    U: ?Sized + Slice,
+    U: ?Sized + Slice + 'i,
     E: Situation,
     S: Indexedable<'i, U, E>,
 {
@@ -158,7 +158,7 @@ where
 
 pub trait Indexedable<'i, U, E>
 where
-    U: ?Sized + Slice,
+    U: ?Sized + Slice + 'i,
     E: Situation,
 {
     type Captured;
@@ -173,7 +173,7 @@ where
 
 impl<'i, U, E, S> Pattern<'i, U, E> for IndexedSequence<'i, U, E, S>
 where
-    U: ?Sized + Slice,
+    U: ?Sized + Slice + 'i,
     E: Situation,
     S: Indexedable<'i, U, E>,
 {
@@ -198,7 +198,7 @@ macro_rules! impl_indexedable_for_tuple {
     ( $Len:literal, $($OrdN:literal ~ ($GenN:ident ~ $ValN:ident) ~ $_gen:ident ~ $_con:ident ~ $IdxN:tt)+ ) => { paste::paste! {
         impl<'i, U, E, $($GenN: Pattern<'i, U, E>),+> Indexedable<'i, U, E> for ($($GenN,)+)
         where
-            U: ?Sized + Slice,
+            U: ?Sized + Slice + 'i,
             E: Situation,
         {
             type Captured = ($((usize, $GenN::Captured),)+);
@@ -252,7 +252,7 @@ __generate_codes! { impl_indexedable_for_tuple ( P ~ val ) }
 
 pub struct SpannedSequence<'i, U, E, S>
 where
-    U: ?Sized + Slice,
+    U: ?Sized + Slice + 'i,
     E: Situation,
     S: Spannedable<'i, U, E>,
 {
@@ -262,7 +262,7 @@ where
 
 pub trait Spannedable<'i, U, E>
 where
-    U: ?Sized + Slice,
+    U: ?Sized + Slice + 'i,
     E: Situation,
 {
     type Captured;
@@ -277,7 +277,7 @@ where
 
 impl<'i, U, E, S> Pattern<'i, U, E> for SpannedSequence<'i, U, E, S>
 where
-    U: ?Sized + Slice,
+    U: ?Sized + Slice + 'i,
     E: Situation,
     S: Spannedable<'i, U, E>,
 {
@@ -302,7 +302,7 @@ macro_rules! impl_spannedable_for_tuple {
     ( $Len:literal, $($OrdN:literal ~ ($GenN:ident ~ $ValN:ident) ~ $_gen:ident ~ $_con:ident ~ $IdxN:tt)+ ) => { paste::paste! {
         impl<'i, U, E, $($GenN: Pattern<'i, U, E>),+> Spannedable<'i, U, E> for ($($GenN,)+)
         where
-            U: ?Sized + Slice,
+            U: ?Sized + Slice + 'i,
             E: Situation,
         {
             type Captured = ($((Range<usize>, $GenN::Captured),)+);

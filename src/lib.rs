@@ -26,9 +26,9 @@ pub mod combine {
     pub mod dispatch;
 
     pub mod lens;
+    pub mod take;
     pub mod repeat;
     pub mod skim;
-    pub mod take;
 
     pub mod opt;
     pub mod peek;

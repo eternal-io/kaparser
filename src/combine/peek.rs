@@ -3,7 +3,7 @@ use super::*;
 #[inline]
 pub const fn peek<'i, U, E, P>(body: P) -> Peek<'i, U, E, P>
 where
-    U: ?Sized + Slice,
+    U: ?Sized + Slice + 'i,
     E: Situation,
     P: Pattern<'i, U, E>,
 {
@@ -17,7 +17,7 @@ where
 
 pub struct Peek<'i, U, E, P>
 where
-    U: ?Sized + Slice,
+    U: ?Sized + Slice + 'i,
     E: Situation,
     P: Pattern<'i, U, E>,
 {
@@ -27,7 +27,7 @@ where
 
 impl<'i, U, E, P> Pattern<'i, U, E> for Peek<'i, U, E, P>
 where
-    U: ?Sized + Slice,
+    U: ?Sized + Slice + 'i,
     E: Situation,
     P: Pattern<'i, U, E>,
 {
