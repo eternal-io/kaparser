@@ -7,30 +7,30 @@ pub const fn line_end<'i, E: Situation>() -> impl Pattern<'i, str, E, Captured =
 
 #[inline]
 pub const fn ident<'i, E: Situation>() -> impl Pattern<'i, str, E, Captured = &'i str> {
-    com(([('_', is_alpha)], take0(is_alnum)))
+    com(([('_', is_alpha)], take0more(is_alnum)))
 }
 
 #[inline]
 #[cfg(feature = "unicode-ident")]
 pub const fn unc_ident<'i, E: Situation>() -> impl Pattern<'i, str, E, Captured = &'i str> {
-    com(([('_', unc::xid_start)], take0(unc::xid_conti)))
+    com(([('_', unc::xid_start)], take0more(unc::xid_conti)))
 }
 
 #[inline]
 pub const fn hex_<'i, E: Situation>() -> impl Pattern<'i, str, E, Captured = &'i str> {
-    com(([is_hex], take0(('_', is_hex))))
+    com(([is_hex], take0more(('_', is_hex))))
 }
 #[inline]
 pub const fn dec_<'i, E: Situation>() -> impl Pattern<'i, str, E, Captured = &'i str> {
-    com(([is_dec], take0(('_', is_dec))))
+    com(([is_dec], take0more(('_', is_dec))))
 }
 #[inline]
 pub const fn oct_<'i, E: Situation>() -> impl Pattern<'i, str, E, Captured = &'i str> {
-    com(([is_oct], take0(('_', is_oct))))
+    com(([is_oct], take0more(('_', is_oct))))
 }
 #[inline]
 pub const fn bin_<'i, E: Situation>() -> impl Pattern<'i, str, E, Captured = &'i str> {
-    com(([is_bin], take0(('_', is_bin))))
+    com(([is_bin], take0more(('_', is_bin))))
 }
 
 macro_rules! gen_string_patterns {
@@ -43,14 +43,14 @@ macro_rules! gen_string_patterns {
         #[inline]
         pub const fn [<$name 0>]<'i, E: Situation>()
            -> impl Pattern<'i, str, E, Captured = &'i str>
-            { take0([<is_ $name>]) }
+            { take0more([<is_ $name>]) }
 
         #[doc = "One or more ASCII " $desc ".\n\n"]
       $(#[$attr])*
         #[inline]
         pub const fn [<$name 1>]<'i, E: Situation>()
            -> impl Pattern<'i, str, E, Captured = &'i str>
-            { take1([<is_ $name>]) }
+            { take1more([<is_ $name>]) }
     )* } };
 }
 

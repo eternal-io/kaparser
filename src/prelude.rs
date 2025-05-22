@@ -11,7 +11,7 @@ pub use crate::{
         seq::{ixs, seq, sps},
         skim::{till, until},
         special::{winged, winged_flipped, winged_flipped2, winged_flipped3, winged2, winged3},
-        take::{take, take0, take1},
+        take::{take, take0more, take1more},
     },
     common::alts::*,
     error::*,

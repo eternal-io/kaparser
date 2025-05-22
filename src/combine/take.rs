@@ -1,34 +1,24 @@
 use super::*;
-use core::ops::RangeFrom;
 
 #[inline]
-pub const fn take<T, P, R>(range: R, predicate: P) -> Take<T, P, R>
+pub const fn take<T, P, R>(range: R, predicate: P) -> Take<P, R>
 where
     T: Copy + PartialEq,
     P: Predicate<T>,
     R: URangeBounds,
 {
-    Take {
-        range,
-        predicate,
-        phantom: PhantomData,
-    }
+    Take { range, predicate }
 }
-
 #[inline]
-pub const fn take0<T, P>(predicate: P) -> Take0<T, P>
+pub const fn take0more<T, P>(predicate: P) -> Take0More<P>
 where
     T: Copy + PartialEq,
     P: Predicate<T>,
 {
-    Take0 {
-        predicate,
-        phantom: PhantomData,
-    }
+    Take0More { predicate }
 }
-
 #[inline]
-pub const fn take1<T, P>(predicate: P) -> RangeFrom<P>
+pub const fn take1more<T, P>(predicate: P) -> RangeFrom<P>
 where
     T: Copy + PartialEq,
     P: Predicate<T>,
@@ -38,22 +28,19 @@ where
 
 //------------------------------------------------------------------------------
 
-pub struct Take<T, P, R>
+pub struct Take<P, R>
 where
-    T: Copy + PartialEq,
-    P: Predicate<T>,
     R: URangeBounds,
 {
     range: R,
     predicate: P,
-    phantom: PhantomData<T>,
 }
 
-impl<'i, U, E, P, R> Pattern<'i, U, E> for Take<U::Item, P, R>
+impl<'i, U, P, E, R> Pattern<'i, U, E> for Take<P, R>
 where
     U: ?Sized + Slice + 'i,
-    E: Situation,
     P: Predicate<U::Item>,
+    E: Situation,
     R: URangeBounds,
 {
     type Captured = &'i U;
@@ -97,20 +84,15 @@ where
 
 //------------------------------------------------------------------------------
 
-pub struct Take0<T, P>
-where
-    T: Copy + PartialEq,
-    P: Predicate<T>,
-{
+pub struct Take0More<P> {
     predicate: P,
-    phantom: PhantomData<T>,
 }
 
-impl<'i, U, E, P> Pattern<'i, U, E> for Take0<U::Item, P>
+impl<'i, U, P, E> Pattern<'i, U, E> for Take0More<P>
 where
     U: ?Sized + Slice + 'i,
-    E: Situation,
     P: Predicate<U::Item>,
+    E: Situation,
 {
     type Captured = &'i U;
     type Internal = usize;
@@ -148,11 +130,13 @@ where
 
 //------------------------------------------------------------------------------
 
-impl<'i, U, E, P> Pattern<'i, U, E> for RangeFrom<P>
+use core::ops::RangeFrom;
+
+impl<'i, U, P, E> Pattern<'i, U, E> for RangeFrom<P>
 where
     U: ?Sized + Slice + 'i,
-    E: Situation,
     P: Predicate<U::Item>,
+    E: Situation,
 {
     type Captured = &'i U;
     type Internal = usize;
