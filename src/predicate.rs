@@ -1,4 +1,4 @@
-use core::ops::{Range, RangeFrom, RangeFull, RangeInclusive, RangeTo, RangeToInclusive};
+use core::ops::{Range, RangeFull, RangeInclusive};
 
 /// Match a set of items (`char`, `u8`, `T`).
 pub trait Predicate<T>: Sized {
@@ -18,25 +18,6 @@ impl<T: PartialOrd> Predicate<T> for Range<T> {
     }
 }
 impl<T: PartialOrd> Predicate<T> for RangeInclusive<T> {
-    #[inline]
-    fn predicate(&self, item: &T) -> bool {
-        self.contains(item)
-    }
-}
-
-impl<T: PartialOrd> Predicate<T> for RangeFrom<T> {
-    #[inline]
-    fn predicate(&self, item: &T) -> bool {
-        self.contains(item)
-    }
-}
-impl<T: PartialOrd> Predicate<T> for RangeTo<T> {
-    #[inline]
-    fn predicate(&self, item: &T) -> bool {
-        self.contains(item)
-    }
-}
-impl<T: PartialOrd> Predicate<T> for RangeToInclusive<T> {
     #[inline]
     fn predicate(&self, item: &T) -> bool {
         self.contains(item)
