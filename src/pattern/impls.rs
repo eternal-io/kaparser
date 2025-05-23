@@ -111,7 +111,7 @@ mod tests {
     #[test]
     fn reiter() -> ParseResult<()> {
         let mut sli = ":qwer:uiop:zxcv:0000";
-        let pat = seq((":", is_alpha..));
+        let pat = (":", is_alpha..);
         let mut pat = pat.reiter(&mut sli);
 
         assert_eq!(pat.next().unwrap()?, (":", "qwer"));

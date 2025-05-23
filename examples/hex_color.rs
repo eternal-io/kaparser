@@ -8,7 +8,7 @@ enum Color {
 
 #[rustfmt::skip]
 fn parse_color(s: &str) -> ParseResult<Color> {
-    let pat = seq(("#", rep!(3..=4, take(2, is_hex))));
+    let pat = ("#", rep!(3..=4, take(2, is_hex)));
 
     let (_t, ([r, g, b], [a])) = pat.full_match(s)?;
     let r = u8::from_str_radix(r, 16).unwrap();

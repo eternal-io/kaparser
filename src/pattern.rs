@@ -33,15 +33,12 @@ where
     //------------------------------------------------------------------------------
 
     #[inline]
-    fn parse<S>(&self, slice: &mut S) -> Result<Self::Captured, E>
-    where
-        S: AdvanceSlice<'i, U>,
-    {
+    fn parse(&self, slice: &mut dyn AdvanceSlice<'i, U>) -> Result<Self::Captured, E> {
         let mut state = self.init();
         match self.advance(slice.rest(), &mut state, true) {
             Ok(len) => Ok(self.extract(slice.bump(len), state)),
             Err(e) if e.is_unfulfilled() => panic!("implementation: pull after EOF"),
-            Err(e) => Err(e),
+            Err(e) => Err(e.backtrack(slice.consumed())),
         }
     }
 
