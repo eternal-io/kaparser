@@ -148,7 +148,17 @@ where
     }
     #[inline]
     fn advance(&self, slice: &U, entry: &mut Self::Internal, eof: bool) -> Result<usize, E> {
-        todo!()
+        let Some((offset, item)) = slice.after(*entry).memchr(&self.needle) else {
+            *entry = slice.len();
+            return match eof {
+                true => Ok(*entry),
+                false => E::raise_unfulfilled(None),
+            };
+        };
+
+        *entry += offset;
+
+        Ok(*entry + U::len_of(item))
     }
     #[inline]
     fn extract(&self, slice: &'i U, entry: Self::Internal) -> Self::Captured {
@@ -172,20 +182,34 @@ where
     U: ?Sized + ThinSlice + 'i,
     E: Situation,
 {
-    type Captured = &'i U;
+    type Captured = (&'i U, &'i U);
     type Internal = usize;
 
     #[inline]
     fn init(&self) -> Self::Internal {
-        todo!()
+        0
     }
     #[inline]
     fn advance(&self, slice: &U, entry: &mut Self::Internal, eof: bool) -> Result<usize, E> {
-        todo!()
+        let Some(offset) = slice.after(*entry).memmem(self.needle) else {
+            return match eof {
+                true => E::raise_halt_at(slice.len()),
+                false => {
+                    *entry = slice.len().saturating_sub(self.needle.len());
+                    E::raise_unfulfilled(None)
+                }
+            };
+        };
+
+        *entry += offset;
+
+        Ok(*entry + self.needle.len())
     }
     #[inline]
     fn extract(&self, slice: &'i U, entry: Self::Internal) -> Self::Captured {
-        slice.before(entry)
+        let (left, right) = slice.split_at(entry);
+
+        (left, right.split_at(self.needle.len()).0)
     }
 }
 
@@ -196,7 +220,7 @@ mod tests {
     use crate::prelude::*;
 
     #[test]
-    fn till() {
+    fn test_till() {
         let pat = impls::opaque_simple(..'🔥');
         assert_eq!(pat.full_match("").unwrap(), ("", None));
         assert_eq!(pat.full_match("Foo").unwrap(), ("Foo", None));
@@ -204,9 +228,8 @@ mod tests {
         assert_eq!(pat.full_match("Bar🔥Baz").unwrap_err().offset(), 7);
         assert_eq!(pat.parse(&mut "Bar🔥Baz").unwrap(), ("Bar", Some('🔥')));
     }
-
     #[test]
-    fn until() {
+    fn test_until() {
         let pat = impls::opaque_simple(..="🚧");
         assert_eq!(pat.full_match("🚧").unwrap(), ("", "🚧"));
         assert_eq!(pat.full_match("FooBar🚧").unwrap(), ("FooBar", "🚧"));
@@ -223,5 +246,20 @@ mod tests {
         let pat = impls::opaque_simple::<[u8], _>(..=[].as_ref());
         assert_eq!(pat.parse(&mut b"".as_ref()).unwrap_err().offset(), 0);
         assert_eq!(pat.parse(&mut b"??".as_ref()).unwrap(), (b"".as_ref(), b"".as_ref()));
+    }
+
+    #[test]
+    fn test_fast_till() {
+        let pat = impls::opaque_simple(xtill::<str, _>(['Y', 'Z']));
+        assert_eq!(pat.full_match("Slice").unwrap(), ("Slice", None));
+        assert_eq!(pat.full_match("SlicX").unwrap(), ("SlicX", None));
+        assert_eq!(pat.full_match("SlicY").unwrap(), ("Slic", Some('Y')));
+        assert_eq!(pat.full_match("SlicZ").unwrap(), ("Slic", Some('Z')));
+    }
+    #[test]
+    fn test_fast_until() {
+        let pat = impls::opaque_simple(xuntil::<str>("baz"));
+        assert_eq!(pat.full_match("foobar").unwrap_err().offset(), 6);
+        assert_eq!(pat.full_match("foobarbaz").unwrap(), ("foobar", "baz"));
     }
 }
