@@ -221,7 +221,7 @@ mod tests {
 
     #[test]
     fn test_till() {
-        let pat = impls::opaque_simple(..'🔥');
+        let pat = opaque_simple(..'🔥');
         assert_eq!(pat.fullmatch("").unwrap(), ("", None));
         assert_eq!(pat.fullmatch("Foo").unwrap(), ("Foo", None));
         assert_eq!(pat.fullmatch("Bar🔥").unwrap(), ("Bar", Some('🔥')));
@@ -230,27 +230,27 @@ mod tests {
     }
     #[test]
     fn test_until() {
-        let pat = impls::opaque_simple(..="🚧");
+        let pat = opaque_simple(..="🚧");
         assert_eq!(pat.fullmatch("🚧").unwrap(), ("", "🚧"));
         assert_eq!(pat.fullmatch("FooBar🚧").unwrap(), ("FooBar", "🚧"));
 
-        let pat = impls::opaque_simple::<[u8], _>(..=[0]);
+        let pat = opaque_simple::<[u8], _>(..=[0]);
         assert_eq!(pat.fullmatch(b"Quinn\0").unwrap(), (b"Quinn".as_ref(), 0));
 
         /* The following is feature. */
 
-        let pat = impls::opaque_simple(..="");
+        let pat = opaque_simple(..="");
         assert_eq!(pat.parse(&mut "").unwrap_err().offset(), 0);
         assert_eq!(pat.parse(&mut "❓").unwrap(), ("", ""));
 
-        let pat = impls::opaque_simple::<[u8], _>(..=[].as_ref());
+        let pat = opaque_simple::<[u8], _>(..=[].as_ref());
         assert_eq!(pat.parse(&mut b"".as_ref()).unwrap_err().offset(), 0);
         assert_eq!(pat.parse(&mut b"??".as_ref()).unwrap(), (b"".as_ref(), b"".as_ref()));
     }
 
     #[test]
     fn test_fast_till() {
-        let pat = impls::opaque_simple(xtill::<str, _>(['Y', 'Z']));
+        let pat = opaque_simple(xtill::<str, _>(['Y', 'Z']));
         assert_eq!(pat.fullmatch("Slice").unwrap(), ("Slice", None));
         assert_eq!(pat.fullmatch("SlicX").unwrap(), ("SlicX", None));
         assert_eq!(pat.fullmatch("SlicY").unwrap(), ("Slic", Some('Y')));
@@ -258,7 +258,7 @@ mod tests {
     }
     #[test]
     fn test_fast_until() {
-        let pat = impls::opaque_simple(xuntil::<str>("baz"));
+        let pat = opaque_simple(xuntil::<str>("baz"));
         assert_eq!(pat.fullmatch("foobar").unwrap_err().offset(), 6);
         assert_eq!(pat.fullmatch("foobarbaz").unwrap(), ("foobar", "baz"));
     }

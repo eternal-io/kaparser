@@ -128,7 +128,7 @@ mod tests {
 
     #[test]
     fn tkst() {
-        let pat = impls::opaque_simple(BooleanT);
+        let pat = opaque_simple(BooleanT);
         assert_eq!(pat.fullmatch("true").unwrap(), Boolean::True);
         assert_eq!(pat.fullmatch("false").unwrap(), Boolean::False);
         assert!(pat.fullmatch("False").is_err());

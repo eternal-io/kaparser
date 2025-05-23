@@ -122,7 +122,7 @@ mod tests {
 
     #[test]
     fn test_alt() {
-        let pat = ("0", alt((("b", is_bin..), ("o", is_oct..), ("x", is_hex..)))).opaque_simple();
+        let pat = opaque_simple(("0", alt((("b", is_bin..), ("o", is_oct..), ("x", is_hex..)))));
         assert_eq!(pat.fullmatch("0b101010").unwrap().1, Alt3::Var1(("b", "101010")));
         assert_eq!(pat.fullmatch("0o234567").unwrap().1, Alt3::Var2(("o", "234567")));
         assert_eq!(pat.fullmatch("0xabcdef").unwrap().1, Alt3::Var3(("x", "abcdef")));

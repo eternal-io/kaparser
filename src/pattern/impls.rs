@@ -1,25 +1,5 @@
 use super::*;
 
-/// Note the generic parameter order.
-pub const fn opaque<'i, U, C, E>(pat: impl Pattern<'i, U, E, Captured = C>) -> impl Pattern<'i, U, E, Captured = C>
-where
-    U: ?Sized + Slice + 'i,
-    E: Situation,
-{
-    pat
-}
-
-pub const fn opaque_simple<'i, U, C>(
-    pat: impl Pattern<'i, U, SimpleError, Captured = C>,
-) -> impl Pattern<'i, U, SimpleError, Captured = C>
-where
-    U: ?Sized + Slice + 'i,
-{
-    pat
-}
-
-//------------------------------------------------------------------------------
-
 pub struct Reiter<'s, 'p, 'i, U, E, P, S>
 where
     U: ?Sized + Slice + 'i,

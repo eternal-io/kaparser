@@ -64,7 +64,7 @@ mod tests {
     #[test]
     fn test_seq() {
         assert_eq!(
-            impls::opaque_simple((is_bin.., is_oct.., is_hex..))
+            opaque_simple((is_bin.., is_oct.., is_hex..))
                 .fullmatch("0123456789abcdefABCDEF")
                 .unwrap(),
             ("01", "234567", "89abcdefABCDEF")

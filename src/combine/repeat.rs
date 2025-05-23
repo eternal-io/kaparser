@@ -229,7 +229,7 @@ mod tests {
 
     #[test]
     fn main() {
-        let pat = rep!(2..=4, [is_alpha]).opaque_simple();
+        let pat = opaque_simple(rep!(2..=4, [is_alpha]));
         assert_eq!(pat.fullmatch("z").unwrap_err().offset(), 1);
         assert_eq!(pat.fullmatch("zx").unwrap(), (['z', 'x'], [None, None]));
         assert_eq!(pat.fullmatch("zxc").unwrap(), (['z', 'x'], [Some('c'), None]));

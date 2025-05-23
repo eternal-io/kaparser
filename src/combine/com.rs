@@ -111,8 +111,7 @@ mod tests {
     #[test]
     fn test_com() {
         assert_eq!(
-            com((is_bin.., is_oct.., is_hex..))
-                .opaque_simple()
+            opaque_simple(com((is_bin.., is_oct.., is_hex..)))
                 .fullmatch("0123456789abcdefABCDEF")
                 .unwrap(),
             "0123456789abcdefABCDEF"

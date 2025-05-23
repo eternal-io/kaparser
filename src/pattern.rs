@@ -5,16 +5,38 @@ use crate::{
     predicate::*,
 };
 use core::marker::PhantomData;
+
+mod impls;
 use impls::*;
 
 pub mod bin;
 pub mod def;
-pub mod impls;
 
 #[doc(inline)]
 pub use crate::token_set;
 
 pub type ParseResult<T, E = SimpleError> = Result<T, E>;
+
+pub const fn opaque<'i, U, E, Cap>(
+    pat: impl Pattern<'i, U, E, Captured = Cap>,
+) -> impl Pattern<'i, U, E, Captured = Cap>
+where
+    U: ?Sized + Slice + 'i,
+    E: Situation,
+{
+    pat
+}
+
+pub const fn opaque_simple<'i, U, Cap>(
+    pat: impl Pattern<'i, U, SimpleError, Captured = Cap>,
+) -> impl Pattern<'i, U, SimpleError, Captured = Cap>
+where
+    U: ?Sized + Slice + 'i,
+{
+    pat
+}
+
+//==================================================================================================
 
 pub trait Pattern<'i, U, E>
 where
@@ -50,27 +72,6 @@ where
             0 => Ok(cap),
             n => E::raise_halt_at(slice.len() - n),
         }
-    }
-
-    //------------------------------------------------------------------------------
-
-    #[inline]
-    fn opaque<Ui, Ei, Cap>(self) -> impl Pattern<'i, Ui, Ei, Captured = Cap>
-    where
-        Self: Sized + Pattern<'i, Ui, Ei, Captured = Cap>,
-        Ui: ?Sized + Slice + 'i,
-        Ei: Situation,
-    {
-        self
-    }
-
-    #[inline]
-    fn opaque_simple<Ui, Cap>(self) -> impl Pattern<'i, Ui, SimpleError, Captured = Cap>
-    where
-        Self: Sized + Pattern<'i, Ui, SimpleError, Captured = Cap>,
-        Ui: ?Sized + Slice + 'i,
-    {
-        self
     }
 
     //------------------------------------------------------------------------------
@@ -525,22 +526,22 @@ mod tests {
 
     #[test]
     fn slice() {
-        let pat = impls::opaque_simple("");
+        let pat = opaque_simple("");
         assert!(pat.fullmatch("").is_ok());
         assert_eq!(pat.fullmatch("?").unwrap_err().offset(), 0);
         assert_eq!(pat.fullmatch("??").unwrap_err().offset(), 0);
 
-        let pat = impls::opaque_simple("A");
+        let pat = opaque_simple("A");
         assert_eq!(pat.fullmatch("").unwrap_err().offset(), 0);
         assert_eq!(pat.fullmatch("A").unwrap(), "A");
         assert_eq!(pat.fullmatch("AA").unwrap_err().offset(), 1);
 
-        let pat = impls::opaque_simple("AB");
+        let pat = opaque_simple("AB");
         assert_eq!(pat.fullmatch("").unwrap_err().offset(), 0);
         assert_eq!(pat.fullmatch("AB").unwrap(), "AB");
         assert_eq!(pat.fullmatch("ABCD").unwrap_err().offset(), 2);
 
-        let pat = impls::opaque_simple("ABCD");
+        let pat = opaque_simple("ABCD");
         assert_eq!(pat.fullmatch("").unwrap_err().offset(), 0);
         assert_eq!(pat.fullmatch("AB").unwrap_err().offset(), 2);
         assert_eq!(pat.fullmatch("ABCD").unwrap(), "ABCD");
