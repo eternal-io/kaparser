@@ -7,7 +7,8 @@ use crate::{
 use core::marker::PhantomData;
 
 mod impls;
-use impls::*;
+
+pub use impls::*;
 
 pub mod bin;
 pub mod def;
@@ -16,27 +17,6 @@ pub mod def;
 pub use crate::token_set;
 
 pub type ParseResult<T, E = SimpleError> = Result<T, E>;
-
-pub const fn opaque<'i, U, E, Cap>(
-    pat: impl Pattern<'i, U, E, Captured = Cap>,
-) -> impl Pattern<'i, U, E, Captured = Cap>
-where
-    U: ?Sized + Slice + 'i,
-    E: Situation,
-{
-    pat
-}
-
-pub const fn opaque_simple<'i, U, Cap>(
-    pat: impl Pattern<'i, U, SimpleError, Captured = Cap>,
-) -> impl Pattern<'i, U, SimpleError, Captured = Cap>
-where
-    U: ?Sized + Slice + 'i,
-{
-    pat
-}
-
-//==================================================================================================
 
 pub trait Pattern<'i, U, E>
 where
@@ -550,11 +530,9 @@ mod tests {
     #[test]
     fn test_ixs() {
         assert_eq!(
-            IndexedPattern::<str, SimpleError>::fullmatch_indexed(
-                &(is_bin.., is_oct.., is_hex..),
-                "0123456789abcdefABCDEF"
-            )
-            .unwrap(),
+            indexed_opaque_simple((is_bin.., is_oct.., is_hex..))
+                .fullmatch_indexed("0123456789abcdefABCDEF")
+                .unwrap(),
             ((0, "01"), (2, "234567"), (8, "89abcdefABCDEF"))
         );
     }
@@ -562,11 +540,9 @@ mod tests {
     #[test]
     fn test_sps() {
         assert_eq!(
-            SpannedPattern::<str, SimpleError>::fullmatch_spanned(
-                &(is_bin.., is_oct.., is_hex..),
-                "0123456789abcdefABCDEF"
-            )
-            .unwrap(),
+            spanned_opaque_simple((is_bin.., is_oct.., is_hex..))
+                .fullmatch_spanned("0123456789abcdefABCDEF")
+                .unwrap(),
             ((0..2, "01"), (2..8, "234567"), (8..22, "89abcdefABCDEF"))
         );
     }

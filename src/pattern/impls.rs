@@ -1,5 +1,67 @@
 use super::*;
 
+#[inline]
+pub const fn opaque<'i, U, E, Cap>(
+    pattern: impl Pattern<'i, U, E, Captured = Cap>,
+) -> impl Pattern<'i, U, E, Captured = Cap>
+where
+    U: ?Sized + Slice + 'i,
+    E: Situation,
+{
+    pattern
+}
+#[inline]
+pub const fn opaque_simple<'i, U, Cap>(
+    pattern: impl Pattern<'i, U, SimpleError, Captured = Cap>,
+) -> impl Pattern<'i, U, SimpleError, Captured = Cap>
+where
+    U: ?Sized + Slice + 'i,
+{
+    pattern
+}
+
+#[inline]
+pub const fn indexed_opaque<'i, U, E, Cap>(
+    indexed_pattern: impl IndexedPattern<'i, U, E, Captured = Cap>,
+) -> impl IndexedPattern<'i, U, E, Captured = Cap>
+where
+    U: ?Sized + Slice + 'i,
+    E: Situation,
+{
+    indexed_pattern
+}
+#[inline]
+pub const fn indexed_opaque_simple<'i, U, Cap>(
+    indexed_pattern: impl IndexedPattern<'i, U, SimpleError, Captured = Cap>,
+) -> impl IndexedPattern<'i, U, SimpleError, Captured = Cap>
+where
+    U: ?Sized + Slice + 'i,
+{
+    indexed_pattern
+}
+
+#[inline]
+pub const fn spanned_opaque<'i, U, E, Cap>(
+    spanned_pattern: impl SpannedPattern<'i, U, E, Captured = Cap>,
+) -> impl SpannedPattern<'i, U, E, Captured = Cap>
+where
+    U: ?Sized + Slice + 'i,
+    E: Situation,
+{
+    spanned_pattern
+}
+#[inline]
+pub const fn spanned_opaque_simple<'i, U, Cap>(
+    spanned_pattern: impl SpannedPattern<'i, U, SimpleError, Captured = Cap>,
+) -> impl SpannedPattern<'i, U, SimpleError, Captured = Cap>
+where
+    U: ?Sized + Slice + 'i,
+{
+    spanned_pattern
+}
+
+//------------------------------------------------------------------------------
+
 pub struct Reiter<'s, 'p, 'i, U, E, P, S>
 where
     U: ?Sized + Slice + 'i,
