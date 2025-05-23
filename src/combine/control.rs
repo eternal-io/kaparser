@@ -119,11 +119,11 @@ where
 
 //------------------------------------------------------------------------------
 
-pub struct IgnoreCase<'i, U>
+pub struct IgnoreCase<'s, U>
 where
-    U: ?Sized + ThinSlice,
+    U: ?Sized + ThinSlice + 's,
 {
-    slice: &'i U,
+    slice: &'s U,
 }
 
 impl<'i, U, E> Pattern<'i, U, E> for IgnoreCase<'_, U>
