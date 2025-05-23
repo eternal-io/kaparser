@@ -1,15 +1,18 @@
 use super::*;
 
 #[inline]
-pub const fn not<T, P: Predicate<T>>(predicate: P) -> Not<T, P> {
-    Not(predicate, PhantomData)
+pub const fn not<P>(predicate: P) -> Not<P> {
+    Not(predicate)
 }
 
 //------------------------------------------------------------------------------
 
-pub struct Not<T, P: Predicate<T>>(P, PhantomData<T>);
+pub struct Not<P>(P);
 
-impl<T, P: Predicate<T>> Predicate<T> for Not<T, P> {
+impl<T, P> Predicate<T> for Not<P>
+where
+    P: Predicate<T>,
+{
     #[inline]
     fn predicate(&self, item: &T) -> bool {
         !self.0.predicate(item)
