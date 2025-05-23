@@ -187,26 +187,26 @@ mod tests {
     #[test]
     fn main() {
         let pat = impls::opaque_simple(take(1..3, unc::upper));
-        assert_eq!(pat.full_match("").unwrap_err().offset(), 0);
-        assert_eq!(pat.full_match("Ａ").unwrap(), "Ａ");
-        assert_eq!(pat.full_match("ＡＢ").unwrap(), "ＡＢ");
-        assert_eq!(pat.full_match("ＡＢＣ").unwrap_err().offset(), 6);
+        assert_eq!(pat.fullmatch("").unwrap_err().offset(), 0);
+        assert_eq!(pat.fullmatch("Ａ").unwrap(), "Ａ");
+        assert_eq!(pat.fullmatch("ＡＢ").unwrap(), "ＡＢ");
+        assert_eq!(pat.fullmatch("ＡＢＣ").unwrap_err().offset(), 6);
 
         let pat = impls::opaque_simple(take(2..=3, is_alpha));
-        assert_eq!(pat.full_match("").unwrap_err().offset(), 0);
-        assert_eq!(pat.full_match("a").unwrap_err().offset(), 1);
-        assert_eq!(pat.full_match("ab").unwrap(), "ab");
-        assert_eq!(pat.full_match("abc").unwrap(), "abc");
-        assert_eq!(pat.full_match("abcd").unwrap_err().offset(), 3);
+        assert_eq!(pat.fullmatch("").unwrap_err().offset(), 0);
+        assert_eq!(pat.fullmatch("a").unwrap_err().offset(), 1);
+        assert_eq!(pat.fullmatch("ab").unwrap(), "ab");
+        assert_eq!(pat.fullmatch("abc").unwrap(), "abc");
+        assert_eq!(pat.fullmatch("abcd").unwrap_err().offset(), 3);
 
         let pat = impls::opaque_simple(take(4, is_alpha));
-        assert_eq!(pat.full_match("abc").unwrap_err().offset(), 3);
-        assert_eq!(pat.full_match("abcd").unwrap(), "abcd");
-        assert_eq!(pat.full_match("abcde").unwrap_err().offset(), 4);
+        assert_eq!(pat.fullmatch("abc").unwrap_err().offset(), 3);
+        assert_eq!(pat.fullmatch("abcd").unwrap(), "abcd");
+        assert_eq!(pat.fullmatch("abcde").unwrap_err().offset(), 4);
 
         let pat = impls::opaque_simple::<[u8], _>(take(4, not(0)));
-        assert_eq!(pat.full_match(b"abc\0").unwrap_err().offset(), 3);
-        assert_eq!(pat.full_match(b"abc\n").unwrap(), b"abc\n");
+        assert_eq!(pat.fullmatch(b"abc\0").unwrap_err().offset(), 3);
+        assert_eq!(pat.fullmatch(b"abc\n").unwrap(), b"abc\n");
 
         let pat = impls::opaque_simple::<[u8], _>(take(2..=3, not(0)));
         assert_eq!(pat.parse(&mut b"a\0".as_ref()).unwrap_err().offset(), 1);
@@ -217,17 +217,17 @@ mod tests {
     #[test]
     fn one_more() {
         let pat = impls::opaque_simple(is_dec..);
-        assert_eq!(pat.full_match("!").unwrap_err().offset(), 0);
-        assert_eq!(pat.full_match("0123!").unwrap_err().offset(), 4);
-        assert_eq!(pat.full_match("7890").unwrap(), "7890");
+        assert_eq!(pat.fullmatch("!").unwrap_err().offset(), 0);
+        assert_eq!(pat.fullmatch("0123!").unwrap_err().offset(), 4);
+        assert_eq!(pat.fullmatch("7890").unwrap(), "7890");
         assert_eq!(pat.parse(&mut "!").unwrap_err().offset(), 0);
         assert_eq!(pat.parse(&mut "0123!").unwrap(), "0123");
         assert_eq!(pat.parse(&mut "7890").unwrap(), "7890");
 
         let pat = impls::opaque_simple::<[u8], _>(not(0)..);
-        assert_eq!(pat.full_match(b"\0").unwrap_err().offset(), 0);
-        assert_eq!(pat.full_match(b"0123\0").unwrap_err().offset(), 4);
-        assert_eq!(pat.full_match(b"7890").unwrap(), b"7890");
+        assert_eq!(pat.fullmatch(b"\0").unwrap_err().offset(), 0);
+        assert_eq!(pat.fullmatch(b"0123\0").unwrap_err().offset(), 4);
+        assert_eq!(pat.fullmatch(b"7890").unwrap(), b"7890");
         assert_eq!(pat.parse(&mut b"\0".as_ref()).unwrap_err().offset(), 0);
         assert_eq!(pat.parse(&mut b"0123\0".as_ref()).unwrap(), b"0123");
         assert_eq!(pat.parse(&mut b"7890".as_ref()).unwrap(), b"7890");

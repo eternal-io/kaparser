@@ -230,15 +230,15 @@ mod tests {
     #[test]
     fn main() {
         let pat = rep!(2..=4, [is_alpha]).opaque_simple();
-        assert_eq!(pat.full_match("z").unwrap_err().offset(), 1);
-        assert_eq!(pat.full_match("zx").unwrap(), (['z', 'x'], [None, None]));
-        assert_eq!(pat.full_match("zxc").unwrap(), (['z', 'x'], [Some('c'), None]));
-        assert_eq!(pat.full_match("zxcv").unwrap(), (['z', 'x'], [Some('c'), Some('v')]));
-        assert_eq!(pat.full_match("zxcvb").unwrap_err().offset(), 4);
+        assert_eq!(pat.fullmatch("z").unwrap_err().offset(), 1);
+        assert_eq!(pat.fullmatch("zx").unwrap(), (['z', 'x'], [None, None]));
+        assert_eq!(pat.fullmatch("zxc").unwrap(), (['z', 'x'], [Some('c'), None]));
+        assert_eq!(pat.fullmatch("zxcv").unwrap(), (['z', 'x'], [Some('c'), Some('v')]));
+        assert_eq!(pat.fullmatch("zxcvb").unwrap_err().offset(), 4);
         assert!(pat.parse(&mut "zxcvb").is_ok());
 
-        assert_eq!(pat.full_match("z0").unwrap_err().offset(), 1);
+        assert_eq!(pat.fullmatch("z0").unwrap_err().offset(), 1);
         assert_eq!(pat.parse(&mut "zx0").unwrap(), (['z', 'x'], [None, None]));
-        assert_eq!(pat.full_match("zx00").unwrap_err().offset(), 2);
+        assert_eq!(pat.fullmatch("zx00").unwrap_err().offset(), 2);
     }
 }

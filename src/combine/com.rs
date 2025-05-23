@@ -113,7 +113,7 @@ mod tests {
         assert_eq!(
             com((is_bin.., is_oct.., is_hex..))
                 .opaque_simple()
-                .full_match("0123456789abcdefABCDEF")
+                .fullmatch("0123456789abcdefABCDEF")
                 .unwrap(),
             "0123456789abcdefABCDEF"
         );

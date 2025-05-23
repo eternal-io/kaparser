@@ -13,7 +13,7 @@ pub fn test_full_match<'i, Cap: Debug + PartialEq>(
     let mut ok_flag = true;
 
     for (i, (slice, expected)) in samples.into_iter().enumerate() {
-        match pattern.full_match(slice) {
+        match pattern.fullmatch(slice) {
             Ok(cap) => match expected {
                 Ok(cap_exp) => match cap == cap_exp {
                     true => continue,

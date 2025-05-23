@@ -222,20 +222,20 @@ mod tests {
     #[test]
     fn test_till() {
         let pat = impls::opaque_simple(..'🔥');
-        assert_eq!(pat.full_match("").unwrap(), ("", None));
-        assert_eq!(pat.full_match("Foo").unwrap(), ("Foo", None));
-        assert_eq!(pat.full_match("Bar🔥").unwrap(), ("Bar", Some('🔥')));
-        assert_eq!(pat.full_match("Bar🔥Baz").unwrap_err().offset(), 7);
+        assert_eq!(pat.fullmatch("").unwrap(), ("", None));
+        assert_eq!(pat.fullmatch("Foo").unwrap(), ("Foo", None));
+        assert_eq!(pat.fullmatch("Bar🔥").unwrap(), ("Bar", Some('🔥')));
+        assert_eq!(pat.fullmatch("Bar🔥Baz").unwrap_err().offset(), 7);
         assert_eq!(pat.parse(&mut "Bar🔥Baz").unwrap(), ("Bar", Some('🔥')));
     }
     #[test]
     fn test_until() {
         let pat = impls::opaque_simple(..="🚧");
-        assert_eq!(pat.full_match("🚧").unwrap(), ("", "🚧"));
-        assert_eq!(pat.full_match("FooBar🚧").unwrap(), ("FooBar", "🚧"));
+        assert_eq!(pat.fullmatch("🚧").unwrap(), ("", "🚧"));
+        assert_eq!(pat.fullmatch("FooBar🚧").unwrap(), ("FooBar", "🚧"));
 
         let pat = impls::opaque_simple::<[u8], _>(..=[0]);
-        assert_eq!(pat.full_match(b"Quinn\0").unwrap(), (b"Quinn".as_ref(), 0));
+        assert_eq!(pat.fullmatch(b"Quinn\0").unwrap(), (b"Quinn".as_ref(), 0));
 
         /* The following is feature. */
 
@@ -251,15 +251,15 @@ mod tests {
     #[test]
     fn test_fast_till() {
         let pat = impls::opaque_simple(xtill::<str, _>(['Y', 'Z']));
-        assert_eq!(pat.full_match("Slice").unwrap(), ("Slice", None));
-        assert_eq!(pat.full_match("SlicX").unwrap(), ("SlicX", None));
-        assert_eq!(pat.full_match("SlicY").unwrap(), ("Slic", Some('Y')));
-        assert_eq!(pat.full_match("SlicZ").unwrap(), ("Slic", Some('Z')));
+        assert_eq!(pat.fullmatch("Slice").unwrap(), ("Slice", None));
+        assert_eq!(pat.fullmatch("SlicX").unwrap(), ("SlicX", None));
+        assert_eq!(pat.fullmatch("SlicY").unwrap(), ("Slic", Some('Y')));
+        assert_eq!(pat.fullmatch("SlicZ").unwrap(), ("Slic", Some('Z')));
     }
     #[test]
     fn test_fast_until() {
         let pat = impls::opaque_simple(xuntil::<str>("baz"));
-        assert_eq!(pat.full_match("foobar").unwrap_err().offset(), 6);
-        assert_eq!(pat.full_match("foobarbaz").unwrap(), ("foobar", "baz"));
+        assert_eq!(pat.fullmatch("foobar").unwrap_err().offset(), 6);
+        assert_eq!(pat.fullmatch("foobarbaz").unwrap(), ("foobar", "baz"));
     }
 }
