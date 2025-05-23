@@ -5,31 +5,17 @@ use core::mem::MaybeUninit;
 pub use crate::len;
 
 #[inline]
-pub const fn lens<'i, U, P, E, const N: usize>(predicate: P) -> Lens<'i, U, P, E, N>
-where
-    U: ?Sized + Slice + 'i,
-    P: Predicate<U::Item>,
-    E: Situation,
-{
-    Lens {
-        predicate,
-        phantom: PhantomData,
-    }
+pub const fn lens<P, const N: usize>(predicate: P) -> Lens<P, N> {
+    Lens { predicate }
 }
 
 //------------------------------------------------------------------------------
 
-pub struct Lens<'i, U, P, E, const N: usize>
-where
-    U: ?Sized + Slice + 'i,
-    P: Predicate<U::Item>,
-    E: Situation,
-{
+pub struct Lens<P, const N: usize> {
     predicate: P,
-    phantom: PhantomData<(&'i U, E)>,
 }
 
-impl<'i, U, P, E, const N: usize> Pattern<'i, U, E> for Lens<'i, U, P, E, N>
+impl<'i, U, P, E, const N: usize> Pattern<'i, U, E> for Lens<P, N>
 where
     U: ?Sized + Slice + 'i,
     P: Predicate<U::Item>,
@@ -85,14 +71,14 @@ mod tests {
 
     #[test]
     fn main() {
-        let pat = len!(3, 0x80..0xAA).opaque_simple::<[u8], _>();
+        let pat = impls::opaque_simple::<[u8], _>(len!(3, 0x80..0xAA));
         assert!(pat.fullmatch([0x80, 0x80, 0x80].as_ref()).is_ok());
         assert_eq!(pat.fullmatch([0x80, 0x80, 0x7F].as_ref()).unwrap_err().offset(), 2);
         assert_eq!(pat.fullmatch([0x80, 0x7F, 0x80].as_ref()).unwrap_err().offset(), 1);
         assert_eq!(pat.fullmatch([0x80, 0x80, 0xAA].as_ref()).unwrap_err().offset(), 2);
         assert!(pat.fullmatch([0x80, 0x80, 0xA9].as_ref()).is_ok());
 
-        let pat = len!(2, ..).opaque_simple::<str, _>();
+        let pat = impls::opaque_simple::<str, _>(len!(2, ..));
         assert_eq!(pat.fullmatch("你好").unwrap(), ['你', '好']);
         assert_eq!(pat.fullmatch("孬").unwrap_err().offset(), 1 * 3);
     }

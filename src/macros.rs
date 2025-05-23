@@ -2,7 +2,7 @@
 #[macro_export]
 macro_rules! len {
     ($n:expr, $patt:expr) => {
-        $crate::combine::lens::lens::<_, _, _, { $n }>($patt)
+        $crate::combine::lens::lens::<_, { $n }>($patt)
     };
 }
 
