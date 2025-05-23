@@ -1,18 +1,18 @@
-use core::num::NonZeroUsize;
+use core::{num::NonZeroUsize, ops::Range};
 use memchr::memchr_iter;
 
-pub fn line_col(slice: &str, offset: usize) -> Option<(NonZeroUsize, NonZeroUsize)> {
-    if offset > slice.len() {
+pub fn line_col(source: &str, offset: usize) -> Option<(NonZeroUsize, NonZeroUsize)> {
+    if offset > source.len() {
         return None;
     }
 
-    let (line, rest) = match memchr_iter(b'\n', slice.as_bytes())
+    let (line, rest) = match memchr_iter(b'\n', source.as_bytes())
         .enumerate()
         .take_while(|(_, off)| *off < offset)
         .last()
     {
-        None => (0, slice.get(..offset)?),
-        Some((line, off)) => (line + 1, slice.get(off + 1..offset)?),
+        None => (0, source.get(..offset)?),
+        Some((line, off)) => (line + 1, source.get(off + 1..offset)?),
     };
 
     #[cfg(feature = "unicode-segmentation")]
@@ -27,14 +27,13 @@ pub fn line_col(slice: &str, offset: usize) -> Option<(NonZeroUsize, NonZeroUsiz
 }
 
 pub fn line_col_span(
-    slice: &str,
-    offset: usize,
-    length: usize,
+    source: &str,
+    range: Range<usize>,
 ) -> Option<((NonZeroUsize, NonZeroUsize), (NonZeroUsize, NonZeroUsize))> {
-    let (left, right) = slice.split_at_checked(offset)?;
+    let (before, after) = source.split_at_checked(range.start)?;
 
-    let loc2 = line_col(right, length)?;
-    let loc1 = line_col(left, left.len())?;
+    let loc1 = line_col(before, before.len())?;
+    let loc2 = line_col(after, range.end - range.start)?;
 
     Some((loc1, series_locate(loc1, loc2)))
 }
@@ -51,20 +50,6 @@ pub(crate) fn series_locate(
     } else {
         (line.saturating_add(usize::from(line2) - 1), col2)
     }
-}
-
-//------------------------------------------------------------------------------
-
-pub fn line_col_rest(slice: &str, rest: &str) -> Option<(NonZeroUsize, NonZeroUsize)> {
-    line_col(slice, slice.len().checked_sub(rest.len())?)
-}
-
-pub fn line_col_rest_span(
-    slice: &str,
-    rest: &str,
-    length: usize,
-) -> Option<((NonZeroUsize, NonZeroUsize), (NonZeroUsize, NonZeroUsize))> {
-    line_col_span(slice, slice.len().checked_sub(rest.len())?, length)
 }
 
 //------------------------------------------------------------------------------
@@ -109,10 +94,11 @@ mod tests {
         assert_eq!( line_col(CONTENT, 20), None                   );
         assert_eq!( line_col(CONTENT, 21), Some((nzu(4), nzu(3))) );
         assert_eq!( line_col(CONTENT, 22), Some((nzu(5), nzu(1))) );
+        assert_eq!( line_col(CONTENT, 23), None                   );
 
-        assert_eq!( line_col_span(CONTENT,  8,  3), Some(((nzu(3), nzu(1)), (nzu(3), nzu(2)))) );
-        assert_eq!( line_col_span(CONTENT,  8,  6), Some(((nzu(3), nzu(1)), (nzu(3), nzu(3)))) );
-        assert_eq!( line_col_span(CONTENT,  8,  7), Some(((nzu(3), nzu(1)), (nzu(4), nzu(1)))) );
-        assert_eq!( line_col_span(CONTENT,  8, 10), Some(((nzu(3), nzu(1)), (nzu(4), nzu(2)))) );
+        assert_eq!( line_col_span(CONTENT,  8..8 +  3), Some(((nzu(3), nzu(1)), (nzu(3), nzu(2)))) );
+        assert_eq!( line_col_span(CONTENT,  8..8 +  6), Some(((nzu(3), nzu(1)), (nzu(3), nzu(3)))) );
+        assert_eq!( line_col_span(CONTENT,  8..8 +  7), Some(((nzu(3), nzu(1)), (nzu(4), nzu(1)))) );
+        assert_eq!( line_col_span(CONTENT,  8..8 + 10), Some(((nzu(3), nzu(1)), (nzu(4), nzu(2)))) );
     }
 }
