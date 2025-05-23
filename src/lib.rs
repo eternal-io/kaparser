@@ -20,9 +20,9 @@ pub mod combine {
     use crate::{common::*, prelude::*};
     use core::marker::PhantomData;
 
+    mod seq;
     pub mod alt;
     pub mod com;
-    pub mod seq;
 
     pub mod lens;
     pub mod take;
