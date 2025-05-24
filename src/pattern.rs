@@ -35,46 +35,6 @@ where
     pattern
 }
 
-#[inline]
-pub const fn indexed_opaque<'i, U, E, Cap>(
-    indexed_pattern: impl IndexedPattern<'i, U, E, Captured = Cap>,
-) -> impl IndexedPattern<'i, U, E, Captured = Cap>
-where
-    U: ?Sized + Slice + 'i,
-    E: Situation,
-{
-    indexed_pattern
-}
-#[inline]
-pub const fn indexed_opaque_simple<'i, U, Cap>(
-    indexed_pattern: impl IndexedPattern<'i, U, SimpleError, Captured = Cap>,
-) -> impl IndexedPattern<'i, U, SimpleError, Captured = Cap>
-where
-    U: ?Sized + Slice + 'i,
-{
-    indexed_pattern
-}
-
-#[inline]
-pub const fn spanned_opaque<'i, U, E, Cap>(
-    spanned_pattern: impl SpannedPattern<'i, U, E, Captured = Cap>,
-) -> impl SpannedPattern<'i, U, E, Captured = Cap>
-where
-    U: ?Sized + Slice + 'i,
-    E: Situation,
-{
-    spanned_pattern
-}
-#[inline]
-pub const fn spanned_opaque_simple<'i, U, Cap>(
-    spanned_pattern: impl SpannedPattern<'i, U, SimpleError, Captured = Cap>,
-) -> impl SpannedPattern<'i, U, SimpleError, Captured = Cap>
-where
-    U: ?Sized + Slice + 'i,
-{
-    spanned_pattern
-}
-
 //==================================================================================================
 
 pub trait Pattern<'i, U, E>
@@ -91,11 +51,16 @@ where
 
     fn extract(&self, slice: &'i U, entry: Self::Internal) -> Self::Captured;
 
+    fn inject_base_off(&self, entry: &mut Self::Internal, off: usize) {
+        let _ = (entry, off);
+    }
+
     //------------------------------------------------------------------------------
 
     #[inline]
     fn parse(&self, slice: &mut dyn DynamicSlice<'i, U>) -> Result<Self::Captured, E> {
         let mut state = self.init();
+        self.inject_base_off(&mut state, slice.consumed());
         match self.advance(slice.rest(), &mut state, true) {
             Ok(len) => Ok(self.extract(slice.bump(len), state)),
             Err(e) if e.is_unfulfilled() => panic!("implementation: pull after EOF"),
@@ -363,192 +328,6 @@ where
 
 //==================================================================================================
 
-pub trait IndexedPattern<'i, U, E>
-where
-    U: ?Sized + Slice + 'i,
-    E: Situation,
-{
-    type Captured;
-    type Internal: 'static + Clone;
-
-    fn init_ixs(&self, start: usize) -> Self::Internal;
-    fn advance_ixs(&self, slice: &U, entry: &mut Self::Internal, eof: bool) -> Result<usize, E>;
-    fn extract_ixs(&self, slice: &'i U, entry: Self::Internal) -> Self::Captured;
-
-    #[inline]
-    fn parse_indexed(&self, slice: &mut dyn DynamicSlice<'i, U>) -> Result<Self::Captured, E> {
-        let start = slice.consumed();
-        let mut state = self.init_ixs(start);
-        match self.advance_ixs(slice.rest(), &mut state, true) {
-            Ok(len) => Ok(self.extract_ixs(slice.bump(len), state)),
-            Err(e) if e.is_unfulfilled() => panic!("implementation: pull after EOF"),
-            Err(e) => Err(e.backtrack(start)),
-        }
-    }
-
-    #[inline]
-    fn fullmatch_indexed(&self, slice: &'i U) -> Result<Self::Captured, E> {
-        let mut sli = slice;
-        let cap = self.parse_indexed(&mut sli)?;
-        match sli.len() {
-            0 => Ok(cap),
-            n => E::raise_halt_at(slice.len() - n),
-        }
-    }
-}
-
-macro_rules! impl_indexed_pattern_for_tuple {
-    ( $Len:literal, $($OrdN:literal ~ ($GenN:ident ~ $ValN:ident) ~ $_gen:ident ~ $_con:ident ~ $IdxN:tt)+ ) => { paste::paste! {
-        impl<'i, U, E, $($GenN),+> IndexedPattern<'i, U, E> for ($($GenN,)+)
-        where
-            U: ?Sized + Slice + 'i,
-            E: Situation,
-          $($GenN: Pattern<'i, U, E>,)+
-        {
-            type Captured = ($((usize, $GenN::Captured),)+);
-            type Internal = (usize, [<Check $Len>], ($((usize, $GenN::Internal),)+));
-
-            #[inline]
-            fn init_ixs(&self, start: usize) -> Self::Internal {
-                (start, [<Check $Len>]::Point1, ($((0, self.$IdxN.init()),)+))
-            }
-
-            #[inline]
-            fn advance_ixs(&self, slice: &U, entry: &mut Self::Internal, eof: bool) -> Result<usize, E> {
-                use [<Check $Len>]::*;
-                let (_start, checkpoint, states) = entry;
-                let mut offset = 0usize;
-
-                __resume_advance! { *checkpoint ; $(
-                    [<Point $OrdN>] => {
-                        *checkpoint = [<Point $OrdN>];
-                    } {
-                        let (off, state) = &mut states.$IdxN;
-                        if likely(*off == 0) {
-                            *off = offset;
-                        }
-
-                        match self.$IdxN.advance(slice.split_at(*off).1, state, eof) {
-                            Ok(len) => offset = *off + len,
-                            Err(e) => return e.raise_backtrack(*off),
-                        }
-                    }
-                )+ }
-
-                Ok(offset)
-            }
-
-            #[inline]
-            fn extract_ixs(&self, slice: &'i U, entry: Self::Internal) -> Self::Captured {
-                let (start, _check, states) = entry;
-                $(
-                    let (off, entry) = states.$IdxN;
-                    let $ValN = (start + off, self.$IdxN.extract(slice.after(off), entry));
-                )+
-                ($($ValN,)+)
-            }
-        }
-    } };
-}
-
-__generate_codes! { impl_indexed_pattern_for_tuple ( P ~ val ) }
-
-//==================================================================================================
-
-pub trait SpannedPattern<'i, U, E>
-where
-    U: ?Sized + Slice + 'i,
-    E: Situation,
-{
-    type Captured;
-    type Internal: 'static + Clone;
-
-    fn init_sps(&self, start: usize) -> Self::Internal;
-    fn advance_sps(&self, slice: &U, entry: &mut Self::Internal, eof: bool) -> Result<usize, E>;
-    fn extract_sps(&self, slice: &'i U, entry: Self::Internal) -> Self::Captured;
-
-    #[inline]
-    fn parse_spanned(&self, slice: &mut dyn DynamicSlice<'i, U>) -> Result<Self::Captured, E> {
-        let start = slice.consumed();
-        let mut state = self.init_sps(start);
-        match self.advance_sps(slice.rest(), &mut state, true) {
-            Ok(len) => Ok(self.extract_sps(slice.bump(len), state)),
-            Err(e) if e.is_unfulfilled() => panic!("implementation: pull after EOF"),
-            Err(e) => Err(e.backtrack(start)),
-        }
-    }
-
-    #[inline]
-    fn fullmatch_spanned(&self, slice: &'i U) -> Result<Self::Captured, E> {
-        let mut sli = slice;
-        let cap = self.parse_spanned(&mut sli)?;
-        match sli.len() {
-            0 => Ok(cap),
-            n => E::raise_halt_at(slice.len() - n),
-        }
-    }
-}
-
-macro_rules! impl_spanned_pattern_for_tuple {
-    ( $Len:literal, $($OrdN:literal ~ ($GenN:ident ~ $ValN:ident) ~ $_gen:ident ~ $_con:ident ~ $IdxN:tt)+ ) => { paste::paste! {
-        impl<'i, U, E, $($GenN: Pattern<'i, U, E>),+> SpannedPattern<'i, U, E> for ($($GenN,)+)
-        where
-            U: ?Sized + Slice + 'i,
-            E: Situation,
-        {
-            type Captured = ($((Range<usize>, $GenN::Captured),)+);
-            type Internal = (usize, [<Check $Len>], ($((Range<usize>, $GenN::Internal),)+));
-
-            #[inline]
-            fn init_sps(&self, start: usize) -> Self::Internal {
-                (start, [<Check $Len>]::Point1, ($((0..0, self.$IdxN.init()),)+))
-            }
-
-            #[inline]
-            fn advance_sps(&self, slice: &U, entry: &mut Self::Internal, eof: bool) -> Result<usize, E> {
-                use [<Check $Len>]::*;
-                let (_start, checkpoint, states) = entry;
-                let mut offset = 0usize;
-
-                __resume_advance! { *checkpoint ; $(
-                    [<Point $OrdN>] => {
-                        *checkpoint = [<Point $OrdN>];
-                    } {
-                        let (span, state) = &mut states.$IdxN;
-                        if likely(span.start == 0) {
-                            span.start = offset;
-                        }
-
-                        match self.$IdxN.advance(slice.split_at(span.start).1, state, eof) {
-                            Ok(len) => { offset = span.start + len ; span.end = offset }
-                            Err(e) => return e.raise_backtrack(span.start),
-                        }
-                    }
-                )+ }
-
-                Ok(offset)
-            }
-
-            #[inline]
-            fn extract_sps(&self, slice: &'i U, entry: Self::Internal) -> Self::Captured {
-                let (start, _check, states) = entry;
-                $(
-                    let (span, entry) = states.$IdxN;
-                    let $ValN = (
-                        start + span.start..start + span.end,
-                        self.$IdxN.extract(slice.after(span.start), entry),
-                    );
-                )+
-                ($($ValN,)+)
-            }
-        }
-    } };
-}
-
-__generate_codes! { impl_spanned_pattern_for_tuple ( P ~ val ) }
-
-//==================================================================================================
-
 #[cfg(test)]
 mod tests {
     use crate::prelude::*;
@@ -574,25 +353,5 @@ mod tests {
         assert_eq!(pat.fullmatch("").unwrap_err().offset(), 0);
         assert_eq!(pat.fullmatch("AB").unwrap_err().offset(), 2);
         assert_eq!(pat.fullmatch("ABCD").unwrap(), "ABCD");
-    }
-
-    #[test]
-    fn test_ixs() {
-        assert_eq!(
-            indexed_opaque_simple((is_bin.., is_oct.., is_hex..))
-                .fullmatch_indexed("0123456789abcdefABCDEF")
-                .unwrap(),
-            ((0, "01"), (2, "234567"), (8, "89abcdefABCDEF"))
-        );
-    }
-
-    #[test]
-    fn test_sps() {
-        assert_eq!(
-            spanned_opaque_simple((is_bin.., is_oct.., is_hex..))
-                .fullmatch_spanned("0123456789abcdefABCDEF")
-                .unwrap(),
-            ((0..2, "01"), (2..8, "234567"), (8..22, "89abcdefABCDEF"))
-        );
     }
 }

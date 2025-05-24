@@ -7,11 +7,11 @@ use core::marker::PhantomData;
 
 ////////////////
 
-mod seq;
-
 pub mod alt;
 
 pub mod com;
+
+pub mod seq;
 
 ////////////////
 
