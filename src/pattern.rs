@@ -94,7 +94,7 @@ where
     //------------------------------------------------------------------------------
 
     #[inline]
-    fn parse(&self, slice: &mut dyn AdvanceSlice<'i, U>) -> Result<Self::Captured, E> {
+    fn parse(&self, slice: &mut dyn DynamicSlice<'i, U>) -> Result<Self::Captured, E> {
         let mut state = self.init();
         match self.advance(slice.rest(), &mut state, true) {
             Ok(len) => Ok(self.extract(slice.bump(len), state)),
@@ -119,7 +119,7 @@ where
     fn reiter<'s, 'p, S>(&'p self, slice: &'s mut S) -> impls::Reiter<'s, 'p, 'i, U, E, Self, S>
     where
         Self: Sized,
-        S: AdvanceSlice<'i, U>,
+        S: DynamicSlice<'i, U>,
     {
         impls::reiter(self, slice)
     }
@@ -129,7 +129,7 @@ where
     where
         Self: Sized,
         Q: Pattern<'i, U, E>,
-        S: AdvanceSlice<'i, U>,
+        S: DynamicSlice<'i, U>,
     {
         impls::joined(self, sep, slice)
     }
@@ -376,7 +376,7 @@ where
     fn extract_ixs(&self, slice: &'i U, entry: Self::Internal) -> Self::Captured;
 
     #[inline]
-    fn parse_indexed(&self, slice: &mut dyn AdvanceSlice<'i, U>) -> Result<Self::Captured, E> {
+    fn parse_indexed(&self, slice: &mut dyn DynamicSlice<'i, U>) -> Result<Self::Captured, E> {
         let start = slice.consumed();
         let mut state = self.init_ixs(start);
         match self.advance_ixs(slice.rest(), &mut state, true) {
@@ -468,7 +468,7 @@ where
     fn extract_sps(&self, slice: &'i U, entry: Self::Internal) -> Self::Captured;
 
     #[inline]
-    fn parse_spanned(&self, slice: &mut dyn AdvanceSlice<'i, U>) -> Result<Self::Captured, E> {
+    fn parse_spanned(&self, slice: &mut dyn DynamicSlice<'i, U>) -> Result<Self::Captured, E> {
         let start = slice.consumed();
         let mut state = self.init_sps(start);
         match self.advance_sps(slice.rest(), &mut state, true) {

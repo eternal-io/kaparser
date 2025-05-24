@@ -179,7 +179,7 @@ where
 
 //------------------------------------------------------------------------------
 
-pub trait AdvanceSlice<'i, U>
+pub trait DynamicSlice<'i, U>
 where
     U: ?Sized + Slice + 'i,
 {
@@ -189,7 +189,7 @@ where
     fn consumed(&self) -> usize;
 }
 
-impl<'i, U> AdvanceSlice<'i, U> for &'i U
+impl<'i, U> DynamicSlice<'i, U> for &'i U
 where
     U: ?Sized + Slice + 'i,
 {
@@ -213,7 +213,7 @@ where
     }
 }
 
-impl<'i, U> AdvanceSlice<'i, U> for StatefulSlice<'i, U>
+impl<'i, U> DynamicSlice<'i, U> for StatefulSlice<'i, U>
 where
     U: ?Sized + Slice + 'i,
 {

@@ -6,7 +6,7 @@ where
     U: ?Sized + Slice + 'i,
     E: Situation,
     P: Pattern<'i, U, E>,
-    S: AdvanceSlice<'i, U>,
+    S: DynamicSlice<'i, U>,
 {
     Reiter {
         body,
@@ -26,7 +26,7 @@ where
     E: Situation,
     P: Pattern<'i, U, E>,
     Q: Pattern<'i, U, E>,
-    S: AdvanceSlice<'i, U>,
+    S: DynamicSlice<'i, U>,
 {
     Joined {
         body,
@@ -44,7 +44,7 @@ where
     U: ?Sized + Slice + 'i,
     E: Situation,
     P: Pattern<'i, U, E>,
-    S: AdvanceSlice<'i, U>,
+    S: DynamicSlice<'i, U>,
 {
     body: &'p P,
     src: &'s mut S,
@@ -56,7 +56,7 @@ where
     U: ?Sized + Slice + 'i,
     E: Situation,
     P: Pattern<'i, U, E>,
-    S: AdvanceSlice<'i, U>,
+    S: DynamicSlice<'i, U>,
 {
     type Item = Result<P::Captured, E>;
 
@@ -79,7 +79,7 @@ where
     E: Situation,
     P: Pattern<'i, U, E>,
     Q: Pattern<'i, U, E>,
-    S: AdvanceSlice<'i, U>,
+    S: DynamicSlice<'i, U>,
 {
     body: &'p P,
     sep: &'p Q,
@@ -94,7 +94,7 @@ where
     E: Situation,
     P: Pattern<'i, U, E>,
     Q: Pattern<'i, U, E>,
-    S: AdvanceSlice<'i, U>,
+    S: DynamicSlice<'i, U>,
 {
     type Item = Result<(P::Captured, bool), E>;
 
