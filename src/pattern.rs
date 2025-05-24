@@ -51,8 +51,8 @@ where
 
     fn extract(&self, slice: &'i U, entry: Self::Internal) -> Self::Captured;
 
-    fn inject_base_off(&self, entry: &mut Self::Internal, off: usize) {
-        let _ = (entry, off);
+    fn inject_base_off(&self, entry: &mut Self::Internal, base_off: usize) {
+        let _ = (entry, base_off);
     }
 
     //------------------------------------------------------------------------------

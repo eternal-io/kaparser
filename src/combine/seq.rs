@@ -106,7 +106,7 @@ where
     fn init_ixs(&self) -> Self::Internal;
     fn advance_ixs(&self, slice: &U, entry: &mut Self::Internal, eof: bool) -> Result<usize, E>;
     fn extract_ixs(&self, slice: &'i U, entry: Self::Internal) -> Self::Captured;
-    fn inject_base_off_ixs(&self, entry: &mut Self::Internal, off: usize);
+    fn inject_base_off_ixs(&self, entry: &mut Self::Internal, base_off: usize);
 }
 
 impl<'i, U, E, S> Pattern<'i, U, E> for IndexedSeq<'i, U, E, S>
@@ -131,8 +131,8 @@ where
         self.ixs.extract_ixs(slice, entry)
     }
     #[inline]
-    fn inject_base_off(&self, entry: &mut Self::Internal, off: usize) {
-        self.ixs.inject_base_off_ixs(entry, off)
+    fn inject_base_off(&self, entry: &mut Self::Internal, base_off: usize) {
+        self.ixs.inject_base_off_ixs(entry, base_off)
     }
 }
 
@@ -155,7 +155,7 @@ macro_rules! impl_indexedable_for_tuple {
             #[inline]
             fn advance_ixs(&self, slice: &U, entry: &mut Self::Internal, eof: bool) -> Result<usize, E> {
                 use [<Check $Len>]::*;
-                let (_start, checkpoint, states) = entry;
+                let (_base_off, checkpoint, states) = entry;
                 let mut offset = 0usize;
 
                 __resume_advance! { *checkpoint ; $(
@@ -179,17 +179,18 @@ macro_rules! impl_indexedable_for_tuple {
 
             #[inline]
             fn extract_ixs(&self, slice: &'i U, entry: Self::Internal) -> Self::Captured {
-                let (start, _check, states) = entry;
+                let (base_off, _check, states) = entry;
                 $(
-                    let (off, entry) = states.$IdxN;
-                    let $ValN = (start + off, self.$IdxN.extract(slice.after(off), entry));
+                    let (off, mut entry) = states.$IdxN;
+                    self.$IdxN.inject_base_off(&mut entry, base_off);
+                    let $ValN = (base_off + off, self.$IdxN.extract(slice.after(off), entry));
                 )+
                 ($($ValN,)+)
             }
 
             #[inline]
-            fn inject_base_off_ixs(&self, entry: &mut Self::Internal, off: usize) {
-                entry.0 = off;
+            fn inject_base_off_ixs(&self, entry: &mut Self::Internal, base_off: usize) {
+                entry.0 = base_off;
             }
         }
     } };
@@ -220,7 +221,7 @@ where
     fn init_sps(&self) -> Self::Internal;
     fn advance_sps(&self, slice: &U, entry: &mut Self::Internal, eof: bool) -> Result<usize, E>;
     fn extract_sps(&self, slice: &'i U, entry: Self::Internal) -> Self::Captured;
-    fn inject_base_off_sps(&self, entry: &mut Self::Internal, off: usize);
+    fn inject_base_off_sps(&self, entry: &mut Self::Internal, base_off: usize);
 }
 
 impl<'i, U, E, S> Pattern<'i, U, E> for SpannedSeq<'i, U, E, S>
@@ -245,8 +246,8 @@ where
         self.sps.extract_sps(slice, entry)
     }
     #[inline]
-    fn inject_base_off(&self, entry: &mut Self::Internal, off: usize) {
-        self.sps.inject_base_off_sps(entry, off)
+    fn inject_base_off(&self, entry: &mut Self::Internal, base_off: usize) {
+        self.sps.inject_base_off_sps(entry, base_off)
     }
 }
 
@@ -269,7 +270,7 @@ macro_rules! impl_spannedable_for_tuple {
             #[inline]
             fn advance_sps(&self, slice: &U, entry: &mut Self::Internal, eof: bool) -> Result<usize, E> {
                 use [<Check $Len>]::*;
-                let (_start, checkpoint, states) = entry;
+                let (_base_off, checkpoint, states) = entry;
                 let mut offset = 0usize;
 
                 __resume_advance! { *checkpoint ; $(
@@ -293,11 +294,12 @@ macro_rules! impl_spannedable_for_tuple {
 
             #[inline]
             fn extract_sps(&self, slice: &'i U, entry: Self::Internal) -> Self::Captured {
-                let (start, _check, states) = entry;
+                let (base_off, _check, states) = entry;
                 $(
-                    let (span, entry) = states.$IdxN;
+                    let (span, mut entry) = states.$IdxN;
+                    self.$IdxN.inject_base_off(&mut entry, base_off);
                     let $ValN = (
-                        start + span.start..start + span.end,
+                        base_off + span.start..base_off + span.end,
                         self.$IdxN.extract(slice.after(span.start), entry),
                     );
                 )+
@@ -305,8 +307,8 @@ macro_rules! impl_spannedable_for_tuple {
             }
 
             #[inline]
-            fn inject_base_off_sps(&self, entry: &mut Self::Internal, off: usize) {
-                entry.0 = off;
+            fn inject_base_off_sps(&self, entry: &mut Self::Internal, base_off: usize) {
+                entry.0 = base_off;
             }
         }
     } };
