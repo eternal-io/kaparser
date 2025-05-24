@@ -1,4 +1,4 @@
-# List of combinators.
+<!-- # List of combinators.
 
 *(Use `C` to denotes `Pattern::Captured`)*
 
@@ -60,4 +60,4 @@
 - [`or`](Pattern::or()):
 - [`or_else`](Pattern::or_else()):
 - [`or_default`](Pattern::or_default()):
-- [`complex`](Pattern::complex()):
+- [`complex`](Pattern::complex()): -->

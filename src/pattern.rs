@@ -6,17 +6,76 @@ use crate::{
 };
 use core::marker::PhantomData;
 
-mod impls;
-
-pub use impls::*;
-
 pub mod bin;
 pub mod def;
+pub mod impls;
 
 #[doc(inline)]
 pub use crate::token_set;
 
 pub type ParseResult<T, E = SimpleError> = Result<T, E>;
+
+#[inline]
+pub const fn opaque<'i, U, E, Cap>(
+    pattern: impl Pattern<'i, U, E, Captured = Cap>,
+) -> impl Pattern<'i, U, E, Captured = Cap>
+where
+    U: ?Sized + Slice + 'i,
+    E: Situation,
+{
+    pattern
+}
+#[inline]
+pub const fn opaque_simple<'i, U, Cap>(
+    pattern: impl Pattern<'i, U, SimpleError, Captured = Cap>,
+) -> impl Pattern<'i, U, SimpleError, Captured = Cap>
+where
+    U: ?Sized + Slice + 'i,
+{
+    pattern
+}
+
+#[inline]
+pub const fn indexed_opaque<'i, U, E, Cap>(
+    indexed_pattern: impl IndexedPattern<'i, U, E, Captured = Cap>,
+) -> impl IndexedPattern<'i, U, E, Captured = Cap>
+where
+    U: ?Sized + Slice + 'i,
+    E: Situation,
+{
+    indexed_pattern
+}
+#[inline]
+pub const fn indexed_opaque_simple<'i, U, Cap>(
+    indexed_pattern: impl IndexedPattern<'i, U, SimpleError, Captured = Cap>,
+) -> impl IndexedPattern<'i, U, SimpleError, Captured = Cap>
+where
+    U: ?Sized + Slice + 'i,
+{
+    indexed_pattern
+}
+
+#[inline]
+pub const fn spanned_opaque<'i, U, E, Cap>(
+    spanned_pattern: impl SpannedPattern<'i, U, E, Captured = Cap>,
+) -> impl SpannedPattern<'i, U, E, Captured = Cap>
+where
+    U: ?Sized + Slice + 'i,
+    E: Situation,
+{
+    spanned_pattern
+}
+#[inline]
+pub const fn spanned_opaque_simple<'i, U, Cap>(
+    spanned_pattern: impl SpannedPattern<'i, U, SimpleError, Captured = Cap>,
+) -> impl SpannedPattern<'i, U, SimpleError, Captured = Cap>
+where
+    U: ?Sized + Slice + 'i,
+{
+    spanned_pattern
+}
+
+//==================================================================================================
 
 pub trait Pattern<'i, U, E>
 where
@@ -57,32 +116,22 @@ where
     //------------------------------------------------------------------------------
 
     #[inline]
-    fn reiter<'s, 'p, S>(&'p self, slice: &'s mut S) -> Reiter<'s, 'p, 'i, U, E, Self, S>
+    fn reiter<'s, 'p, S>(&'p self, slice: &'s mut S) -> impls::Reiter<'s, 'p, 'i, U, E, Self, S>
     where
         Self: Sized,
         S: AdvanceSlice<'i, U>,
     {
-        Reiter {
-            body: self,
-            src: slice,
-            phantom: PhantomData,
-        }
+        impls::reiter(self, slice)
     }
 
     #[inline]
-    fn joined<'s, 'p, Q, S>(&'p self, sep: &'p Q, slice: &'s mut S) -> Joined<'s, 'p, 'i, U, E, Self, Q, S>
+    fn joined<'s, 'p, Q, S>(&'p self, sep: &'p Q, slice: &'s mut S) -> impls::Joined<'s, 'p, 'i, U, E, Self, Q, S>
     where
         Self: Sized,
         Q: Pattern<'i, U, E>,
         S: AdvanceSlice<'i, U>,
     {
-        Joined {
-            body: self,
-            sep,
-            src: slice,
-            end: false,
-            phantom: PhantomData,
-        }
+        impls::joined(self, sep, slice)
     }
 
     //------------------------------------------------------------------------------

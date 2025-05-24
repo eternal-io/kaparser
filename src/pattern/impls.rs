@@ -1,63 +1,40 @@
 use super::*;
 
 #[inline]
-pub const fn opaque<'i, U, E, Cap>(
-    pattern: impl Pattern<'i, U, E, Captured = Cap>,
-) -> impl Pattern<'i, U, E, Captured = Cap>
+pub const fn reiter<'s, 'p, 'i, U, E, P, S>(body: &'p P, src: &'s mut S) -> Reiter<'s, 'p, 'i, U, E, P, S>
 where
     U: ?Sized + Slice + 'i,
     E: Situation,
+    P: Pattern<'i, U, E>,
+    S: AdvanceSlice<'i, U>,
 {
-    pattern
-}
-#[inline]
-pub const fn opaque_simple<'i, U, Cap>(
-    pattern: impl Pattern<'i, U, SimpleError, Captured = Cap>,
-) -> impl Pattern<'i, U, SimpleError, Captured = Cap>
-where
-    U: ?Sized + Slice + 'i,
-{
-    pattern
+    Reiter {
+        body,
+        src,
+        phantom: PhantomData,
+    }
 }
 
 #[inline]
-pub const fn indexed_opaque<'i, U, E, Cap>(
-    indexed_pattern: impl IndexedPattern<'i, U, E, Captured = Cap>,
-) -> impl IndexedPattern<'i, U, E, Captured = Cap>
+pub const fn joined<'s, 'p, 'i, U, E, P, Q, S>(
+    body: &'p P,
+    sep: &'p Q,
+    src: &'s mut S,
+) -> Joined<'s, 'p, 'i, U, E, P, Q, S>
 where
     U: ?Sized + Slice + 'i,
     E: Situation,
+    P: Pattern<'i, U, E>,
+    Q: Pattern<'i, U, E>,
+    S: AdvanceSlice<'i, U>,
 {
-    indexed_pattern
-}
-#[inline]
-pub const fn indexed_opaque_simple<'i, U, Cap>(
-    indexed_pattern: impl IndexedPattern<'i, U, SimpleError, Captured = Cap>,
-) -> impl IndexedPattern<'i, U, SimpleError, Captured = Cap>
-where
-    U: ?Sized + Slice + 'i,
-{
-    indexed_pattern
-}
-
-#[inline]
-pub const fn spanned_opaque<'i, U, E, Cap>(
-    spanned_pattern: impl SpannedPattern<'i, U, E, Captured = Cap>,
-) -> impl SpannedPattern<'i, U, E, Captured = Cap>
-where
-    U: ?Sized + Slice + 'i,
-    E: Situation,
-{
-    spanned_pattern
-}
-#[inline]
-pub const fn spanned_opaque_simple<'i, U, Cap>(
-    spanned_pattern: impl SpannedPattern<'i, U, SimpleError, Captured = Cap>,
-) -> impl SpannedPattern<'i, U, SimpleError, Captured = Cap>
-where
-    U: ?Sized + Slice + 'i,
-{
-    spanned_pattern
+    Joined {
+        body,
+        sep,
+        src,
+        end: false,
+        phantom: PhantomData,
+    }
 }
 
 //------------------------------------------------------------------------------
@@ -69,9 +46,9 @@ where
     P: Pattern<'i, U, E>,
     S: AdvanceSlice<'i, U>,
 {
-    pub(super) body: &'p P,
-    pub(super) src: &'s mut S,
-    pub(super) phantom: PhantomData<(&'i U, E)>,
+    body: &'p P,
+    src: &'s mut S,
+    phantom: PhantomData<(&'i U, E)>,
 }
 
 impl<'i, U, E, P, S> Iterator for Reiter<'_, '_, 'i, U, E, P, S>
@@ -104,11 +81,11 @@ where
     Q: Pattern<'i, U, E>,
     S: AdvanceSlice<'i, U>,
 {
-    pub(super) body: &'p P,
-    pub(super) sep: &'p Q,
-    pub(super) src: &'s mut S,
-    pub(super) end: bool,
-    pub(super) phantom: PhantomData<(&'i U, E)>,
+    body: &'p P,
+    sep: &'p Q,
+    src: &'s mut S,
+    end: bool,
+    phantom: PhantomData<(&'i U, E)>,
 }
 
 impl<'i, U, E, P, Q, S> Iterator for Joined<'_, '_, 'i, U, E, P, Q, S>

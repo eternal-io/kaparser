@@ -17,19 +17,19 @@ pub const fn unc_ident<'i, E: Situation>() -> impl Pattern<'i, str, E, Captured 
 }
 
 #[inline]
-pub const fn hex_<'i, E: Situation>() -> impl Pattern<'i, str, E, Captured = &'i str> {
+pub const fn hex_hex<'i, E: Situation>() -> impl Pattern<'i, str, E, Captured = &'i str> {
     com(([is_hex], take0more(('_', is_hex))))
 }
 #[inline]
-pub const fn dec_<'i, E: Situation>() -> impl Pattern<'i, str, E, Captured = &'i str> {
+pub const fn dec_dec<'i, E: Situation>() -> impl Pattern<'i, str, E, Captured = &'i str> {
     com(([is_dec], take0more(('_', is_dec))))
 }
 #[inline]
-pub const fn oct_<'i, E: Situation>() -> impl Pattern<'i, str, E, Captured = &'i str> {
+pub const fn oct_oct<'i, E: Situation>() -> impl Pattern<'i, str, E, Captured = &'i str> {
     com(([is_oct], take0more(('_', is_oct))))
 }
 #[inline]
-pub const fn bin_<'i, E: Situation>() -> impl Pattern<'i, str, E, Captured = &'i str> {
+pub const fn bin_bin<'i, E: Situation>() -> impl Pattern<'i, str, E, Captured = &'i str> {
     com(([is_bin], take0more(('_', is_bin))))
 }
 

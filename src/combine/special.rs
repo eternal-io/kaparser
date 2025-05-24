@@ -59,7 +59,7 @@ where
     }
 }
 #[inline]
-pub const fn winged_flipped2<U, const STRICT: bool>(
+pub const fn winged2_flipped<U, const STRICT: bool>(
     outer_start: U::Item,
     inner: U::Item,
     outer_end: U::Item,
@@ -75,7 +75,7 @@ where
     }
 }
 #[inline]
-pub const fn winged_flipped3<U, const STRICT: bool>(
+pub const fn winged3_flipped<U, const STRICT: bool>(
     outer_start: U::Item,
     inner_start: U::Item,
     inner_end: U::Item,
@@ -377,7 +377,7 @@ mod tests {
     #[test]
     fn test_winged_flipped() {
         test_full_match(
-            winged_flipped3::<str, true>('｛', '＜', '＞', '｝'),
+            winged3_flipped::<str, true>('｛', '＜', '＞', '｝'),
             vec![
                 ("｛＜ＫＡＥ＞｝", Ok((1, "ＫＡＥ"))),
                 ("｛＜＜ＫＡＥ＞＞｝", Ok((2, "ＫＡＥ"))),
@@ -396,7 +396,7 @@ mod tests {
             ],
         );
         test_full_match(
-            winged_flipped3::<str, false>('｛', '＜', '＞', '｝'),
+            winged3_flipped::<str, false>('｛', '＜', '＞', '｝'),
             vec![
                 ("｛ＫＡＥ｝＞", Err(5 * 3)),
                 ("｛ＫＡＥ｝", Ok((0, "ＫＡＥ"))),
@@ -404,7 +404,7 @@ mod tests {
             ],
         );
         test_partial_match(
-            winged_flipped3::<str, true>('｛', '＜', '＞', '｝'),
+            winged3_flipped::<str, true>('｛', '＜', '＞', '｝'),
             vec![
                 ("｛ＫＡＥ｝＞", Err(0 * 3)),
                 ("｛＜ＫＡＥ＞｝＞", Ok(((1, "ＫＡＥ"), "＞"))),
@@ -412,7 +412,7 @@ mod tests {
             ],
         );
         test_partial_match(
-            winged_flipped3::<str, false>('｛', '＜', '＞', '｝'),
+            winged3_flipped::<str, false>('｛', '＜', '＞', '｝'),
             vec![("｛ＫＡＥ｝＞", Ok(((0, "ＫＡＥ"), "＞")))],
         );
     }

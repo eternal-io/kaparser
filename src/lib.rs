@@ -6,38 +6,12 @@ mod macros;
 
 #[macro_use]
 pub mod common;
+pub mod combine;
 pub mod error;
 pub mod line_col;
 pub mod pattern;
 pub mod predicate;
 pub mod prelude;
-
-#[rustfmt::skip]
-#[doc = include_str!("../docs/combinators.md")]
-pub mod combine {
-    #[cfg(test)]
-    use crate::tester::*;
-    use crate::{common::*, prelude::*};
-    use core::marker::PhantomData;
-
-    mod seq;
-    pub mod alt;
-    pub mod com;
-
-    pub mod lens;
-    pub mod take;
-    pub mod repeat;
-    pub mod skim;
-
-    pub mod opt;
-    pub mod peek;
-    pub mod special;
-    pub mod control;
-    pub mod convert;
-    pub mod modifier;
-
-    pub mod not;
-}
 
 #[cfg(test)]
 mod tester;

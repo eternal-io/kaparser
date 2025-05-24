@@ -27,7 +27,7 @@ macro_rules! rep {
     };
 
     ($n:tt.., $patt:expr) => {
-        ::core::compile_error!("consider use `reiter` instead")
+        ::core::compile_error!("consider use `Pattern::reiter` instead")
     };
 }
 
