@@ -76,8 +76,8 @@ pub trait Slice {
 
     fn iter(&self) -> impl Iterator<Item = Self::Item> + DoubleEndedIterator;
     fn iter_indices(&self) -> impl Iterator<Item = (usize, Self::Item)> + DoubleEndedIterator;
-    fn subslice(&self, range: Range<usize>) -> &Self;
     fn split_at(&self, mid: usize) -> (&Self, &Self);
+    fn subslice(&self, range: Range<usize>) -> &Self;
 
     #[inline]
     fn is_empty(&self) -> bool {
@@ -131,12 +131,12 @@ impl Slice for str {
         self.char_indices()
     }
     #[inline]
-    fn subslice(&self, range: Range<usize>) -> &Self {
-        &self[range]
-    }
-    #[inline]
     fn split_at(&self, mid: usize) -> (&Self, &Self) {
         (*self).split_at(mid)
+    }
+    #[inline]
+    fn subslice(&self, range: Range<usize>) -> &Self {
+        &self[range]
     }
 }
 
@@ -168,12 +168,12 @@ where
         (*self).iter().copied().enumerate()
     }
     #[inline]
-    fn subslice(&self, range: Range<usize>) -> &Self {
-        &self[range]
-    }
-    #[inline]
     fn split_at(&self, mid: usize) -> (&Self, &Self) {
         (*self).split_at(mid)
+    }
+    #[inline]
+    fn subslice(&self, range: Range<usize>) -> &Self {
+        &self[range]
     }
 }
 
