@@ -60,11 +60,13 @@ where
     #[inline]
     fn parse(&self, slice: &mut dyn DynamicSlice<'i, U>) -> Result<Self::Captured, E> {
         let mut state = self.init();
-        self.inject_base_off(&mut state, slice.consumed());
         match self.advance(slice.rest(), &mut state, true) {
-            Ok(len) => Ok(self.extract(slice.bump(len), state)),
             Err(e) if e.is_unfulfilled() => panic!("implementation: pull after EOF"),
             Err(e) => Err(e.backtrack(slice.consumed())),
+            Ok(len) => {
+                self.inject_base_off(&mut state, slice.consumed());
+                Ok(self.extract(slice.bump(len), state))
+            }
         }
     }
 
