@@ -256,7 +256,7 @@ pub trait ThinSlice: Slice {
     fn memchr3_impl(&self, a: Self::Item, b: Self::Item, c: Self::Item) -> Option<(usize, Self::Item)>;
 
     #[inline]
-    fn memchr<X: Needlable<Self>>(&self, needle: &X) -> Option<(usize, Self::Item)> {
+    fn memchr<X: Needlable<Self>>(&self, needle: X) -> Option<(usize, Self::Item)> {
         needle.memchr_invoke(self)
     }
 
@@ -365,7 +365,7 @@ impl ThinSlice for [u8] {
 
 //------------------------------------------------------------------------------
 
-pub trait Needlable<U: ?Sized + ThinSlice> {
+pub trait Needlable<U: ?Sized + ThinSlice>: Copy {
     fn memchr_invoke(&self, haystack: &U) -> Option<(usize, U::Item)>;
 }
 

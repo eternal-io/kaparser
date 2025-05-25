@@ -147,7 +147,7 @@ where
     }
     #[inline]
     fn advance(&self, slice: &U, entry: &mut Self::Internal, eof: bool) -> Result<usize, E> {
-        let Some((offset, item)) = slice.after(*entry).memchr(&self.needle) else {
+        let Some((offset, item)) = slice.after(*entry).memchr(self.needle) else {
             *entry = slice.len();
             return match eof {
                 true => Ok(*entry),

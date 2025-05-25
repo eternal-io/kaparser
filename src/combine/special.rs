@@ -153,7 +153,7 @@ where
 
         loop {
             // Looking for the (offset - winged_content_off) of `}`.
-            let Some((content_delta, _)) = slice.after(*winged_content_off).memchr(&[self.secondary_end]) else {
+            let Some((content_delta, _)) = slice.after(*winged_content_off).memchr([self.secondary_end]) else {
                 return match eof {
                     true => E::raise_halt_at(slice.len()),
                     false => {
@@ -275,7 +275,7 @@ where
 
         loop {
             // Looking for the (offset - winged_content_off) of `}`.
-            let Some((content_delim_delta, _)) = slice.after(*winged_content_off).memchr(&[self.outer_end]) else {
+            let Some((content_delim_delta, _)) = slice.after(*winged_content_off).memchr([self.outer_end]) else {
                 return match eof {
                     true => E::raise_halt_at(slice.len()),
                     false => {
