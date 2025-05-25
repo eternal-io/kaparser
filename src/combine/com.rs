@@ -84,7 +84,7 @@ macro_rules! impl_compoundable_for_tuple {
                 *entry = 0;
             $( {
                 let mut state = self.$IdxN.init();
-                match self.$IdxN.advance(slice.split_at(*entry).1, &mut state, eof) {
+                match self.$IdxN.advance(slice.after(*entry), &mut state, eof) {
                     Ok(len) => *entry += len,
                     Err(e) => return e.raise_backtrack(*entry),
                 }
@@ -94,7 +94,7 @@ macro_rules! impl_compoundable_for_tuple {
 
             #[inline]
             fn extract_com(&self, slice: &'i U, entry: Self::Internal) -> Self::Captured {
-                slice.split_at(entry).0
+                slice.before(entry)
             }
         }
     } };

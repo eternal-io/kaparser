@@ -292,7 +292,7 @@ where
 
     #[inline]
     fn extract(&self, slice: &'i U, _ntry: Self::Internal) -> Self::Captured {
-        slice.split_at(self.len()).0
+        slice.before(self.len())
     }
 }
 

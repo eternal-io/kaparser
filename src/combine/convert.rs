@@ -460,7 +460,7 @@ where
         *entry = Alt2::Var2(self.then.init());
 
         let Alt2::Var2(state) = entry else { unreachable!() };
-        self.then.advance(slice.split_at(len).0, state, true)
+        self.then.advance(slice.before(len), state, true)
     }
     #[inline]
     fn extract(&self, slice: &'i U, entry: Self::Internal) -> Self::Captured {

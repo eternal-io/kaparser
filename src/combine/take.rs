@@ -54,8 +54,7 @@ where
     fn advance(&self, slice: &U, entry: &mut Self::Internal, eof: bool) -> Result<usize, E> {
         let (offset, times) = entry;
         if let Some((i, (off, item))) = slice
-            .split_at(*offset)
-            .1
+            .after(*offset)
             .iter_indices()
             .enumerate()
             .take_while(|(i, (_, ch))| self.range.unfulfilled(*times + *i) && self.predicate.predicate(ch))
@@ -78,7 +77,7 @@ where
     }
     #[inline]
     fn extract(&self, slice: &'i U, entry: Self::Internal) -> Self::Captured {
-        slice.split_at(entry.0).0
+        slice.before(entry.0)
     }
 }
 
@@ -104,8 +103,7 @@ where
     #[inline]
     fn advance(&self, slice: &U, entry: &mut Self::Internal, eof: bool) -> Result<usize, E> {
         match slice
-            .split_at(*entry)
-            .1
+            .after(*entry)
             .iter_indices()
             .find(|(_, item)| !self.predicate.predicate(item))
         {
@@ -124,7 +122,7 @@ where
     }
     #[inline]
     fn extract(&self, slice: &'i U, entry: Self::Internal) -> Self::Captured {
-        slice.split_at(entry).0
+        slice.before(entry)
     }
 }
 
@@ -148,8 +146,7 @@ where
     #[inline]
     fn advance(&self, slice: &U, entry: &mut Self::Internal, eof: bool) -> Result<usize, E> {
         match slice
-            .split_at(*entry)
-            .1
+            .after(*entry)
             .iter_indices()
             .find(|(_, item)| !self.start.predicate(item))
         {
@@ -174,7 +171,7 @@ where
     }
     #[inline]
     fn extract(&self, slice: &'i U, entry: Self::Internal) -> Self::Captured {
-        slice.split_at(entry).0
+        slice.before(entry)
     }
 }
 

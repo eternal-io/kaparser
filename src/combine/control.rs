@@ -154,7 +154,7 @@ where
     }
     #[inline]
     fn extract(&self, slice: &'i U, _ntry: Self::Internal) -> Self::Captured {
-        slice.split_at(self.slice.len()).0
+        slice.before(self.slice.len())
     }
 }
 

@@ -153,7 +153,7 @@ where
 
         loop {
             // Looking for the (offset - winged_content_off) of `}`.
-            let Some((content_delta, _)) = slice.split_at(*winged_content_off).1.memchr(&[self.secondary_end]) else {
+            let Some((content_delta, _)) = slice.after(*winged_content_off).memchr(&[self.secondary_end]) else {
                 return match eof {
                     true => E::raise_halt_at(slice.len()),
                     false => {
@@ -170,8 +170,7 @@ where
 
             // Taking `>` at most n_primaries (= ctr + 1) times.
             let m_primaries = match slice
-                .split_at(offset)
-                .1
+                .after(offset)
                 .iter_indices()
                 .enumerate()
                 .take(*n_primaries)
@@ -205,7 +204,7 @@ where
     fn extract(&self, slice: &'i U, entry: Self::Internal) -> Self::Captured {
         let (n_primaries, winged_off, winged_content_off) = entry;
 
-        (n_primaries, slice.split_at(winged_content_off).0.split_at(winged_off).1)
+        (n_primaries, slice.subslice(winged_off..winged_content_off))
     }
 }
 
@@ -251,8 +250,7 @@ where
 
             // Skipping `<` `ctr` times.
             let Some((ctr, (delim_delta, _))) = slice
-                .split_at(first_off)
-                .1
+                .after(first_off)
                 .iter_indices()
                 .enumerate()
                 .skip_while(|(_ctr, (_off, item))| *item == self.inner_start)
@@ -277,7 +275,7 @@ where
 
         loop {
             // Looking for the (offset - winged_content_off) of `}`.
-            let Some((content_delim_delta, _)) = slice.split_at(*winged_content_off).1.memchr(&[self.outer_end]) else {
+            let Some((content_delim_delta, _)) = slice.after(*winged_content_off).memchr(&[self.outer_end]) else {
                 return match eof {
                     true => E::raise_halt_at(slice.len()),
                     false => {
@@ -295,8 +293,7 @@ where
 
             // Taking `>` (`???`) at most n_inners (= ctr + 1) times in reversed order.
             let (m_inners, real_winged_content_off) = match slice
-                .split_at(winged_content_winner_off)
-                .0
+                .before(winged_content_winner_off)
                 .iter_indices()
                 .rev()
                 .enumerate()
@@ -322,7 +319,7 @@ where
     fn extract(&self, slice: &'i U, entry: Self::Internal) -> Self::Captured {
         let (n_inners, winged_off, winged_content_off) = entry;
 
-        (n_inners, slice.split_at(winged_content_off).0.split_at(winged_off).1)
+        (n_inners, slice.subslice(winged_off..winged_content_off))
     }
 }
 

@@ -103,7 +103,7 @@ where
                     *off = offset;
                 }
 
-                match self.body.advance(slice.split_at(*off).1, state, eof) {
+                match self.body.advance(slice.after(*off), state, eof) {
                     Ok(len) => offset = *off + len,
                     Err(e) => match e.is_rejected() {
                         false => return e.raise_backtrack(*off),
@@ -130,7 +130,7 @@ where
 
         for (i, (off, state)) in at_least.into_iter().enumerate() {
             checkpoint -= 1;
-            let cap = self.body.extract(slice.split_at(off).1, state);
+            let cap = self.body.extract(slice.after(off), state);
             unsafe {
                 (&raw mut (*at_least_cap.as_mut_ptr())[i]).write(cap);
             }
@@ -138,7 +138,7 @@ where
         for (i, (off, state)) in may_more.into_iter().enumerate() {
             if checkpoint > 0 {
                 checkpoint -= 1;
-                let cap = self.body.extract(slice.split_at(off).1, state);
+                let cap = self.body.extract(slice.after(off), state);
                 unsafe {
                     (&raw mut (*may_more_cap.as_mut_ptr())[i]).write(Some(cap));
                 }

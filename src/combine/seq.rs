@@ -59,7 +59,7 @@ macro_rules! impl_pattern_for_tuple {
                             *off = offset;
                         }
 
-                        match self.$IdxN.advance(slice.split_at(*off).1, state, eof) {
+                        match self.$IdxN.advance(slice.after(*off), state, eof) {
                             Ok(len) => offset = *off + len,
                             Err(e) => return e.raise_backtrack(*off),
                         }
@@ -73,7 +73,7 @@ macro_rules! impl_pattern_for_tuple {
             fn extract(&self, slice: &'i U, entry: Self::Internal) -> Self::Captured {
                 $(
                     let $ValN = entry.1.$IdxN;
-                    let $ValN = self.$IdxN.extract(slice.split_at($ValN.0).1, $ValN.1);
+                    let $ValN = self.$IdxN.extract(slice.after($ValN.0), $ValN.1);
                 )+
                 ($($ValN,)+)
             }
@@ -167,7 +167,7 @@ macro_rules! impl_indexedable_for_tuple {
                             *off = offset;
                         }
 
-                        match self.$IdxN.advance(slice.split_at(*off).1, state, eof) {
+                        match self.$IdxN.advance(slice.after(*off), state, eof) {
                             Ok(len) => offset = *off + len,
                             Err(e) => return e.raise_backtrack(*off),
                         }
@@ -284,7 +284,7 @@ macro_rules! impl_spannedable_for_tuple {
                             span.start = offset;
                         }
 
-                        match self.$IdxN.advance(slice.split_at(span.start).1, state, eof) {
+                        match self.$IdxN.advance(slice.after(span.start), state, eof) {
                             Ok(len) => { offset = span.start + len ; span.end = offset }
                             Err(e) => return e.raise_backtrack(span.start),
                         }

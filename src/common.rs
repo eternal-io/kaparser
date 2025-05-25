@@ -663,7 +663,7 @@ mod tests {
     #[test]
     fn test_next_code_point() {
         for (pos, ch) in TEST_VECTOR.char_indices() {
-            assert_eq!(next_code_point(TEST_VECTOR.split_at(pos).1.as_ref()), ch as u32);
+            assert_eq!(next_code_point(TEST_VECTOR.after(pos).as_ref()), ch as u32);
         }
     }
 

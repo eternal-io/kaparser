@@ -108,7 +108,7 @@ where
     #[inline]
     fn extract(&self, slice: &'i U, entry: Self::Internal) -> Self::Captured {
         let (state, offset) = entry;
-        (self.body.extract(slice, state), slice.split_at(offset).0)
+        (self.body.extract(slice, state), slice.before(offset))
     }
 }
 

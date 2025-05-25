@@ -55,8 +55,7 @@ where
     #[inline]
     fn advance(&self, slice: &U, entry: &mut Self::Internal, eof: bool) -> Result<usize, E> {
         match slice
-            .split_at(*entry)
-            .1
+            .after(*entry)
             .iter_indices()
             .find(|(_, item)| self.end.predicate(item))
         {
@@ -96,9 +95,9 @@ where
     #[inline]
     fn advance(&self, slice: &U, entry: &mut Self::Internal, eof: bool) -> Result<usize, E> {
         let (offset, state) = entry;
-        for item in slice.split_at(*offset).1.iter() {
+        for item in slice.after(*offset).iter() {
             let mut st = self.end.init();
-            let res = self.end.advance(slice.split_at(*offset).1, &mut st, eof);
+            let res = self.end.advance(slice.after(*offset), &mut st, eof);
             match res {
                 Ok(len) => {
                     *state = st;
@@ -207,9 +206,9 @@ where
     }
     #[inline]
     fn extract(&self, slice: &'i U, entry: Self::Internal) -> Self::Captured {
-        let (left, right) = slice.split_at(entry);
+        let (before, after) = slice.split_at(entry);
 
-        (left, right.split_at(self.needle.len()).0)
+        (before, after.before(self.needle.len()))
     }
 }
 
