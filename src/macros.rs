@@ -10,13 +10,13 @@ macro_rules! len {
 #[macro_export]
 macro_rules! rep {
     ($n:tt, $patt:expr) => {
-        $crate::combine::repeat::repeat_exact::<_, _, _, { $n }>($patt)
+        $crate::combine::repeat::repeat_exact::<_, { $n }>($patt)
     };
     ($n:tt..=$m:tt, $patt:expr) => {
-        $crate::combine::repeat::repeat::<_, _, _, { $n }, { $m - $n }>($patt)
+        $crate::combine::repeat::repeat::<_, { $n }, { $m - $n }>($patt)
     };
     (..=$m:tt, $patt:expr) => {
-        $crate::combine::repeat::repeat_at_most::<_, _, _, { $m }>($patt)
+        $crate::combine::repeat::repeat_at_most::<_, { $m }>($patt)
     };
 
     ($n:tt..$m:tt, $patt:expr) => {

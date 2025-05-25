@@ -1,31 +1,17 @@
 use super::*;
 
 #[inline]
-pub const fn opt<'i, U, E, P>(opt: P) -> Optional<'i, U, E, P>
-where
-    U: ?Sized + Slice + 'i,
-    E: Situation,
-    P: Pattern<'i, U, E>,
-{
-    Optional {
-        opt,
-        phantom: PhantomData,
-    }
+pub const fn opt<P>(opt: P) -> Optional<P> {
+    Optional { opt }
 }
 
 //------------------------------------------------------------------------------
 
-pub struct Optional<'i, U, E, P>
-where
-    U: ?Sized + Slice + 'i,
-    E: Situation,
-    P: Pattern<'i, U, E>,
-{
+pub struct Optional<P> {
     opt: P,
-    phantom: PhantomData<(&'i U, E)>,
 }
 
-impl<'i, U, E, P> Pattern<'i, U, E> for Optional<'i, U, E, P>
+impl<'i, U, E, P> Pattern<'i, U, E> for Optional<P>
 where
     U: ?Sized + Slice + 'i,
     E: Situation,
