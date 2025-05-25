@@ -1,71 +1,20 @@
 use super::*;
 
 #[inline]
-pub const fn com<'i, U, E, C>(com: C) -> Compound<'i, U, E, C>
-where
-    U: ?Sized + Slice + 'i,
-    E: Situation,
-    C: Compoundable<'i, U, E>,
-{
-    Compound {
-        com,
-        phantom: PhantomData,
-    }
+pub const fn com<C>(com: C) -> Compound<C> {
+    Compound { com }
 }
 
 //------------------------------------------------------------------------------
 
-pub struct Compound<'i, U, E, C>
-where
-    U: ?Sized + Slice + 'i,
-    E: Situation,
-    C: Compoundable<'i, U, E>,
-{
+pub struct Compound<C> {
     com: C,
-    phantom: PhantomData<(&'i U, E)>,
 }
 
-pub trait Compoundable<'i, U, E>
-where
-    U: ?Sized + Slice + 'i,
-    E: Situation,
-{
-    type Captured;
-    type Internal: 'static + Clone;
-
-    fn init_com(&self) -> Self::Internal;
-
-    fn advance_com(&self, slice: &U, entry: &mut Self::Internal, eof: bool) -> Result<usize, E>;
-
-    fn extract_com(&self, slice: &'i U, entry: Self::Internal) -> Self::Captured;
-}
-
-impl<'i, U, E, C> Pattern<'i, U, E> for Compound<'i, U, E, C>
-where
-    U: ?Sized + Slice + 'i,
-    E: Situation,
-    C: Compoundable<'i, U, E>,
-{
-    type Captured = C::Captured;
-    type Internal = C::Internal;
-
-    #[inline]
-    fn init(&self) -> Self::Internal {
-        self.com.init_com()
-    }
-    #[inline]
-    fn advance(&self, slice: &U, entry: &mut Self::Internal, eof: bool) -> Result<usize, E> {
-        self.com.advance_com(slice, entry, eof)
-    }
-    #[inline]
-    fn extract(&self, slice: &'i U, entry: Self::Internal) -> Self::Captured {
-        self.com.extract_com(slice, entry)
-    }
-}
-
-macro_rules! impl_compoundable_for_tuple {
+macro_rules! impl_compound_for_tuple {
     ( $Len:literal, $($OrdN:literal ~ ($GenN:ident) ~ $_gen:ident ~ $_con:ident ~ $IdxN:tt)+ ) => { paste::paste! {
-        impl<'i, U, E, $($GenN),+> Compoundable<'i, U, E> for ($($GenN,)+)
+        #[doc(hidden)]
+        impl<'i, U, E, $($GenN),+> Pattern<'i, U, E> for Compound<($($GenN,)+)>
         where
             U: ?Sized + Slice + 'i,
             E: Situation,
@@ -75,16 +24,16 @@ macro_rules! impl_compoundable_for_tuple {
             type Internal = usize;
 
             #[inline]
-            fn init_com(&self) -> Self::Internal {
+            fn init(&self) -> Self::Internal {
                 0
             }
 
             #[inline]
-            fn advance_com(&self, slice: &U, entry: &mut Self::Internal, eof: bool) -> Result<usize, E> {
+            fn advance(&self, slice: &U, entry: &mut Self::Internal, eof: bool) -> Result<usize, E> {
                 *entry = 0;
             $( {
-                let mut state = self.$IdxN.init();
-                match self.$IdxN.advance(slice.after(*entry), &mut state, eof) {
+                let mut state = self.com.$IdxN.init();
+                match self.com.$IdxN.advance(slice.after(*entry), &mut state, eof) {
                     Ok(len) => *entry += len,
                     Err(e) => return e.raise_backtrack(*entry),
                 }
@@ -93,14 +42,14 @@ macro_rules! impl_compoundable_for_tuple {
             }
 
             #[inline]
-            fn extract_com(&self, slice: &'i U, entry: Self::Internal) -> Self::Captured {
+            fn extract(&self, slice: &'i U, entry: Self::Internal) -> Self::Captured {
                 slice.before(entry)
             }
         }
     } };
 }
 
-__generate_codes! { impl_compoundable_for_tuple ( P ) }
+__generate_codes! { impl_compound_for_tuple ( C ) }
 
 //------------------------------------------------------------------------------
 
