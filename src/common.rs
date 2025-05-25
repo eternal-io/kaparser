@@ -1,9 +1,23 @@
-pub(crate) use core::ops::Range;
-
 use core::ops::{RangeFrom, RangeFull, RangeInclusive, RangeTo, RangeToInclusive};
 
 #[doc(hidden)]
 pub use paste::paste;
+
+pub(crate) use core::ops::Range;
+
+pub(crate) use self::sealed::Sealed;
+
+mod sealed {
+    pub trait Sealed {}
+
+    impl<T> Sealed for T {}
+}
+
+//------------------------------------------------------------------------------
+
+#[cold]
+#[inline]
+pub(crate) const fn cold_path() {}
 
 #[inline]
 pub(crate) const fn likely(cond: bool) -> bool {
@@ -19,9 +33,6 @@ pub(crate) const fn unlikely(cond: bool) -> bool {
     }
     cond
 }
-#[cold]
-#[inline]
-pub(crate) const fn cold_path() {}
 
 //------------------------------------------------------------------------------
 
@@ -365,7 +376,7 @@ impl ThinSlice for [u8] {
 
 //------------------------------------------------------------------------------
 
-pub trait Needlable<U: ?Sized + ThinSlice>: Copy {
+pub trait Needlable<U: ?Sized + ThinSlice>: Copy + Sealed {
     fn memchr_invoke(&self, haystack: &U) -> Option<(usize, U::Item)>;
 }
 
