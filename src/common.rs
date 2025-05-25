@@ -195,9 +195,9 @@ where
 {
     #[inline]
     fn bump(&mut self, n: usize) -> &'i U {
-        let (before, after) = self.split_at(n);
-        *self = after;
-        before
+        let work = self.rest();
+        *self = self.after(n);
+        work
     }
     #[inline]
     fn rest(&self) -> &'i U {
@@ -219,10 +219,9 @@ where
 {
     #[inline]
     fn bump(&mut self, n: usize) -> &'i U {
-        let start = self.consumed;
+        let work = self.rest();
         self.consumed += n;
-        let end = self.consumed;
-        self.source.subslice(start..end)
+        work
     }
     #[inline]
     fn rest(&self) -> &'i U {
