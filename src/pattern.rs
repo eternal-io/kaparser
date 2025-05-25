@@ -4,7 +4,6 @@ use crate::{
     error::*,
     predicate::*,
 };
-use core::marker::PhantomData;
 
 pub mod bin;
 pub mod def;
