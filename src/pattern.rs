@@ -14,31 +14,31 @@ pub use crate::token_set;
 
 pub type ParseResult<T, E = SimpleError> = Result<T, E>;
 
-#[inline]
-pub const fn opaque<'i, U, E, Cap>(
-    pattern: impl Pattern<'i, U, E, Captured = Cap>,
-) -> impl Pattern<'i, U, E, Captured = Cap>
-where
-    U: ?Sized + Slice + 'i,
-    E: Situation,
-{
-    pattern
-}
-#[inline]
-pub const fn opaque_simple<'i, U, Cap>(
-    pattern: impl Pattern<'i, U, SimpleError, Captured = Cap>,
-) -> impl Pattern<'i, U, SimpleError, Captured = Cap>
-where
-    U: ?Sized + Slice + 'i,
-{
-    pattern
-}
+// #[inline]
+// pub const fn opaque<'i, U, E, Cap>(
+//     pattern: impl Pattern<'i, U, E, Captured = Cap>,
+// ) -> impl Pattern<'i, U, E, Captured = Cap>
+// where
+//     U: ?Sized + Slice + 'i,
+//     E: Situation,
+// {
+//     pattern
+// }
+// #[inline]
+// pub const fn opaque_simple<'i, U, Cap>(
+//     pattern: impl Pattern<'i, U, SimpleError, Captured = Cap>,
+// ) -> impl Pattern<'i, U, SimpleError, Captured = Cap>
+// where
+//     U: ?Sized + Slice + 'i,
+// {
+//     pattern
+// }
 
 //==================================================================================================
 
-pub trait Pattern<'i, U, E>
+pub trait Pattern<U, E>
 where
-    U: ?Sized + Slice + 'i,
+    U: Slice,
     E: Situation,
 {
     type Captured;
@@ -46,9 +46,9 @@ where
 
     fn init(&self) -> Self::Internal;
 
-    fn advance(&self, slice: &U, entry: &mut Self::Internal, eof: bool) -> Result<usize, E>;
+    fn advance(&self, slice: U, entry: &mut Self::Internal, eof: bool) -> Result<usize, E>;
 
-    fn extract(&self, slice: &'i U, entry: Self::Internal) -> Self::Captured;
+    fn extract(&self, slice: U, entry: Self::Internal) -> Self::Captured;
 
     fn inject_base_off(&self, entry: &mut Self::Internal, base_off: usize) {
         let _ = (entry, base_off);
@@ -261,19 +261,19 @@ where
 
 //==================================================================================================
 
-impl<'i, U, E> Pattern<'i, U, E> for &U
+impl<U, E> Pattern<U, E> for U
 where
-    U: ?Sized + Slice + 'i,
+    U: Slice,
     E: Situation,
 {
-    type Captured = &'i U;
+    type Captured = U::Slice;
     type Internal = ();
 
     #[inline]
     fn init(&self) -> Self::Internal {}
 
     #[inline]
-    fn advance(&self, slice: &U, _ntry: &mut Self::Internal, eof: bool) -> Result<usize, E> {
+    fn advance(&self, slice: U, _ntry: &mut Self::Internal, eof: bool) -> Result<usize, E> {
         if slice.len() < self.len() {
             match eof {
                 true => E::raise_reject_at(slice.len()),
@@ -290,14 +290,14 @@ where
     }
 
     #[inline]
-    fn extract(&self, slice: &'i U, _ntry: Self::Internal) -> Self::Captured {
+    fn extract(&self, slice: U, _ntry: Self::Internal) -> Self::Captured {
         slice.before(self.len())
     }
 }
 
-impl<'i, U, E, P> Pattern<'i, U, E> for [P; 1]
+impl<U, E, P> Pattern<U, E> for [P; 1]
 where
-    U: ?Sized + Slice + 'i,
+    U: Slice,
     E: Situation,
     P: Predicate<U::Item>,
 {
@@ -308,10 +308,10 @@ where
     fn init(&self) -> Self::Internal {}
 
     #[inline]
-    fn advance(&self, slice: &U, _ntry: &mut Self::Internal, eof: bool) -> Result<usize, E> {
+    fn advance(&self, slice: U, _ntry: &mut Self::Internal, eof: bool) -> Result<usize, E> {
         match slice.first() {
             Some(item) => match self[0].predicate(&item) {
-                true => Ok(U::len_of(item)),
+                true => Ok(slice.len_of(item)),
                 false => E::raise_reject_at(0),
             },
             None => match eof {
@@ -322,7 +322,7 @@ where
     }
 
     #[inline]
-    fn extract(&self, slice: &'i U, _ntry: Self::Internal) -> Self::Captured {
+    fn extract(&self, slice: U, _ntry: Self::Internal) -> Self::Captured {
         slice.first().unwrap()
     }
 }
