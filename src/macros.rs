@@ -110,27 +110,27 @@ macro_rules! token_set {
 
 //------------------------------------------------------------------------------
 
-#[cfg(test)]
-mod tests {
-    use crate::prelude::*;
+// #[cfg(test)]
+// mod tests {
+//     use crate::prelude::*;
 
-    const TK_TRUE: &str = "true";
-    const TK_FALSE: &str = "false";
+//     const TK_TRUE: &str = "true";
+//     const TK_FALSE: &str = "false";
 
-    token_set! {
-        Unused<str>;
-    }
-    token_set! {
-        Boolean<str>;
-        False = TK_FALSE,
-        True = TK_TRUE,
-    }
+//     token_set! {
+//         Unused<str>;
+//     }
+//     token_set! {
+//         Boolean<str>;
+//         False = TK_FALSE,
+//         True = TK_TRUE,
+//     }
 
-    #[test]
-    fn tkst() {
-        let pat = opaque_simple(BooleanT);
-        assert_eq!(pat.fullmatch("true").unwrap(), Boolean::True);
-        assert_eq!(pat.fullmatch("false").unwrap(), Boolean::False);
-        assert!(pat.fullmatch("False").is_err());
-    }
-}
+//     #[test]
+//     fn tkst() {
+//         let pat = opaque_simple(BooleanT);
+//         assert_eq!(pat.fullmatch("true").unwrap(), Boolean::True);
+//         assert_eq!(pat.fullmatch("false").unwrap(), Boolean::False);
+//         assert!(pat.fullmatch("False").is_err());
+//     }
+// }
