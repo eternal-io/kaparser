@@ -14,25 +14,23 @@ pub use crate::token_set;
 
 pub type ParseResult<T, E = SimpleError> = Result<T, E>;
 
-// #[inline]
-// pub const fn opaque<'i, U, E, Cap>(
-//     pattern: impl Pattern<'i, U, E, Captured = Cap>,
-// ) -> impl Pattern<'i, U, E, Captured = Cap>
-// where
-//     U: ?Sized + Slice + 'i,
-//     E: Situation,
-// {
-//     pattern
-// }
-// #[inline]
-// pub const fn opaque_simple<'i, U, Cap>(
-//     pattern: impl Pattern<'i, U, SimpleError, Captured = Cap>,
-// ) -> impl Pattern<'i, U, SimpleError, Captured = Cap>
-// where
-//     U: ?Sized + Slice + 'i,
-// {
-//     pattern
-// }
+#[inline]
+pub const fn opaque<U, E, Cap>(pattern: impl Pattern<U, E, Captured = Cap>) -> impl Pattern<U, E, Captured = Cap>
+where
+    U: Slice,
+    E: Situation,
+{
+    pattern
+}
+#[inline]
+pub const fn opaque_simple<U, Cap>(
+    pattern: impl Pattern<U, SimpleError, Captured = Cap>,
+) -> impl Pattern<U, SimpleError, Captured = Cap>
+where
+    U: Slice,
+{
+    pattern
+}
 
 //==================================================================================================
 
@@ -46,9 +44,9 @@ where
 
     fn init(&self) -> Self::Internal;
 
-    fn advance(&self, slice: U, entry: &mut Self::Internal, eof: bool) -> Result<usize, E>;
+    fn advance(&self, slice: &U, entry: &mut Self::Internal, eof: bool) -> Result<usize, E>;
 
-    fn extract(&self, slice: U, entry: Self::Internal) -> Self::Captured;
+    fn extract(&self, slice: &U, entry: Self::Internal) -> Self::Captured;
 
     fn inject_base_off(&self, entry: &mut Self::Internal, base_off: usize) {
         let _ = (entry, base_off);
@@ -56,28 +54,32 @@ where
 
     //------------------------------------------------------------------------------
 
-    // #[inline]
-    // fn parse(&self, slice: &mut dyn DynamicSlice<'i, U>) -> Result<Self::Captured, E> {
-    //     let mut state = self.init();
-    //     match self.advance(slice.rest(), &mut state, true) {
-    //         Err(e) if e.is_unfulfilled() => panic!("implementation: pull after EOF"),
-    //         Err(e) => Err(e.backtrack(slice.consumed())),
-    //         Ok(len) => {
-    //             self.inject_base_off(&mut state, slice.consumed());
-    //             Ok(self.extract(slice.bump(len), state))
-    //         }
-    //     }
-    // }
+    #[inline]
+    fn parse(&self, slice: &mut dyn DynamicSlice<U>) -> Result<Self::Captured, E> {
+        let sli = slice.rest();
+        let off = slice.consumed();
+        let mut state = self.init();
+        match self.advance(sli, &mut state, true) {
+            Err(e) if e.is_unfulfilled() => panic!("implementation: pull after EOF"),
+            Err(e) => Err(e.backtrack(off)),
+            Ok(len) => {
+                self.inject_base_off(&mut state, off);
+                let cap = self.extract(sli, state);
+                slice.bump(len);
+                Ok(cap)
+            }
+        }
+    }
 
-    // #[inline]
-    // fn fullmatch(&self, slice: &'i U) -> Result<Self::Captured, E> {
-    //     let mut sli = slice;
-    //     let cap = self.parse(&mut sli)?;
-    //     match sli.len() {
-    //         0 => Ok(cap),
-    //         n => E::raise_halt_at(slice.len() - n),
-    //     }
-    // }
+    #[inline]
+    fn fullmatch(&self, mut slice: U) -> Result<Self::Captured, E> {
+        let len = slice.len();
+        let cap = self.parse(&mut slice)?;
+        match slice.len() {
+            0 => Ok(cap),
+            n => E::raise_halt_at(len - n),
+        }
+    }
 
     //------------------------------------------------------------------------------
 
@@ -273,7 +275,7 @@ where
     fn init(&self) -> Self::Internal {}
 
     #[inline]
-    fn advance(&self, slice: U, _ntry: &mut Self::Internal, eof: bool) -> Result<usize, E> {
+    fn advance(&self, slice: &U, _ntry: &mut Self::Internal, eof: bool) -> Result<usize, E> {
         if slice.len() < self.len() {
             match eof {
                 true => E::raise_reject_at(slice.len()),
@@ -290,7 +292,7 @@ where
     }
 
     #[inline]
-    fn extract(&self, slice: U, _ntry: Self::Internal) -> Self::Captured {
+    fn extract(&self, slice: &U, _ntry: Self::Internal) -> Self::Captured {
         slice.before(self.len())
     }
 }
@@ -308,7 +310,7 @@ where
     fn init(&self) -> Self::Internal {}
 
     #[inline]
-    fn advance(&self, slice: U, _ntry: &mut Self::Internal, eof: bool) -> Result<usize, E> {
+    fn advance(&self, slice: &U, _ntry: &mut Self::Internal, eof: bool) -> Result<usize, E> {
         match slice.first() {
             Some(item) => match self[0].predicate(&item) {
                 true => Ok(slice.len_of(item)),
@@ -322,37 +324,37 @@ where
     }
 
     #[inline]
-    fn extract(&self, slice: U, _ntry: Self::Internal) -> Self::Captured {
+    fn extract(&self, slice: &U, _ntry: Self::Internal) -> Self::Captured {
         slice.first().unwrap()
     }
 }
 
 //==================================================================================================
 
-// #[cfg(test)]
-// mod tests {
-//     use crate::prelude::*;
+#[cfg(test)]
+mod tests {
+    use crate::prelude::*;
 
-//     #[test]
-//     fn slice() {
-//         let pat = opaque_simple("");
-//         assert!(pat.fullmatch("").is_ok());
-//         assert_eq!(pat.fullmatch("?").unwrap_err().offset(), 0);
-//         assert_eq!(pat.fullmatch("??").unwrap_err().offset(), 0);
+    #[test]
+    fn slice() {
+        let pat = opaque_simple("");
+        assert!(pat.fullmatch("").is_ok());
+        assert_eq!(pat.fullmatch("?").unwrap_err().offset(), 0);
+        assert_eq!(pat.fullmatch("??").unwrap_err().offset(), 0);
 
-//         let pat = opaque_simple("A");
-//         assert_eq!(pat.fullmatch("").unwrap_err().offset(), 0);
-//         assert_eq!(pat.fullmatch("A").unwrap(), "A");
-//         assert_eq!(pat.fullmatch("AA").unwrap_err().offset(), 1);
+        let pat = opaque_simple("A");
+        assert_eq!(pat.fullmatch("").unwrap_err().offset(), 0);
+        assert_eq!(pat.fullmatch("A").unwrap(), "A");
+        assert_eq!(pat.fullmatch("AA").unwrap_err().offset(), 1);
 
-//         let pat = opaque_simple("AB");
-//         assert_eq!(pat.fullmatch("").unwrap_err().offset(), 0);
-//         assert_eq!(pat.fullmatch("AB").unwrap(), "AB");
-//         assert_eq!(pat.fullmatch("ABCD").unwrap_err().offset(), 2);
+        let pat = opaque_simple("AB");
+        assert_eq!(pat.fullmatch("").unwrap_err().offset(), 0);
+        assert_eq!(pat.fullmatch("AB").unwrap(), "AB");
+        assert_eq!(pat.fullmatch("ABCD").unwrap_err().offset(), 2);
 
-//         let pat = opaque_simple("ABCD");
-//         assert_eq!(pat.fullmatch("").unwrap_err().offset(), 0);
-//         assert_eq!(pat.fullmatch("AB").unwrap_err().offset(), 2);
-//         assert_eq!(pat.fullmatch("ABCD").unwrap(), "ABCD");
-//     }
-// }
+        let pat = opaque_simple("ABCD");
+        assert_eq!(pat.fullmatch("").unwrap_err().offset(), 0);
+        assert_eq!(pat.fullmatch("AB").unwrap_err().offset(), 2);
+        assert_eq!(pat.fullmatch("ABCD").unwrap(), "ABCD");
+    }
+}

@@ -1,6 +1,13 @@
 pub use crate::{common::alts::*, error::*, line_col::*, predicate::*};
 
-// pub use crate::pattern::{ParseResult, Pattern, bin, def, opaque, opaque_simple, token_set};
+pub use crate::pattern::{
+    ParseResult,
+    Pattern,
+    // bin, def,
+    opaque,
+    opaque_simple,
+    token_set,
+};
 
 // pub use crate::combine::{
 //     alt::alt,
