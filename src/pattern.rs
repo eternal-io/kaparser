@@ -359,16 +359,14 @@ mod tests {
 
     #[test]
     fn test_lifetime() {
-        const MSG: &'static str = "foobar";
+        const MSG: &'static str = "FOOBAR";
         let msging = String::from("foobar");
         let msg = msging.as_ref();
 
-        fn pred(s: &str) -> bool {
-            let pat = opaque_simple(igc("foobar"));
-            pat.fullmatch(s).is_ok()
-        }
+        // well, put it after all the references and it did work.
+        let pat = opaque_simple(igc("foobar"));
 
-        assert!(pred(MSG)); // ISSUE: unable to inline `pred`.
-        assert!(pred(msg));
+        assert!(pat.fullmatch(MSG).is_ok());
+        assert!(pat.fullmatch(msg).is_ok());
     }
 }
