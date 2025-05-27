@@ -332,6 +332,7 @@ where
 #[cfg(test)]
 mod tests {
     use crate::prelude::*;
+    use std::string::String;
 
     #[test]
     fn slice() {
@@ -354,5 +355,20 @@ mod tests {
         assert_eq!(pat.fullmatch("").unwrap_err().offset(), 0);
         assert_eq!(pat.fullmatch("AB").unwrap_err().offset(), 2);
         assert_eq!(pat.fullmatch("ABCD").unwrap(), "ABCD");
+    }
+
+    #[test]
+    fn test_lifetime() {
+        const MSG: &'static str = "foobar";
+        let msging = String::from("foobar");
+        let msg = msging.as_ref();
+
+        fn pred(s: &str) -> bool {
+            let pat = opaque_simple(igc("foobar"));
+            pat.fullmatch(s).is_ok()
+        }
+
+        assert!(pred(MSG)); // ISSUE: unable to inline `pred`.
+        assert!(pred(msg));
     }
 }
