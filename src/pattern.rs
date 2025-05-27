@@ -329,30 +329,84 @@ where
 
 //==================================================================================================
 
-// #[cfg(test)]
-// mod tests {
-//     use crate::prelude::*;
+#[cfg(test)]
+mod tests {
+    use crate::prelude::*;
+    use std::string::String;
 
-//     #[test]
-//     fn slice() {
-//         let pat = opaque_simple("");
-//         assert!(pat.fullmatch("").is_ok());
-//         assert_eq!(pat.fullmatch("?").unwrap_err().offset(), 0);
-//         assert_eq!(pat.fullmatch("??").unwrap_err().offset(), 0);
+    // #[test]
+    // fn slice() {
+    //     let pat = opaque_simple("");
+    //     assert!(pat.fullmatch("").is_ok());
+    //     assert_eq!(pat.fullmatch("?").unwrap_err().offset(), 0);
+    //     assert_eq!(pat.fullmatch("??").unwrap_err().offset(), 0);
 
-//         let pat = opaque_simple("A");
-//         assert_eq!(pat.fullmatch("").unwrap_err().offset(), 0);
-//         assert_eq!(pat.fullmatch("A").unwrap(), "A");
-//         assert_eq!(pat.fullmatch("AA").unwrap_err().offset(), 1);
+    //     let pat = opaque_simple("A");
+    //     assert_eq!(pat.fullmatch("").unwrap_err().offset(), 0);
+    //     assert_eq!(pat.fullmatch("A").unwrap(), "A");
+    //     assert_eq!(pat.fullmatch("AA").unwrap_err().offset(), 1);
 
-//         let pat = opaque_simple("AB");
-//         assert_eq!(pat.fullmatch("").unwrap_err().offset(), 0);
-//         assert_eq!(pat.fullmatch("AB").unwrap(), "AB");
-//         assert_eq!(pat.fullmatch("ABCD").unwrap_err().offset(), 2);
+    //     let pat = opaque_simple("AB");
+    //     assert_eq!(pat.fullmatch("").unwrap_err().offset(), 0);
+    //     assert_eq!(pat.fullmatch("AB").unwrap(), "AB");
+    //     assert_eq!(pat.fullmatch("ABCD").unwrap_err().offset(), 2);
 
-//         let pat = opaque_simple("ABCD");
-//         assert_eq!(pat.fullmatch("").unwrap_err().offset(), 0);
-//         assert_eq!(pat.fullmatch("AB").unwrap_err().offset(), 2);
-//         assert_eq!(pat.fullmatch("ABCD").unwrap(), "ABCD");
-//     }
-// }
+    //     let pat = opaque_simple("ABCD");
+    //     assert_eq!(pat.fullmatch("").unwrap_err().offset(), 0);
+    //     assert_eq!(pat.fullmatch("AB").unwrap_err().offset(), 2);
+    //     assert_eq!(pat.fullmatch("ABCD").unwrap(), "ABCD");
+    // }
+
+    // #[test]
+    // fn test_lifetime() {
+    //     const MSG: &'static str = "foobar";
+    //     let msging = String::from("foobar");
+    //     let msg = msging.as_ref();
+
+    //     fn pred(s: &str) -> bool {
+    //         let pat = opaque_simple("foobar");
+    //         pat.fullmatch(s).is_ok()
+    //     }
+
+    //     assert!(pred(MSG)); // ISSUE: unable to inline `pred`.
+    //     assert!(pred(msg));
+    // }
+
+    // -------------
+
+    trait SmallSlice: Sized {
+        // or: type Slice;
+        //     fn _(..) -> (Self::Slice, Self::Slice), but require delegate too many.
+        fn split_at(&self, mid: usize) -> (Self, Self);
+    }
+
+    impl<'i> SmallSlice for &'i str {
+        fn split_at(&self, mid: usize) -> (Self, Self) {
+            (*self).split_at(mid)
+        }
+    }
+
+    trait SmallPattern<U: SmallSlice> {
+        type Captured;
+
+        fn parse(&self, slice: U) -> Self::Captured;
+    }
+
+    impl<T, U: SmallSlice> SmallPattern<U> for T {
+        type Captured = U;
+
+        fn parse(&self, slice: U) -> Self::Captured {
+            slice.split_at(0).0
+        }
+    }
+
+    #[test]
+    fn test_lifetime2() {
+        const MSG: &'static str = "foobar";
+        let msging = String::from("foobar");
+        let msg = msging.as_ref();
+
+        ().parse(MSG);
+        ().parse(msg);
+    }
+}
