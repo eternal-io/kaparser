@@ -29,7 +29,7 @@ use core::marker::PhantomData;
 
 // pub mod peek;
 
-// pub mod special;
+pub mod special;
 
 ////////////////
 

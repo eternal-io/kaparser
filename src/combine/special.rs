@@ -1,102 +1,104 @@
 use super::*;
 
-#[inline]
-pub const fn winged<U, const STRICT: bool>(primary: U::Item, secondary: U::Item) -> Winged<U, STRICT>
-where
-    U: ?Sized + ThinSlice,
-{
-    Winged {
-        primary_start: primary,
-        secondary_start: secondary,
-        secondary_end: secondary,
-        primary_end: primary,
-    }
-}
-#[inline]
-pub const fn winged2<U, const STRICT: bool>(
-    primary: U::Item,
-    secondary_start: U::Item,
-    secondary_end: U::Item,
-) -> Winged<U, STRICT>
-where
-    U: ?Sized + ThinSlice,
-{
-    Winged {
-        primary_start: primary,
-        secondary_start,
-        secondary_end,
-        primary_end: primary,
-    }
-}
-#[inline]
-pub const fn winged3<U, const STRICT: bool>(
-    primary_start: U::Item,
-    secondary_start: U::Item,
-    secondary_end: U::Item,
-    primary_end: U::Item,
-) -> Winged<U, STRICT>
-where
-    U: ?Sized + ThinSlice,
-{
-    Winged {
-        primary_start,
-        secondary_start,
-        secondary_end,
-        primary_end,
-    }
-}
+// #[inline]
+// pub const fn winged<U, const STRICT: bool>(primary: U::Item, secondary: U::Item) -> Winged<U, STRICT>
+// where
+//     U: ThinSlice,
+// {
+//     Winged {
+//         primary_start: primary,
+//         secondary_start: secondary,
+//         secondary_end: secondary,
+//         primary_end: primary,
+//     }
+// }
+// #[inline]
+// pub const fn winged2<U, const STRICT: bool>(
+//     primary: U::Item,
+//     secondary_start: U::Item,
+//     secondary_end: U::Item,
+// ) -> Winged<U, STRICT>
+// where
+//     U: ThinSlice,
+// {
+//     Winged {
+//         primary_start: primary,
+//         secondary_start,
+//         secondary_end,
+//         primary_end: primary,
+//     }
+// }
+// #[inline]
+// pub const fn winged3<U, const STRICT: bool>(
+//     primary_start: U::Item,
+//     secondary_start: U::Item,
+//     secondary_end: U::Item,
+//     primary_end: U::Item,
+// ) -> Winged<U, STRICT>
+// where
+//     U: ThinSlice,
+// {
+//     Winged {
+//         primary_start,
+//         secondary_start,
+//         secondary_end,
+//         primary_end,
+//     }
+// }
 
-#[inline]
-pub const fn winged_flipped<U, const STRICT: bool>(outer: U::Item, inner: U::Item) -> WingedFlipped<U, STRICT>
-where
-    U: ?Sized + ThinSlice,
-{
-    WingedFlipped {
-        outer_start: outer,
-        inner_start: inner,
-        inner_end: inner,
-        outer_end: outer,
-    }
-}
-#[inline]
-pub const fn winged2_flipped<U, const STRICT: bool>(
-    outer_start: U::Item,
-    inner: U::Item,
-    outer_end: U::Item,
-) -> WingedFlipped<U, STRICT>
-where
-    U: ?Sized + ThinSlice,
-{
-    WingedFlipped {
-        outer_start,
-        inner_start: inner,
-        inner_end: inner,
-        outer_end,
-    }
-}
-#[inline]
-pub const fn winged3_flipped<U, const STRICT: bool>(
-    outer_start: U::Item,
-    inner_start: U::Item,
-    inner_end: U::Item,
-    outer_end: U::Item,
-) -> WingedFlipped<U, STRICT>
-where
-    U: ?Sized + ThinSlice,
-{
-    WingedFlipped {
-        outer_start,
-        inner_start,
-        inner_end,
-        outer_end,
-    }
-}
+// #[inline]
+// pub const fn winged_flipped<U, const STRICT: bool>(outer: U::Item, inner: U::Item) -> WingedFlipped<U, STRICT>
+// where
+//     U: ThinSlice,
+// {
+//     WingedFlipped {
+//         outer_start: outer,
+//         inner_start: inner,
+//         inner_end: inner,
+//         outer_end: outer,
+//     }
+// }
+// #[inline]
+// pub const fn winged2_flipped<U, const STRICT: bool>(
+//     outer_start: U::Item,
+//     inner: U::Item,
+//     outer_end: U::Item,
+// ) -> WingedFlipped<U, STRICT>
+// where
+//     U: ThinSlice,
+// {
+//     WingedFlipped {
+//         outer_start,
+//         inner_start: inner,
+//         inner_end: inner,
+//         outer_end,
+//     }
+// }
+// #[inline]
+// pub const fn winged3_flipped<U, const STRICT: bool>(
+//     outer_start: U::Item,
+//     inner_start: U::Item,
+//     inner_end: U::Item,
+//     outer_end: U::Item,
+// ) -> WingedFlipped<U, STRICT>
+// where
+//     U: ThinSlice,
+// {
+//     WingedFlipped {
+//         outer_start,
+//         inner_start,
+//         inner_end,
+//         outer_end,
+//     }
+// }
 
 //------------------------------------------------------------------------------
 
 pub struct Winged<U, const STRICT: bool>
 where
-    U: ?Sized + ThinSlice,
+    U: ThinSlice,
+    U::Item: Copy + EqAsciiIgnoreCase,
+    U::Slice: Memmem + MemchrImpl<Item = U::Item>,
 {
     primary_start: U::Item,
     secondary_start: U::Item,
@@ -104,12 +106,14 @@ where
     primary_end: U::Item,
 }
 
-impl<'i, U, E, const STRICT: bool> Pattern<'i, U, E> for Winged<U, STRICT>
+impl<U, E, const STRICT: bool> Pattern<U, E> for Winged<U, STRICT>
 where
-    U: ?Sized + ThinSlice + 'i,
+    U: ThinSlice,
+    U::Item: Copy + EqAsciiIgnoreCase,
+    U::Slice: Memmem + MemchrImpl<Item = U::Item>,
     E: Situation,
 {
-    type Captured = (usize, &'i U);
+    type Captured = (usize, U::Slice);
     type Internal = (usize, usize, usize);
 
     #[inline]
@@ -147,7 +151,7 @@ where
             }
 
             *n_primaries = ctr;
-            *winged_off = delim_delta + U::len_of(item); // the offset of `<<<{`
+            *winged_off = delim_delta + slice.len_of(item); // the offset of `<<<{`
             *winged_content_off = *winged_off;
         }
 
@@ -166,7 +170,7 @@ where
             *winged_content_off += content_delta; // the offset of `<<<{ ... `
 
             // Total offset of the consumed input, currently only `<<<{ ... }`.
-            let mut offset = *winged_content_off + U::len_of(self.secondary_end);
+            let mut offset = *winged_content_off + slice.len_of(self.secondary_end);
 
             // Taking `>` at most n_primaries (= ctr + 1) times.
             let m_primaries = match slice
@@ -179,7 +183,7 @@ where
             {
                 None => 0,
                 Some((ctr, (delim_delta, _))) => {
-                    offset += delim_delta + U::len_of(self.primary_end); // the offset of `<<<{ ... }>>>`, or possibly `<<<{ ... }>` etc.
+                    offset += delim_delta + slice.len_of(self.primary_end); // the offset of `<<<{ ... }>>>`, or possibly `<<<{ ... }>` etc.
                     ctr + 1
                 }
             };
@@ -201,7 +205,7 @@ where
         }
     }
     #[inline]
-    fn extract(&self, slice: &'i U, entry: Self::Internal) -> Self::Captured {
+    fn extract(&self, slice: &U, entry: Self::Internal) -> Self::Captured {
         let (n_primaries, winged_off, winged_content_off) = entry;
 
         (n_primaries, slice.subslice(winged_off..winged_content_off))
@@ -212,7 +216,9 @@ where
 
 pub struct WingedFlipped<U, const STRICT: bool>
 where
-    U: ?Sized + ThinSlice,
+    U: ThinSlice,
+    U::Item: Copy + EqAsciiIgnoreCase,
+    U::Slice: Memmem + MemchrImpl<Item = U::Item>,
 {
     outer_start: U::Item,
     inner_start: U::Item,
@@ -220,12 +226,14 @@ where
     outer_end: U::Item,
 }
 
-impl<'i, U, E, const STRICT: bool> Pattern<'i, U, E> for WingedFlipped<U, STRICT>
+impl<U, E, const STRICT: bool> Pattern<U, E> for WingedFlipped<U, STRICT>
 where
-    U: ?Sized + ThinSlice + 'i,
+    U: ThinSlice,
+    U::Item: Copy + EqAsciiIgnoreCase,
+    U::Slice: Memmem + MemchrImpl<Item = U::Item>,
     E: Situation,
 {
-    type Captured = (usize, &'i U);
+    type Captured = (usize, U::Slice);
     type Internal = (usize, usize, usize);
 
     #[inline]
@@ -246,7 +254,7 @@ where
                 return E::raise_reject_at(0);
             }
 
-            let first_off = U::len_of(self.outer_start); // the offset of `{`
+            let first_off = slice.len_of(self.outer_start); // the offset of `{`
 
             // Skipping `<` `ctr` times.
             let Some((ctr, (delim_delta, _))) = slice
@@ -280,7 +288,7 @@ where
                     true => E::raise_halt_at(slice.len()),
                     false => {
                         // Step conservatively to ensure the end sequence is not missed.
-                        *winged_content_off = slice.len().saturating_sub(*n_inners * U::len_of(self.inner_end));
+                        *winged_content_off = slice.len().saturating_sub(*n_inners * slice.len_of(self.inner_end));
                         E::raise_unfulfilled(None)
                     }
                 };
@@ -289,7 +297,7 @@ where
             let winged_content_winner_off = *winged_content_off + content_delim_delta; // the offset of `{<<< ... ???`
 
             // Total offset of the consumed input, currently is `{<<< ... ???}`.
-            let offset = winged_content_winner_off + U::len_of(self.outer_end);
+            let offset = winged_content_winner_off + slice.len_of(self.outer_end);
 
             // Taking `>` (`???`) at most n_inners (= ctr + 1) times in reversed order.
             let (m_inners, real_winged_content_off) = match slice
@@ -316,7 +324,7 @@ where
         }
     }
     #[inline]
-    fn extract(&self, slice: &'i U, entry: Self::Internal) -> Self::Captured {
+    fn extract(&self, slice: &U, entry: Self::Internal) -> Self::Captured {
         let (n_inners, winged_off, winged_content_off) = entry;
 
         (n_inners, slice.subslice(winged_off..winged_content_off))
@@ -325,92 +333,92 @@ where
 
 //------------------------------------------------------------------------------
 
-#[cfg(test)]
-mod tests {
-    use super::*;
+// #[cfg(test)]
+// mod tests {
+//     use super::*;
 
-    #[test]
-    fn test_winged() {
-        test_full_match(
-            winged3::<str, true>('＜', '｛', '｝', '＞'),
-            vec![
-                ("＜｛ＫＡＥ｝＞", Ok((1, "ＫＡＥ"))),
-                ("＜＜｛ＫＡＥ｝＞＞", Ok((2, "ＫＡＥ"))),
-                ("＜＜｛ＫＡＥ｝｝＞＞", Ok((2, "ＫＡＥ｝"))),
-                ("＜＜｛ＫＡＥ｝＞｝＞＞", Ok((2, "ＫＡＥ｝＞"))),
-                ("＜＜｛＜｛ＫＡＥ｝＞｝＞＞", Ok((2, "＜｛ＫＡＥ｝＞"))),
-                ("｛ＫＡＥ", Err(0 * 3)),
-                ("｛ＫＡＥ｝", Err(0 * 3)),
-                ("ＫＡＥ｝", Err(0 * 3)),
-                ("＜ＫＡＥ｝", Err(1 * 3)),
-                ("＜ＫＡＥ＞", Err(1 * 3)),
-                ("＜｛ＫＡＥ｝", Err(6 * 3)),
-                ("＜＜｛ＫＡＥ｝＞", Err(8 * 3)),
-                ("＜｛ＫＡＥ｝＞｝＞", Err(7 * 3)),
-            ],
-        );
-        test_full_match(
-            winged3::<str, false>('＜', '｛', '｝', '＞'),
-            vec![
-                ("｛ＫＡＥ", Err(4 * 3)),
-                ("｛ＫＡＥ｝", Ok((0, "ＫＡＥ"))),
-                ("｛ＫＡＥ＞｝", Ok((0, "ＫＡＥ＞"))),
-            ],
-        );
-        test_partial_match(
-            winged3::<str, true>('＜', '｛', '｝', '＞'),
-            vec![
-                ("｛ＫＡＥ｝＞", Err(0 * 3)),
-                ("＜｛ＫＡＥ｝＞｝＞", Ok(((1, "ＫＡＥ"), "｝＞"))),
-                ("＜＜｛ＫＡＥ｝＞＞｝＃", Ok(((2, "ＫＡＥ"), "｝＃"))),
-            ],
-        );
-        test_partial_match(
-            winged3::<str, false>('＜', '｛', '｝', '＞'),
-            vec![("｛ＫＡＥ｝＞", Ok(((0, "ＫＡＥ"), "＞")))],
-        );
-    }
+//     #[test]
+//     fn test_winged() {
+//         test_full_match(
+//             winged3::<str, true>('＜', '｛', '｝', '＞'),
+//             vec![
+//                 ("＜｛ＫＡＥ｝＞", Ok((1, "ＫＡＥ"))),
+//                 ("＜＜｛ＫＡＥ｝＞＞", Ok((2, "ＫＡＥ"))),
+//                 ("＜＜｛ＫＡＥ｝｝＞＞", Ok((2, "ＫＡＥ｝"))),
+//                 ("＜＜｛ＫＡＥ｝＞｝＞＞", Ok((2, "ＫＡＥ｝＞"))),
+//                 ("＜＜｛＜｛ＫＡＥ｝＞｝＞＞", Ok((2, "＜｛ＫＡＥ｝＞"))),
+//                 ("｛ＫＡＥ", Err(0 * 3)),
+//                 ("｛ＫＡＥ｝", Err(0 * 3)),
+//                 ("ＫＡＥ｝", Err(0 * 3)),
+//                 ("＜ＫＡＥ｝", Err(1 * 3)),
+//                 ("＜ＫＡＥ＞", Err(1 * 3)),
+//                 ("＜｛ＫＡＥ｝", Err(6 * 3)),
+//                 ("＜＜｛ＫＡＥ｝＞", Err(8 * 3)),
+//                 ("＜｛ＫＡＥ｝＞｝＞", Err(7 * 3)),
+//             ],
+//         );
+//         test_full_match(
+//             winged3::<str, false>('＜', '｛', '｝', '＞'),
+//             vec![
+//                 ("｛ＫＡＥ", Err(4 * 3)),
+//                 ("｛ＫＡＥ｝", Ok((0, "ＫＡＥ"))),
+//                 ("｛ＫＡＥ＞｝", Ok((0, "ＫＡＥ＞"))),
+//             ],
+//         );
+//         test_partial_match(
+//             winged3::<str, true>('＜', '｛', '｝', '＞'),
+//             vec![
+//                 ("｛ＫＡＥ｝＞", Err(0 * 3)),
+//                 ("＜｛ＫＡＥ｝＞｝＞", Ok(((1, "ＫＡＥ"), "｝＞"))),
+//                 ("＜＜｛ＫＡＥ｝＞＞｝＃", Ok(((2, "ＫＡＥ"), "｝＃"))),
+//             ],
+//         );
+//         test_partial_match(
+//             winged3::<str, false>('＜', '｛', '｝', '＞'),
+//             vec![("｛ＫＡＥ｝＞", Ok(((0, "ＫＡＥ"), "＞")))],
+//         );
+//     }
 
-    #[test]
-    fn test_winged_flipped() {
-        test_full_match(
-            winged3_flipped::<str, true>('｛', '＜', '＞', '｝'),
-            vec![
-                ("｛＜ＫＡＥ＞｝", Ok((1, "ＫＡＥ"))),
-                ("｛＜＜ＫＡＥ＞＞｝", Ok((2, "ＫＡＥ"))),
-                ("｛＜＜ＫＡＥ＞＞＞｝", Ok((2, "ＫＡＥ＞"))),
-                ("｛＜＜ＫＡＥ＞｝＞＞｝", Ok((2, "ＫＡＥ＞｝"))),
-                ("｛＜＜ＫＡＥ＞＞＞＞｝", Ok((2, "ＫＡＥ＞＞"))),
-                ("｛＜＜＜ＫＡＥ＞＞＞｝", Ok((3, "ＫＡＥ"))),
-                ("｛＜ＫＡＥ＞＞｝", Ok((1, "ＫＡＥ＞"))),
-                ("｛ＫＡＥ｝", Err(0 * 3)),
-                ("｛ＫＡＥ＞｝", Err(0 * 3)),
-                ("ＫＡＥ｝", Err(0 * 3)),
-                ("｛ＫＡＥ｝＞", Err(0 * 3)),
-                ("｛＜ＫＡＥ｝", Err(6 * 3)),
-                ("｛＜＜ＫＡＥ｝", Err(7 * 3)),
-                ("｛＜＜ＫＡＥ＞｝", Err(8 * 3)),
-            ],
-        );
-        test_full_match(
-            winged3_flipped::<str, false>('｛', '＜', '＞', '｝'),
-            vec![
-                ("｛ＫＡＥ｝＞", Err(5 * 3)),
-                ("｛ＫＡＥ｝", Ok((0, "ＫＡＥ"))),
-                ("｛ＫＡＥ＞｝", Ok((0, "ＫＡＥ＞"))),
-            ],
-        );
-        test_partial_match(
-            winged3_flipped::<str, true>('｛', '＜', '＞', '｝'),
-            vec![
-                ("｛ＫＡＥ｝＞", Err(0 * 3)),
-                ("｛＜ＫＡＥ＞｝＞", Ok(((1, "ＫＡＥ"), "＞"))),
-                ("｛＜＜ＫＡＥ＞＞｝＞＃", Ok(((2, "ＫＡＥ"), "＞＃"))),
-            ],
-        );
-        test_partial_match(
-            winged3_flipped::<str, false>('｛', '＜', '＞', '｝'),
-            vec![("｛ＫＡＥ｝＞", Ok(((0, "ＫＡＥ"), "＞")))],
-        );
-    }
-}
+//     #[test]
+//     fn test_winged_flipped() {
+//         test_full_match(
+//             winged3_flipped::<str, true>('｛', '＜', '＞', '｝'),
+//             vec![
+//                 ("｛＜ＫＡＥ＞｝", Ok((1, "ＫＡＥ"))),
+//                 ("｛＜＜ＫＡＥ＞＞｝", Ok((2, "ＫＡＥ"))),
+//                 ("｛＜＜ＫＡＥ＞＞＞｝", Ok((2, "ＫＡＥ＞"))),
+//                 ("｛＜＜ＫＡＥ＞｝＞＞｝", Ok((2, "ＫＡＥ＞｝"))),
+//                 ("｛＜＜ＫＡＥ＞＞＞＞｝", Ok((2, "ＫＡＥ＞＞"))),
+//                 ("｛＜＜＜ＫＡＥ＞＞＞｝", Ok((3, "ＫＡＥ"))),
+//                 ("｛＜ＫＡＥ＞＞｝", Ok((1, "ＫＡＥ＞"))),
+//                 ("｛ＫＡＥ｝", Err(0 * 3)),
+//                 ("｛ＫＡＥ＞｝", Err(0 * 3)),
+//                 ("ＫＡＥ｝", Err(0 * 3)),
+//                 ("｛ＫＡＥ｝＞", Err(0 * 3)),
+//                 ("｛＜ＫＡＥ｝", Err(6 * 3)),
+//                 ("｛＜＜ＫＡＥ｝", Err(7 * 3)),
+//                 ("｛＜＜ＫＡＥ＞｝", Err(8 * 3)),
+//             ],
+//         );
+//         test_full_match(
+//             winged3_flipped::<str, false>('｛', '＜', '＞', '｝'),
+//             vec![
+//                 ("｛ＫＡＥ｝＞", Err(5 * 3)),
+//                 ("｛ＫＡＥ｝", Ok((0, "ＫＡＥ"))),
+//                 ("｛ＫＡＥ＞｝", Ok((0, "ＫＡＥ＞"))),
+//             ],
+//         );
+//         test_partial_match(
+//             winged3_flipped::<str, true>('｛', '＜', '＞', '｝'),
+//             vec![
+//                 ("｛ＫＡＥ｝＞", Err(0 * 3)),
+//                 ("｛＜ＫＡＥ＞｝＞", Ok(((1, "ＫＡＥ"), "＞"))),
+//                 ("｛＜＜ＫＡＥ＞＞｝＞＃", Ok(((2, "ＫＡＥ"), "＞＃"))),
+//             ],
+//         );
+//         test_partial_match(
+//             winged3_flipped::<str, false>('｛', '＜', '＞', '｝'),
+//             vec![("｛ＫＡＥ｝＞", Ok(((0, "ＫＡＥ"), "＞")))],
+//         );
+//     }
+// }
