@@ -85,8 +85,8 @@ pub trait Slice {
     fn len_of(item: Self::Item) -> usize;
     fn starts_with(&self, prefix: &Self) -> bool;
 
-    fn iter(&self) -> impl Iterator<Item = Self::Item> + DoubleEndedIterator;
-    fn iter_indices(&self) -> impl Iterator<Item = (usize, Self::Item)> + DoubleEndedIterator;
+    fn iter(&self) -> impl DoubleEndedIterator<Item = Self::Item>;
+    fn iter_indices(&self) -> impl DoubleEndedIterator<Item = (usize, Self::Item)>;
     fn split_at(&self, mid: usize) -> (&Self, &Self);
     fn subslice(&self, range: Range<usize>) -> &Self;
 
@@ -134,11 +134,11 @@ impl Slice for str {
     }
 
     #[inline]
-    fn iter(&self) -> impl Iterator<Item = Self::Item> + DoubleEndedIterator {
+    fn iter(&self) -> impl DoubleEndedIterator<Item = Self::Item> {
         self.chars()
     }
     #[inline]
-    fn iter_indices(&self) -> impl Iterator<Item = (usize, Self::Item)> + DoubleEndedIterator {
+    fn iter_indices(&self) -> impl DoubleEndedIterator<Item = (usize, Self::Item)> {
         self.char_indices()
     }
     #[inline]
@@ -171,11 +171,11 @@ where
     }
 
     #[inline]
-    fn iter(&self) -> impl Iterator<Item = Self::Item> + DoubleEndedIterator {
+    fn iter(&self) -> impl DoubleEndedIterator<Item = Self::Item> {
         (*self).iter().copied()
     }
     #[inline]
-    fn iter_indices(&self) -> impl Iterator<Item = (usize, Self::Item)> + DoubleEndedIterator {
+    fn iter_indices(&self) -> impl DoubleEndedIterator<Item = (usize, Self::Item)> {
         (*self).iter().copied().enumerate()
     }
     #[inline]
@@ -658,7 +658,6 @@ macro_rules! __resume_advance {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::tester::*;
 
     const TEST_VECTOR: &str = "Hello🌍! 测试: 中文「你好」+ 日文「こんにちは」+ 韩文「안녕하세요」 ∑(π²) ≠ √∞ €¥₹$ Āãêī [] ♔♛♝ ♠♥♦♣ ก้้้้้้้้้้้้้้้้้้้ 𐐷 ( ͡° ͜ʖ ͡°) ⟰⏳⌘";
 

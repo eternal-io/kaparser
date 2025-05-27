@@ -126,8 +126,7 @@ where
             let Some((ctr, (delim_delta, item))) = slice
                 .iter_indices()
                 .enumerate()
-                .skip_while(|(_ctr, (_off, item))| *item == self.primary_start)
-                .next()
+                .find(|(_ctr, (_off, item))| *item != self.primary_start)
             else {
                 // This slice consists only of repeated `<`.
                 return match eof {
@@ -253,8 +252,7 @@ where
                 .after(first_off)
                 .iter_indices()
                 .enumerate()
-                .skip_while(|(_ctr, (_off, item))| *item == self.inner_start)
-                .next()
+                .find(|(_ctr, (_off, item))| *item != self.inner_start)
             else {
                 // The item other than `<` is not encountered, the start sequence may not be completed yet.
                 return match eof {
