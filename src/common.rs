@@ -91,6 +91,7 @@ pub trait Slice {
     type IterIndices: Iterator<Item = (usize, Self::Item)> + DoubleEndedIterator;
 
     fn bump(&mut self, n: usize);
+    fn rest(&self) -> Self::Slice;
 
     fn len(&self) -> usize;
     fn len_of(&self, item: Self::Item) -> usize;
@@ -129,6 +130,10 @@ impl<'i> Slice for &'i str {
     #[inline]
     fn bump(&mut self, n: usize) {
         *self = self.after(n);
+    }
+    #[inline]
+    fn rest(&self) -> Self::Slice {
+        *self
     }
 
     #[inline]
@@ -174,6 +179,10 @@ where
     #[inline]
     fn bump(&mut self, n: usize) {
         *self = self.after(n);
+    }
+    #[inline]
+    fn rest(&self) -> Self::Slice {
+        *self
     }
 
     #[inline]
@@ -254,34 +263,80 @@ pub struct StatefulSlice<U: Slice> {
 
 //------------------------------------------------------------------------------
 
-pub trait ThinSlice: Slice {
-    fn as_bytes(&self) -> &[u8];
-    fn eq_ignore_ascii_case(left: Self::Item, right: Self::Item) -> bool;
+pub trait ThinSlice: Slice
+where
+    Self::Item: Copy + EqAsciiIgnoreCase,
+    Self::Slice: Memmem + MemchrImpl<Item = Self::Item>,
+{
+    #[inline]
+    fn memchr(&self, needle: &dyn Needlable<Self::Item, Self::Slice>) -> Option<(usize, Self::Item)> {
+        needle.memchr_invoke(self.rest())
+    }
+}
+
+impl<'i> ThinSlice for &'i str {}
+impl<'i> ThinSlice for &'i [u8] {}
+
+pub trait EqAsciiIgnoreCase {
+    fn eq_ignore_ascii_case(&self, other: &Self) -> bool;
+}
+impl EqAsciiIgnoreCase for char {
+    #[inline]
+    fn eq_ignore_ascii_case(&self, other: &Self) -> bool {
+        self.eq_ignore_ascii_case(other)
+    }
+}
+impl EqAsciiIgnoreCase for u8 {
+    #[inline]
+    fn eq_ignore_ascii_case(&self, other: &Self) -> bool {
+        self.eq_ignore_ascii_case(other)
+    }
+}
+
+pub trait Memmem {
+    fn memmem(&self, needle: &Self) -> Option<usize>;
+}
+impl<S: AsRef<[u8]>> Memmem for S {
+    #[inline]
+    fn memmem(&self, needle: &Self) -> Option<usize> {
+        memchr::memmem::find(self.as_ref(), needle.as_ref())
+    }
+}
+
+pub trait Needlable<T: Copy, U: MemchrImpl<Item = T>>: Sealed {
+    fn memchr_invoke(&self, haystack: U) -> Option<(usize, T)>;
+}
+impl<T: Copy, U: MemchrImpl<Item = T>> Needlable<T, U> for [T; 1] {
+    #[inline]
+    fn memchr_invoke(&self, haystack: U) -> Option<(usize, T)> {
+        haystack.memchr1_impl(self[0])
+    }
+}
+impl<T: Copy, U: MemchrImpl<Item = T>> Needlable<T, U> for [T; 2] {
+    #[inline]
+    fn memchr_invoke(&self, haystack: U) -> Option<(usize, T)> {
+        haystack.memchr2_impl(self[0], self[1])
+    }
+}
+impl<T: Copy, U: MemchrImpl<Item = T>> Needlable<T, U> for [T; 3] {
+    #[inline]
+    fn memchr_invoke(&self, haystack: U) -> Option<(usize, T)> {
+        haystack.memchr3_impl(self[0], self[1], self[2])
+    }
+}
+
+//------------------------------------------------------------------------------
+
+pub trait MemchrImpl {
+    type Item;
 
     fn memchr1_impl(&self, a: Self::Item) -> Option<(usize, Self::Item)>;
     fn memchr2_impl(&self, a: Self::Item, b: Self::Item) -> Option<(usize, Self::Item)>;
     fn memchr3_impl(&self, a: Self::Item, b: Self::Item, c: Self::Item) -> Option<(usize, Self::Item)>;
-
-    #[inline]
-    fn memchr<X: Needlable<Self>>(&self, needle: X) -> Option<(usize, Self::Item)> {
-        needle.memchr_invoke(self)
-    }
-
-    #[inline]
-    fn memmem(&self, needle: &Self) -> Option<usize> {
-        memchr::memmem::find(self.as_bytes(), needle.as_bytes())
-    }
 }
 
-impl<'i> ThinSlice for &'i str {
-    #[inline]
-    fn as_bytes(&self) -> &[u8] {
-        (*self).as_bytes()
-    }
-    #[inline]
-    fn eq_ignore_ascii_case(left: Self::Item, right: Self::Item) -> bool {
-        left.eq_ignore_ascii_case(&right)
-    }
+impl MemchrImpl for &str {
+    type Item = char;
 
     #[inline]
     fn memchr1_impl(&self, a: Self::Item) -> Option<(usize, Self::Item)> {
@@ -333,15 +388,8 @@ impl<'i> ThinSlice for &'i str {
     }
 }
 
-impl<'i> ThinSlice for &'i [u8] {
-    #[inline]
-    fn as_bytes(&self) -> &[u8] {
-        *self
-    }
-    #[inline]
-    fn eq_ignore_ascii_case(left: Self::Item, right: Self::Item) -> bool {
-        left.eq_ignore_ascii_case(&right)
-    }
+impl MemchrImpl for &[u8] {
+    type Item = u8;
 
     #[inline]
     fn memchr1_impl(&self, a: Self::Item) -> Option<(usize, Self::Item)> {
@@ -367,31 +415,6 @@ impl<'i> ThinSlice for &'i [u8] {
             needle if needle == c => (pos, c),
             _ => unsafe { core::hint::unreachable_unchecked() },
         })
-    }
-}
-
-//------------------------------------------------------------------------------
-
-pub trait Needlable<U: ?Sized + ThinSlice>: Clone + Sealed {
-    fn memchr_invoke(&self, haystack: &U) -> Option<(usize, U::Item)>;
-}
-
-impl<U: ?Sized + ThinSlice> Needlable<U> for [U::Item; 1] {
-    #[inline]
-    fn memchr_invoke(&self, haystack: &U) -> Option<(usize, U::Item)> {
-        haystack.memchr1_impl(self[0].clone())
-    }
-}
-impl<U: ?Sized + ThinSlice> Needlable<U> for [U::Item; 2] {
-    #[inline]
-    fn memchr_invoke(&self, haystack: &U) -> Option<(usize, U::Item)> {
-        haystack.memchr2_impl(self[0].clone(), self[1].clone())
-    }
-}
-impl<U: ?Sized + ThinSlice> Needlable<U> for [U::Item; 3] {
-    #[inline]
-    fn memchr_invoke(&self, haystack: &U) -> Option<(usize, U::Item)> {
-        haystack.memchr3_impl(self[0].clone(), self[1].clone(), self[2].clone())
     }
 }
 

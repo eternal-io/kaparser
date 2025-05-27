@@ -35,7 +35,7 @@ use core::marker::PhantomData;
 
 // pub mod control;
 
-// pub mod convert;
+pub mod convert;
 
 // pub mod modifier;
 
