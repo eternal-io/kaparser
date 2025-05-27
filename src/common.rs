@@ -1,4 +1,7 @@
-use core::ops::{RangeFrom, RangeFull, RangeInclusive, RangeTo, RangeToInclusive};
+use core::{
+    fmt::Debug,
+    ops::{RangeFrom, RangeFull, RangeInclusive, RangeTo, RangeToInclusive},
+};
 
 #[doc(hidden)]
 pub use paste::paste;
@@ -78,17 +81,17 @@ mod urange_bounds {
 
 //------------------------------------------------------------------------------
 
-pub trait Slice {
-    type Item: Copy + PartialEq;
+pub trait Slice: Copy {
+    type Item: Debug + Clone + PartialEq;
 
     fn len(&self) -> usize;
     fn len_of(item: Self::Item) -> usize;
     fn starts_with(&self, prefix: &Self) -> bool;
 
-    fn iter(&self) -> impl Iterator<Item = Self::Item> + DoubleEndedIterator;
-    fn iter_indices(&self) -> impl Iterator<Item = (usize, Self::Item)> + DoubleEndedIterator;
-    fn split_at(&self, mid: usize) -> (&Self, &Self);
-    fn subslice(&self, range: Range<usize>) -> &Self;
+    fn iter(&self) -> impl DoubleEndedIterator<Item = Self::Item>;
+    fn iter_indices(&self) -> impl DoubleEndedIterator<Item = (usize, Self::Item)>;
+    fn split_at(&self, mid: usize) -> (Self, Self);
+    fn subslice(&self, range: Range<usize>) -> Self;
 
     #[inline]
     fn is_empty(&self) -> bool {
@@ -100,24 +103,24 @@ pub trait Slice {
     }
 
     #[inline]
-    fn before(&self, off: usize) -> &Self {
+    fn before(&self, off: usize) -> Self {
         self.split_at(off).0
     }
     #[inline]
-    fn after(&self, off: usize) -> &Self {
+    fn after(&self, off: usize) -> Self {
         self.split_at(off).1
     }
 
-    #[inline]
-    fn make_stateful(&self) -> StatefulSlice<Self> {
-        StatefulSlice {
-            source: self,
-            consumed: 0,
-        }
-    }
+    // #[inline]
+    // fn make_stateful(&self) -> StatefulSlice<Self> {
+    //     StatefulSlice {
+    //         source: self,
+    //         consumed: 0,
+    //     }
+    // }
 }
 
-impl Slice for str {
+impl<'i> Slice for &'i str {
     type Item = char;
 
     #[inline]
@@ -134,26 +137,26 @@ impl Slice for str {
     }
 
     #[inline]
-    fn iter(&self) -> impl Iterator<Item = Self::Item> + DoubleEndedIterator {
+    fn iter(&self) -> impl DoubleEndedIterator<Item = Self::Item> {
         self.chars()
     }
     #[inline]
-    fn iter_indices(&self) -> impl Iterator<Item = (usize, Self::Item)> + DoubleEndedIterator {
+    fn iter_indices(&self) -> impl DoubleEndedIterator<Item = (usize, Self::Item)> {
         self.char_indices()
     }
     #[inline]
-    fn split_at(&self, mid: usize) -> (&Self, &Self) {
+    fn split_at(&self, mid: usize) -> (Self, Self) {
         (*self).split_at(mid)
     }
     #[inline]
-    fn subslice(&self, range: Range<usize>) -> &Self {
+    fn subslice(&self, range: Range<usize>) -> Self {
         &self[range]
     }
 }
 
-impl<T> Slice for [T]
+impl<'i, T> Slice for &'i [T]
 where
-    T: Copy + PartialEq,
+    T: Debug + Clone + PartialEq,
 {
     type Item = T;
 
@@ -171,52 +174,46 @@ where
     }
 
     #[inline]
-    fn iter(&self) -> impl Iterator<Item = Self::Item> + DoubleEndedIterator {
-        (*self).iter().copied()
+    fn iter(&self) -> impl DoubleEndedIterator<Item = Self::Item> {
+        (*self).iter().cloned()
     }
     #[inline]
-    fn iter_indices(&self) -> impl Iterator<Item = (usize, Self::Item)> + DoubleEndedIterator {
-        (*self).iter().copied().enumerate()
+    fn iter_indices(&self) -> impl DoubleEndedIterator<Item = (usize, Self::Item)> {
+        (*self).iter().cloned().enumerate()
     }
     #[inline]
-    fn split_at(&self, mid: usize) -> (&Self, &Self) {
+    fn split_at(&self, mid: usize) -> (Self, Self) {
         (*self).split_at(mid)
     }
     #[inline]
-    fn subslice(&self, range: Range<usize>) -> &Self {
+    fn subslice(&self, range: Range<usize>) -> Self {
         &self[range]
     }
 }
 
 //------------------------------------------------------------------------------
 
-pub trait DynamicSlice<'i, U>
-where
-    U: ?Sized + Slice + 'i,
-{
-    fn bump(&mut self, n: usize) -> &'i U;
-    fn rest(&self) -> &'i U;
-    fn source(&self) -> &'i U;
+pub trait DynamicSlice<U: Slice> {
+    fn bump(&mut self, n: usize) -> U;
+    fn rest(&self) -> U;
+    fn source(&self) -> U;
     fn consumed(&self) -> usize;
 }
 
-impl<'i, U> DynamicSlice<'i, U> for &'i U
-where
-    U: ?Sized + Slice + 'i,
-{
+impl<U: Slice> DynamicSlice<U> for U {
     #[inline]
-    fn bump(&mut self, n: usize) -> &'i U {
+    fn bump(&mut self, n: usize) -> U {
         let work = self.rest();
         *self = self.after(n);
         work
     }
     #[inline]
-    fn rest(&self) -> &'i U {
-        self
+    fn rest(&self) -> U {
+        *self
     }
     #[inline]
-    fn source(&self) -> &'i U {
-        self
+    fn source(&self) -> U {
+        *self
     }
     #[inline]
     fn consumed(&self) -> usize {
@@ -224,22 +221,19 @@ where
     }
 }
 
-impl<'i, U> DynamicSlice<'i, U> for StatefulSlice<'i, U>
-where
-    U: ?Sized + Slice + 'i,
-{
+impl<U: Slice> DynamicSlice<U> for StatefulSlice<U> {
     #[inline]
-    fn bump(&mut self, n: usize) -> &'i U {
+    fn bump(&mut self, n: usize) -> U {
         let work = self.rest();
         self.consumed += n;
         work
     }
     #[inline]
-    fn rest(&self) -> &'i U {
+    fn rest(&self) -> U {
         self.source.after(self.consumed)
     }
     #[inline]
-    fn source(&self) -> &'i U {
+    fn source(&self) -> U {
         self.source
     }
     #[inline]
@@ -248,11 +242,8 @@ where
     }
 }
 
-pub struct StatefulSlice<'i, U>
-where
-    U: ?Sized + Slice + 'i,
-{
-    source: &'i U,
+pub struct StatefulSlice<U: Slice> {
+    source: U,
     consumed: usize,
 }
 
@@ -277,10 +268,10 @@ pub trait ThinSlice: Slice {
     }
 }
 
-impl ThinSlice for str {
+impl<'i> ThinSlice for &'i str {
     #[inline]
     fn as_bytes(&self) -> &[u8] {
-        self.as_bytes()
+        (*self).as_bytes()
     }
     #[inline]
     fn eq_ignore_ascii_case(left: Self::Item, right: Self::Item) -> bool {
@@ -337,7 +328,7 @@ impl ThinSlice for str {
     }
 }
 
-impl ThinSlice for [u8] {
+impl<'i> ThinSlice for &'i [u8] {
     #[inline]
     fn as_bytes(&self) -> &[u8] {
         self
@@ -376,26 +367,26 @@ impl ThinSlice for [u8] {
 
 //------------------------------------------------------------------------------
 
-pub trait Needlable<U: ?Sized + ThinSlice>: Copy + Sealed {
+pub trait Needlable<U: ?Sized + ThinSlice>: Clone + Sealed {
     fn memchr_invoke(&self, haystack: &U) -> Option<(usize, U::Item)>;
 }
 
 impl<U: ?Sized + ThinSlice> Needlable<U> for [U::Item; 1] {
     #[inline]
     fn memchr_invoke(&self, haystack: &U) -> Option<(usize, U::Item)> {
-        haystack.memchr1_impl(self[0])
+        haystack.memchr1_impl(self[0].clone())
     }
 }
 impl<U: ?Sized + ThinSlice> Needlable<U> for [U::Item; 2] {
     #[inline]
     fn memchr_invoke(&self, haystack: &U) -> Option<(usize, U::Item)> {
-        haystack.memchr2_impl(self[0], self[1])
+        haystack.memchr2_impl(self[0].clone(), self[1].clone())
     }
 }
 impl<U: ?Sized + ThinSlice> Needlable<U> for [U::Item; 3] {
     #[inline]
     fn memchr_invoke(&self, haystack: &U) -> Option<(usize, U::Item)> {
-        haystack.memchr3_impl(self[0], self[1], self[2])
+        haystack.memchr3_impl(self[0].clone(), self[1].clone(), self[2].clone())
     }
 }
 
