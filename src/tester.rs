@@ -7,7 +7,7 @@ pub type FullMatchSamples<Cap> = Vec<(&'static str, Result<Cap, usize>)>;
 pub type PartialMatchSamples<Cap> = Vec<(&'static str, Result<(Cap, &'static str), usize>)>;
 
 pub fn test_full_match<'i, Cap: Debug + PartialEq>(
-    pattern: impl Pattern<'i, str, SimpleError, Captured = Cap>,
+    pattern: impl Pattern<&'i str, SimpleError, Captured = Cap>,
     samples: FullMatchSamples<Cap>,
 ) {
     let mut ok_flag = true;
@@ -58,7 +58,7 @@ pub fn test_full_match<'i, Cap: Debug + PartialEq>(
 }
 
 pub fn test_partial_match<'i, Cap: Debug + PartialEq>(
-    pattern: impl Pattern<'i, str, SimpleError, Captured = Cap>,
+    pattern: impl Pattern<&'i str, SimpleError, Captured = Cap>,
     samples: PartialMatchSamples<Cap>,
 ) {
     let mut ok_flag = true;

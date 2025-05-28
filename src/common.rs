@@ -1,6 +1,6 @@
 use core::{
     fmt::Debug,
-    iter::{Cloned, Enumerate},
+    iter::{Cloned, Enumerate, Rev},
     ops::{Deref, DerefMut, RangeFrom, RangeFull, RangeInclusive, RangeTo, RangeToInclusive},
     slice::Iter,
     str::{CharIndices, Chars},
@@ -85,56 +85,71 @@ mod urange_bounds {
 //------------------------------------------------------------------------------
 
 pub trait Slice {
-    type Slice;
+    type Part;
     type Item: Debug + Clone + PartialEq;
-    type Iter: Iterator<Item = Self::Item> + DoubleEndedIterator;
-    type IterIndices: Iterator<Item = (usize, Self::Item)> + DoubleEndedIterator;
-
-    fn bump(&mut self, n: usize);
-    fn rest(&self) -> Self::Slice;
+    type Iter: DoubleEndedIterator<Item = Self::Item>;
+    type IterIndices: DoubleEndedIterator<Item = (usize, Self::Item)>;
 
     fn len(&self) -> usize;
     fn len_of(&self, item: Self::Item) -> usize;
-    fn starts_with(&self, prefix: Self::Slice) -> bool;
+
+    fn bump(&mut self, n: usize);
+    fn rest(&self) -> Self::Part;
+
+    fn subslice(&self, range: Range<usize>) -> Self::Part;
+    fn split_at(&self, mid: usize) -> (Self::Part, Self::Part);
 
     fn iter(&self) -> Self::Iter;
+    fn iter_bidi(&self, mid: usize) -> (Rev<Self::Iter>, Self::Iter);
+
     fn iter_indices(&self) -> Self::IterIndices;
-    fn split_at(&self, mid: usize) -> (Self::Slice, Self::Slice);
-    fn subslice(&self, range: Range<usize>) -> Self::Slice;
+    fn iter_indices_bidi(&self, mid: usize) -> (Rev<Self::IterIndices>, Self::IterIndices);
+
+    fn starts_with(&self, prefix: &Self::Part) -> bool;
 
     #[inline]
     fn is_empty(&self) -> bool {
         self.len() == 0
     }
+
     #[inline]
     fn first(&self) -> Option<Self::Item> {
         self.iter().next()
     }
 
     #[inline]
-    fn before(&self, off: usize) -> Self::Slice {
-        self.split_at(off).0
+    fn after(&self, off: usize) -> Self::Part {
+        self.split_at(off).1
     }
     #[inline]
-    fn after(&self, off: usize) -> Self::Slice {
-        self.split_at(off).1
+    fn before(&self, off: usize) -> Self::Part {
+        self.split_at(off).0
+    }
+
+    #[inline]
+    fn iter_ahead(&self, off: usize) -> Self::Iter {
+        self.iter_bidi(off).1
+    }
+    #[inline]
+    fn iter_behind(&self, off: usize) -> Rev<Self::Iter> {
+        self.iter_bidi(off).0
+    }
+
+    #[inline]
+    fn iter_indices_ahead(&self, off: usize) -> Self::IterIndices {
+        self.iter_indices_bidi(off).1
+    }
+    #[inline]
+    fn iter_indices_behind(&self, off: usize) -> Rev<Self::IterIndices> {
+        self.iter_indices_bidi(off).0
     }
 }
 
 impl<'i> Slice for &'i str {
-    type Slice = &'i str;
+    type Part = &'i str;
     type Item = char;
     type Iter = Chars<'i>;
     type IterIndices = CharIndices<'i>;
-
-    #[inline]
-    fn bump(&mut self, n: usize) {
-        *self = self.after(n);
-    }
-    #[inline]
-    fn rest(&self) -> Self::Slice {
-        *self
-    }
 
     #[inline]
     fn len(&self) -> usize {
@@ -144,26 +159,48 @@ impl<'i> Slice for &'i str {
     fn len_of(&self, item: Self::Item) -> usize {
         item.len_utf8()
     }
+
     #[inline]
-    fn starts_with(&self, prefix: Self::Slice) -> bool {
-        (*self).starts_with(prefix)
+    fn bump(&mut self, n: usize) {
+        *self = &self[n..];
+    }
+    #[inline]
+    fn rest(&self) -> Self::Part {
+        *self
+    }
+
+    #[inline]
+    fn subslice(&self, range: Range<usize>) -> Self::Part {
+        &self[range]
+    }
+    #[inline]
+    fn split_at(&self, mid: usize) -> (Self::Part, Self::Part) {
+        (*self).split_at(mid)
     }
 
     #[inline]
     fn iter(&self) -> Self::Iter {
-        self.chars()
+        (*self).chars()
     }
+    #[inline]
+    fn iter_bidi(&self, mid: usize) -> (Rev<Self::Iter>, Self::Iter) {
+        let (before, after) = self.split_at(mid);
+        (before.chars().rev(), after.chars())
+    }
+
     #[inline]
     fn iter_indices(&self) -> Self::IterIndices {
-        self.char_indices()
+        (*self).char_indices()
     }
     #[inline]
-    fn split_at(&self, mid: usize) -> (Self::Slice, Self::Slice) {
-        (*self).split_at(mid)
+    fn iter_indices_bidi(&self, mid: usize) -> (Rev<Self::IterIndices>, Self::IterIndices) {
+        let (before, after) = self.split_at(mid);
+        (before.char_indices().rev(), after.char_indices())
     }
+
     #[inline]
-    fn subslice(&self, range: Range<usize>) -> Self::Slice {
-        &self[range]
+    fn starts_with(&self, prefix: &Self::Part) -> bool {
+        (*self).starts_with(prefix)
     }
 }
 
@@ -171,19 +208,10 @@ impl<'i, T> Slice for &'i [T]
 where
     T: Debug + Clone + PartialEq,
 {
-    type Slice = &'i [T];
+    type Part = &'i [T];
     type Item = T;
     type Iter = Cloned<Iter<'i, T>>;
     type IterIndices = Enumerate<Cloned<Iter<'i, T>>>;
-
-    #[inline]
-    fn bump(&mut self, n: usize) {
-        *self = self.after(n);
-    }
-    #[inline]
-    fn rest(&self) -> Self::Slice {
-        *self
-    }
 
     #[inline]
     fn len(&self) -> usize {
@@ -194,9 +222,23 @@ where
         let _ = item;
         1
     }
+
     #[inline]
-    fn starts_with(&self, prefix: Self::Slice) -> bool {
-        (*self).starts_with(prefix)
+    fn bump(&mut self, n: usize) {
+        *self = &self[n..];
+    }
+    #[inline]
+    fn rest(&self) -> Self::Part {
+        *self
+    }
+
+    #[inline]
+    fn subslice(&self, range: Range<usize>) -> Self::Part {
+        &self[range]
+    }
+    #[inline]
+    fn split_at(&self, mid: usize) -> (Self::Part, Self::Part) {
+        (*self).split_at(mid)
     }
 
     #[inline]
@@ -204,16 +246,27 @@ where
         (*self).iter().cloned()
     }
     #[inline]
+    fn iter_bidi(&self, mid: usize) -> (Rev<Self::Iter>, Self::Iter) {
+        let (before, after) = self.split_at(mid);
+        (before.iter().cloned().rev(), after.iter().cloned())
+    }
+
+    #[inline]
     fn iter_indices(&self) -> Self::IterIndices {
         (*self).iter().cloned().enumerate()
     }
     #[inline]
-    fn split_at(&self, mid: usize) -> (Self::Slice, Self::Slice) {
-        (*self).split_at(mid)
+    fn iter_indices_bidi(&self, mid: usize) -> (Rev<Self::IterIndices>, Self::IterIndices) {
+        let (before, after) = self.split_at(mid);
+        (
+            before.iter().cloned().enumerate().rev(),
+            after.iter().cloned().enumerate(),
+        )
     }
+
     #[inline]
-    fn subslice(&self, range: Range<usize>) -> Self::Slice {
-        &self[range]
+    fn starts_with(&self, prefix: &Self::Part) -> bool {
+        (*self).starts_with(prefix)
     }
 }
 
@@ -266,10 +319,10 @@ pub struct StatefulSlice<U: Slice> {
 pub trait ThinSlice: Slice
 where
     Self::Item: Copy + EqAsciiIgnoreCase,
-    Self::Slice: Memmem + MemchrImpl<Item = Self::Item>,
+    Self::Part: Memmem + MemchrImpl<Item = Self::Item>,
 {
     #[inline]
-    fn memchr(&self, needle: &dyn Needlable<Self::Item, Self::Slice>) -> Option<(usize, Self::Item)> {
+    fn memchr(&self, needle: &dyn Needlable<Self::Item, Self::Part>) -> Option<(usize, Self::Item)> {
         needle.memchr_invoke(self.rest())
     }
 }

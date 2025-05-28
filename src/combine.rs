@@ -1,7 +1,7 @@
 #![doc = include_str!("../docs/combinators.md")]
 
-// #[cfg(test)]
-// use crate::tester::*;
+#[cfg(test)]
+use crate::tester::*;
 use crate::{common::*, prelude::*};
 use core::marker::PhantomData;
 

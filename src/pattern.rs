@@ -268,7 +268,7 @@ where
     U: Slice,
     E: Situation,
 {
-    type Captured = U::Slice;
+    type Captured = U::Part;
     type Internal = ();
 
     #[inline]
@@ -333,6 +333,8 @@ where
 
 #[cfg(test)]
 mod tests {
+    use std::string::String;
+
     use crate::prelude::*;
 
     #[test]
@@ -356,5 +358,19 @@ mod tests {
         assert_eq!(pat.fullmatch("").unwrap_err().offset(), 0);
         assert_eq!(pat.fullmatch("AB").unwrap_err().offset(), 2);
         assert_eq!(pat.fullmatch("ABCD").unwrap(), "ABCD");
+    }
+
+    #[test]
+    fn test_lifetime() {
+        // let pat = opaque_simple("foobar");
+
+        const MSG: &'static str = "foobar";
+        let msging = String::from("foobar");
+        let msg = msging.as_str();
+
+        let pat = opaque_simple("foobar");
+
+        assert!(pat.fullmatch(MSG).is_ok());
+        assert!(pat.fullmatch(msg).is_ok());
     }
 }
