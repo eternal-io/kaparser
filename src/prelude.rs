@@ -4,8 +4,8 @@ pub use crate::pattern::{
     ParseResult,
     Pattern,
     // bin, def,
-    opaque,
-    opaque_simple,
+    // opaque,
+    // opaque_simple,
     token_set,
 };
 

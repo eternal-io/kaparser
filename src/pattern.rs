@@ -14,20 +14,20 @@ pub use crate::token_set;
 
 pub type ParseResult<T, E = SimpleError> = Result<T, E>;
 
+// #[inline]
+// pub const fn opaque<U, E, Cap>(pattern: impl Pattern<U, E, Captured = Cap>) -> impl Pattern<U, E, Captured = Cap>
+// where
+//     U: Stream,
+//     E: Situation,
+// {
+//     pattern
+// }
 #[inline]
-pub const fn opaque<U, E, Cap>(pattern: impl Pattern<U, E, Captured = Cap>) -> impl Pattern<U, E, Captured = Cap>
+pub const fn opaque_simple<'i, U, Cap>(
+    pattern: impl Pattern<U, SimpleError, Captured<'i> = Cap>,
+) -> impl Pattern<U, SimpleError, Captured<'i> = Cap>
 where
-    U: Slice,
-    E: Situation,
-{
-    pattern
-}
-#[inline]
-pub const fn opaque_simple<U, Cap>(
-    pattern: impl Pattern<U, SimpleError, Captured = Cap>,
-) -> impl Pattern<U, SimpleError, Captured = Cap>
-where
-    U: Slice,
+    U: ?Sized + Slice + 'static,
 {
     pattern
 }
@@ -36,50 +36,50 @@ where
 
 pub trait Pattern<U, E>
 where
-    U: Slice,
+    U: ?Sized + Slice + 'static,
     E: Situation,
 {
-    type Captured;
-    type Internal: 'static + Clone;
+    type Captured<'i>;
+    type Internal: 'static;
 
     fn init(&self) -> Self::Internal;
 
-    fn advance(&self, slice: &U, entry: &mut Self::Internal, eof: bool) -> Result<usize, E>;
+    fn advance<'i, S>(&self, slice: &S, entry: &mut Self::Internal) -> Result<Self::Captured<'i>, E>
+    where
+        S: Stream<'i, Part = U>;
 
-    fn extract(&self, slice: &U, entry: Self::Internal) -> Self::Captured;
-
-    fn inject_base_off(&self, entry: &mut Self::Internal, base_off: usize) {
-        let _ = (entry, base_off);
-    }
+    // fn inject_base_off(&self, entry: &mut Self::Internal, base_off: usize) {
+    //     let _ = (entry, base_off);
+    // }
 
     //------------------------------------------------------------------------------
 
-    #[inline]
-    fn parse(&self, slice: &mut dyn DynamicSlice<U>) -> Result<Self::Captured, E> {
-        let sli = slice.rest();
-        let off = slice.consumed();
-        let mut state = self.init();
-        match self.advance(sli, &mut state, true) {
-            Err(e) if e.is_unfulfilled() => panic!("implementation: pull after EOF"),
-            Err(e) => Err(e.backtrack(off)),
-            Ok(len) => {
-                self.inject_base_off(&mut state, off);
-                let cap = self.extract(sli, state);
-                slice.bump(len);
-                Ok(cap)
-            }
-        }
-    }
+    // #[inline]
+    // fn parse(&self, slice: &mut dyn DynamicSlice<U>) -> Result<Self::Captured, E> {
+    //     let sli = slice.rest();
+    //     let off = slice.consumed();
+    //     let mut state = self.init();
+    //     match self.advance(sli, &mut state, true) {
+    //         Err(e) if e.is_unfulfilled() => panic!("implementation: pull after EOF"),
+    //         Err(e) => Err(e.backtrack(off)),
+    //         Ok(len) => {
+    //             self.inject_base_off(&mut state, off);
+    //             let cap = self.extract(sli, state);
+    //             slice.bump(len);
+    //             Ok(cap)
+    //         }
+    //     }
+    // }
 
-    #[inline]
-    fn fullmatch(&self, mut slice: U) -> Result<Self::Captured, E> {
-        let len = slice.len();
-        let cap = self.parse(&mut slice)?;
-        match slice.len() {
-            0 => Ok(cap),
-            n => E::raise_halt_at(len - n),
-        }
-    }
+    // #[inline]
+    // fn fullmatch(&self, mut slice: U) -> Result<Self::Captured, E> {
+    //     let len = slice.len();
+    //     let cap = self.parse(&mut slice)?;
+    //     match slice.len() {
+    //         0 => Ok(cap),
+    //         n => E::raise_halt_at(len - n),
+    //     }
+    // }
 
     //------------------------------------------------------------------------------
 
@@ -265,112 +265,137 @@ where
 
 impl<U, E> Pattern<U, E> for U
 where
-    U: Slice,
+    U: ?Sized + Slice + 'static,
     E: Situation,
 {
-    type Captured = U::Part;
+    type Captured<'i> = &'i U;
     type Internal = ();
 
-    #[inline]
     fn init(&self) -> Self::Internal {}
 
-    #[inline]
-    fn advance(&self, slice: &U, _ntry: &mut Self::Internal, eof: bool) -> Result<usize, E> {
-        if slice.len() < self.len() {
-            match eof {
-                true => E::raise_reject_at(slice.len()),
-                false => E::raise_unfulfilled(Some((self.len() - slice.len()).try_into().unwrap())),
-            }
-        } else {
-            for ((off, expected), item) in self.iter_indices().zip(slice.iter()) {
-                if item != expected {
-                    return E::raise_reject_at(off);
-                }
-            }
-            Ok(self.len())
-        }
-    }
-
-    #[inline]
-    fn extract(&self, slice: &U, _ntry: Self::Internal) -> Self::Captured {
-        slice.before(self.len())
+    fn advance<'i, S>(&self, slice: &S, entry: &mut Self::Internal) -> Result<Self::Captured<'i>, E>
+    where
+        S: Stream<'i, Part = U>,
+    {
+        // slice.before(self.len())
+        // slice.before(0)
+        todo!()
     }
 }
 
-impl<U, E, P> Pattern<U, E> for [P; 1]
-where
-    U: Slice,
-    E: Situation,
-    P: Predicate<U::Item>,
-{
-    type Captured = U::Item;
-    type Internal = ();
+// impl<U, E> Pattern<U, E> for U
+// where
+//     U: Stream,
+//     E: Situation,
+// {
+//     type Captured = U::Part;
+//     type Internal = ();
 
-    #[inline]
-    fn init(&self) -> Self::Internal {}
+//     #[inline]
+//     fn init(&self) -> Self::Internal {}
 
-    #[inline]
-    fn advance(&self, slice: &U, _ntry: &mut Self::Internal, eof: bool) -> Result<usize, E> {
-        match slice.first() {
-            Some(item) => match self[0].predicate(&item) {
-                true => Ok(slice.len_of(item)),
-                false => E::raise_reject_at(0),
-            },
-            None => match eof {
-                true => E::raise_reject_at(0),
-                false => E::raise_unfulfilled(None),
-            },
-        }
-    }
+//     #[inline]
+//     fn advance(&self, slice: &U, _ntry: &mut Self::Internal, eof: bool) -> Result<usize, E> {
+//         if slice.len() < self.len() {
+//             match eof {
+//                 true => E::raise_reject_at(slice.len()),
+//                 false => E::raise_unfulfilled(Some((self.len() - slice.len()).try_into().unwrap())),
+//             }
+//         } else {
+//             for ((off, expected), item) in self.iter_indices().zip(slice.iter()) {
+//                 if item != expected {
+//                     return E::raise_reject_at(off);
+//                 }
+//             }
+//             Ok(self.len())
+//         }
+//     }
 
-    #[inline]
-    fn extract(&self, slice: &U, _ntry: Self::Internal) -> Self::Captured {
-        slice.first().unwrap()
-    }
-}
+//     #[inline]
+//     fn extract(&self, slice: &U, _ntry: Self::Internal) -> Self::Captured {
+//         slice.before(self.len())
+//     }
+// }
+
+// impl<U, E, P> Pattern<U, E> for [P; 1]
+// where
+//     U: Stream,
+//     E: Situation,
+//     P: Predicate<U::Item>,
+// {
+//     type Captured = U::Item;
+//     type Internal = ();
+
+//     #[inline]
+//     fn init(&self) -> Self::Internal {}
+
+//     #[inline]
+//     fn advance(&self, slice: &U, _ntry: &mut Self::Internal, eof: bool) -> Result<usize, E> {
+//         match slice.first() {
+//             Some(item) => match self[0].predicate(&item) {
+//                 true => Ok(slice.len_of(item)),
+//                 false => E::raise_reject_at(0),
+//             },
+//             None => match eof {
+//                 true => E::raise_reject_at(0),
+//                 false => E::raise_unfulfilled(None),
+//             },
+//         }
+//     }
+
+//     #[inline]
+//     fn extract(&self, slice: &U, _ntry: Self::Internal) -> Self::Captured {
+//         slice.first().unwrap()
+//     }
+// }
 
 //==================================================================================================
 
 #[cfg(test)]
 mod tests {
+    use super::*;
+    use crate::prelude::*;
     use std::string::String;
 
-    use crate::prelude::*;
+    // #[test]
+    // fn slice() {
+    //     let pat = opaque_simple("");
+    //     assert!(pat.fullmatch("").is_ok());
+    //     assert_eq!(pat.fullmatch("?").unwrap_err().offset(), 0);
+    //     assert_eq!(pat.fullmatch("??").unwrap_err().offset(), 0);
+
+    //     let pat = opaque_simple("A");
+    //     assert_eq!(pat.fullmatch("").unwrap_err().offset(), 0);
+    //     assert_eq!(pat.fullmatch("A").unwrap(), "A");
+    //     assert_eq!(pat.fullmatch("AA").unwrap_err().offset(), 1);
+
+    //     let pat = opaque_simple("AB");
+    //     assert_eq!(pat.fullmatch("").unwrap_err().offset(), 0);
+    //     assert_eq!(pat.fullmatch("AB").unwrap(), "AB");
+    //     assert_eq!(pat.fullmatch("ABCD").unwrap_err().offset(), 2);
+
+    //     let pat = opaque_simple("ABCD");
+    //     assert_eq!(pat.fullmatch("").unwrap_err().offset(), 0);
+    //     assert_eq!(pat.fullmatch("AB").unwrap_err().offset(), 2);
+    //     assert_eq!(pat.fullmatch("ABCD").unwrap(), "ABCD");
+    // }
 
     #[test]
-    fn slice() {
-        let pat = opaque_simple("");
-        assert!(pat.fullmatch("").is_ok());
-        assert_eq!(pat.fullmatch("?").unwrap_err().offset(), 0);
-        assert_eq!(pat.fullmatch("??").unwrap_err().offset(), 0);
-
-        let pat = opaque_simple("A");
-        assert_eq!(pat.fullmatch("").unwrap_err().offset(), 0);
-        assert_eq!(pat.fullmatch("A").unwrap(), "A");
-        assert_eq!(pat.fullmatch("AA").unwrap_err().offset(), 1);
-
-        let pat = opaque_simple("AB");
-        assert_eq!(pat.fullmatch("").unwrap_err().offset(), 0);
-        assert_eq!(pat.fullmatch("AB").unwrap(), "AB");
-        assert_eq!(pat.fullmatch("ABCD").unwrap_err().offset(), 2);
-
-        let pat = opaque_simple("ABCD");
-        assert_eq!(pat.fullmatch("").unwrap_err().offset(), 0);
-        assert_eq!(pat.fullmatch("AB").unwrap_err().offset(), 2);
-        assert_eq!(pat.fullmatch("ABCD").unwrap(), "ABCD");
-    }
-
-    #[test]
-    fn test_lifetime() {
+    fn test_lifetime() -> ParseResult<()> {
         // let pat = opaque_simple("foobar");
 
         const MSG: &'static str = "foobar";
         let msging = String::from("foobar");
         let msg = msging.as_str();
 
-        let pat = opaque_simple("foobar");
+        let pat = msging.as_str();
 
-        assert!(pat.fullmatch(MSG).is_ok());
-        assert!(pat.fullmatch(msg).is_ok());
+        pat.advance(&MSG, &mut Pattern::<str, SimpleError>::init(pat))?;
+        pat.advance(&msg, &mut Pattern::<str, SimpleError>::init(pat))?;
+
+        // assert!(pat.fullmatch(MSG).is_ok());
+        // assert!(pat.fullmatch(msg).is_ok());
+
+        Ok(())
     }
 }

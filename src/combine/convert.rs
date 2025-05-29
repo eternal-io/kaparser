@@ -3,7 +3,7 @@ use core::mem;
 
 pub struct AndThen<U, E, P, F, T>
 where
-    U: Slice,
+    U: Stream,
     E: Situation,
     P: Pattern<U, E>,
     F: Fn(P::Captured) -> Result<T, E>,
@@ -15,7 +15,7 @@ where
 }
 impl<U, E, P, F, T> Pattern<U, E> for AndThen<U, E, P, F, T>
 where
-    U: Slice,
+    U: Stream,
     E: Situation,
     P: Pattern<U, E>,
     F: Fn(P::Captured) -> Result<T, E>,
