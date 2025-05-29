@@ -4,6 +4,7 @@ use crate::{
     error::*,
     predicate::*,
 };
+use core::ops::Deref;
 
 pub mod bin;
 pub mod def;
@@ -32,6 +33,59 @@ where
     U: ?Sized + Slice + 'i,
 {
     pattern
+}
+
+//==================================================================================================
+
+pub trait PatternV2<'i, U, E>
+where
+    U: ?Sized + Slice + 'i,
+    E: Situation,
+{
+    type Captured;
+    type Internal: 'static;
+
+    fn init(&self) -> Self::Internal;
+
+    fn advance<S>(&self, slice: &mut S, entry: &mut Self::Internal) -> Result<Self::Captured, E>
+    where
+        S: Stream<'i, Slice = U>;
+
+    #[inline]
+    fn advance_once<S>(&self, slice: &mut S) -> Result<Self::Captured, E>
+    where
+        S: Stream<'i, Slice = U>,
+    {
+        self.advance(slice, &mut self.init())
+    }
+}
+
+pub trait Stream<'i>: Deref<Target = Self::Slice> {
+    type Slice: ?Sized + Slice;
+
+    fn eof(&self) -> bool;
+    fn bump(&mut self, n: usize);
+    fn consumed(&self) -> usize;
+}
+
+impl<'i, U> Stream<'i> for &'i U
+where
+    U: ?Sized + Slice,
+{
+    type Slice = U;
+
+    #[inline]
+    fn eof(&self) -> bool {
+        true
+    }
+    #[inline]
+    fn bump(&mut self, n: usize) {
+        *self = self.after(n);
+    }
+    #[inline]
+    fn consumed(&self) -> usize {
+        0
+    }
 }
 
 //==================================================================================================

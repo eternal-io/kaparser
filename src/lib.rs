@@ -12,6 +12,7 @@ pub mod line_col;
 pub mod pattern;
 pub mod predicate;
 pub mod prelude;
+pub mod stream;
 
 #[cfg(test)]
 mod tester;
