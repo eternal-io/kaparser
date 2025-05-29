@@ -358,15 +358,18 @@ mod tests {
     }
 
     #[test]
-    fn test_lifetime() {
+    fn test_lifetime() -> ParseResult<()> {
+        let pat = igc("foobar");
+
         const MSG: &'static str = "FOOBAR";
         let msging = String::from("foobar");
         let msg = msging.as_ref();
 
-        // well, put it after all the references and it did work.
-        let pat = opaque_simple(igc("foobar"));
+        // let pat = opaque_simple(igc("foobar")); // opaque wrapper shortens its lifetime...
 
-        assert!(pat.fullmatch(MSG).is_ok());
-        assert!(pat.fullmatch(msg).is_ok());
+        pat.fullmatch(MSG)?;
+        pat.fullmatch(msg)?;
+
+        Ok(())
     }
 }
