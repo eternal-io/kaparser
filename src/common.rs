@@ -85,54 +85,18 @@ mod urange_bounds {
 //------------------------------------------------------------------------------
 
 pub trait Slice {
-    // type Item ;
-
-    // fn len(&self) -> usize;
-    // fn len_of(&self, item: Self::Item) -> usize;
-
-    // fn bump(&mut self, n: usize);
-    // fn rest(&self) -> &Self;
-
-    // fn subslice(&self, range: Range<usize>) -> &Self;
-    // fn split_at(&self, mid: usize) -> (&Self, &Self);
-
-    // fn iter(&self) -> Self::Iter;
-    // fn iter_bidi(&self, mid: usize) -> (Rev<Self::Iter>, Self::Iter);
-
-    // fn iter_indices(&self) -> Self::IterIndices;
-    // fn iter_indices_bidi(&self, mid: usize) -> (Rev<Self::IterIndices>, Self::IterIndices);
-
-    // fn starts_with(&self, prefix: &Self::Part) -> bool;
-}
-
-impl Slice for str {}
-
-impl<T: Debug + Clone + PartialEq> Slice for [T] {}
-
-//------------------------------------------------------------------------------
-
-pub trait Stream<'i> {
-    type Part: ?Sized + Slice;
-    type Item: Debug + Clone + PartialEq;
-    type Iter: DoubleEndedIterator<Item = Self::Item>;
-    type IterIndices: DoubleEndedIterator<Item = (usize, Self::Item)>;
+    type Item;
 
     fn len(&self) -> usize;
     fn len_of(&self, item: Self::Item) -> usize;
 
-    fn bump(&mut self, n: usize);
-    fn rest(&self) -> &'i Self::Part;
+    fn subslice(&self, range: Range<usize>) -> &Self;
+    fn split_at(&self, mid: usize) -> (&Self, &Self);
 
-    fn subslice(&self, range: Range<usize>) -> &'i Self::Part;
-    fn split_at(&self, mid: usize) -> (&'i Self::Part, &'i Self::Part);
+    fn iter(&self) -> impl DoubleEndedIterator<Item = Self::Item>;
+    fn iter_indices(&self) -> impl DoubleEndedIterator<Item = (usize, Self::Item)>;
 
-    fn iter(&self) -> Self::Iter;
-    fn iter_bidi(&self, mid: usize) -> (Rev<Self::Iter>, Self::Iter);
-
-    fn iter_indices(&self) -> Self::IterIndices;
-    fn iter_indices_bidi(&self, mid: usize) -> (Rev<Self::IterIndices>, Self::IterIndices);
-
-    fn starts_with(&self, prefix: &Self::Part) -> bool;
+    fn starts_with(&self, prefix: &Self) -> bool;
 
     #[inline]
     fn is_empty(&self) -> bool {
@@ -145,38 +109,17 @@ pub trait Stream<'i> {
     }
 
     #[inline]
-    fn after(&self, off: usize) -> &'i Self::Part {
+    fn after(&self, off: usize) -> &Self {
         self.split_at(off).1
     }
     #[inline]
-    fn before(&self, off: usize) -> &'i Self::Part {
+    fn before(&self, off: usize) -> &Self {
         self.split_at(off).0
-    }
-
-    #[inline]
-    fn iter_ahead(&self, off: usize) -> Self::Iter {
-        self.iter_bidi(off).1
-    }
-    #[inline]
-    fn iter_behind(&self, off: usize) -> Rev<Self::Iter> {
-        self.iter_bidi(off).0
-    }
-
-    #[inline]
-    fn iter_indices_ahead(&self, off: usize) -> Self::IterIndices {
-        self.iter_indices_bidi(off).1
-    }
-    #[inline]
-    fn iter_indices_behind(&self, off: usize) -> Rev<Self::IterIndices> {
-        self.iter_indices_bidi(off).0
     }
 }
 
-impl<'i> Stream<'i> for &'i str {
-    type Part = str;
+impl Slice for str {
     type Item = char;
-    type Iter = Chars<'i>;
-    type IterIndices = CharIndices<'i>;
 
     #[inline]
     fn len(&self) -> usize {
@@ -188,57 +131,34 @@ impl<'i> Stream<'i> for &'i str {
     }
 
     #[inline]
-    fn bump(&mut self, n: usize) {
-        *self = &self[n..];
-    }
-    #[inline]
-    fn rest(&self) -> &'i Self::Part {
-        *self
-    }
-
-    #[inline]
-    fn subslice(&self, range: Range<usize>) -> &'i Self::Part {
+    fn subslice(&self, range: Range<usize>) -> &Self {
         &self[range]
     }
     #[inline]
-    fn split_at(&self, mid: usize) -> (&'i Self::Part, &'i Self::Part) {
+    fn split_at(&self, mid: usize) -> (&Self, &Self) {
         (*self).split_at(mid)
     }
 
     #[inline]
-    fn iter(&self) -> Self::Iter {
+    fn iter(&self) -> impl DoubleEndedIterator<Item = Self::Item> {
         (*self).chars()
     }
     #[inline]
-    fn iter_bidi(&self, mid: usize) -> (Rev<Self::Iter>, Self::Iter) {
-        let (before, after) = self.split_at(mid);
-        (before.chars().rev(), after.chars())
-    }
-
-    #[inline]
-    fn iter_indices(&self) -> Self::IterIndices {
+    fn iter_indices(&self) -> impl DoubleEndedIterator<Item = (usize, Self::Item)> {
         (*self).char_indices()
     }
-    #[inline]
-    fn iter_indices_bidi(&self, mid: usize) -> (Rev<Self::IterIndices>, Self::IterIndices) {
-        let (before, after) = self.split_at(mid);
-        (before.char_indices().rev(), after.char_indices())
-    }
 
     #[inline]
-    fn starts_with(&self, prefix: &Self::Part) -> bool {
+    fn starts_with(&self, prefix: &Self) -> bool {
         (*self).starts_with(prefix)
     }
 }
 
-impl<'i, T> Stream<'i> for &'i [T]
+impl<T> Slice for [T]
 where
-    T: Debug + Clone + PartialEq,
+    T: 'static + Debug + Clone + PartialEq,
 {
-    type Part = [T];
     type Item = T;
-    type Iter = Cloned<Iter<'i, T>>;
-    type IterIndices = Enumerate<Cloned<Iter<'i, T>>>;
 
     #[inline]
     fn len(&self) -> usize {
@@ -251,50 +171,170 @@ where
     }
 
     #[inline]
-    fn bump(&mut self, n: usize) {
-        *self = &self[n..];
-    }
-    #[inline]
-    fn rest(&self) -> &'i Self::Part {
-        *self
-    }
-
-    #[inline]
-    fn subslice(&self, range: Range<usize>) -> &'i Self::Part {
+    fn subslice(&self, range: Range<usize>) -> &Self {
         &self[range]
     }
     #[inline]
-    fn split_at(&self, mid: usize) -> (&'i Self::Part, &'i Self::Part) {
+    fn split_at(&self, mid: usize) -> (&Self, &Self) {
         (*self).split_at(mid)
     }
 
     #[inline]
-    fn iter(&self) -> Self::Iter {
+    fn iter(&self) -> impl DoubleEndedIterator<Item = Self::Item> {
         (*self).iter().cloned()
     }
     #[inline]
-    fn iter_bidi(&self, mid: usize) -> (Rev<Self::Iter>, Self::Iter) {
-        let (before, after) = self.split_at(mid);
-        (before.iter().cloned().rev(), after.iter().cloned())
-    }
-
-    #[inline]
-    fn iter_indices(&self) -> Self::IterIndices {
+    fn iter_indices(&self) -> impl DoubleEndedIterator<Item = (usize, Self::Item)> {
         (*self).iter().cloned().enumerate()
     }
-    #[inline]
-    fn iter_indices_bidi(&self, mid: usize) -> (Rev<Self::IterIndices>, Self::IterIndices) {
-        let (before, after) = self.split_at(mid);
-        (
-            before.iter().cloned().enumerate().rev(),
-            after.iter().cloned().enumerate(),
-        )
-    }
 
     #[inline]
-    fn starts_with(&self, prefix: &Self::Part) -> bool {
+    fn starts_with(&self, prefix: &Self) -> bool {
         (*self).starts_with(prefix)
     }
+}
+
+//------------------------------------------------------------------------------
+
+pub trait Stream<'i>: Deref<Target = Self::Slice> {
+    type Slice: ?Sized + Slice;
+
+    // type Iter: DoubleEndedIterator<Item = <Self::Slice as Slice>::Item>;
+    // type IterIndices: DoubleEndedIterator<Item = (usize, <Self::Slice as Slice>::Item)>;
+
+    // fn len(&self) -> usize;
+    // fn len_of(&self, item: Self::Item) -> usize;
+
+    // fn bump(&mut self, n: usize);
+    // fn rest(&self) -> &'i Self::Slice;
+
+    // fn subslice(&self, range: Range<usize>) -> &'i Self::Slice;
+    // fn split_at(&self, mid: usize) -> (&'i Self::Slice, &'i Self::Slice);
+
+    // fn iter(&self) -> Self::Iter;
+    // fn iter_bidi(&self, mid: usize) -> (Rev<Self::Iter>, Self::Iter);
+
+    // fn iter_indices(&self) -> Self::IterIndices;
+    // fn iter_indices_bidi(&self, mid: usize) -> (Rev<Self::IterIndices>, Self::IterIndices);
+
+    // fn starts_with(&self, prefix: &Self::Slice) -> bool;
+
+    // #[inline]
+    // fn is_empty(&self) -> bool {
+    //     self.len() == 0
+    // }
+
+    // #[inline]
+    // fn first(&self) -> Option<Self::Item> {
+    //     self.iter().next()
+    // }
+
+    // #[inline]
+    // fn after(&self, off: usize) -> &'i Self::Slice {
+    //     self.split_at(off).1
+    // }
+    // #[inline]
+    // fn before(&self, off: usize) -> &'i Self::Slice {
+    //     self.split_at(off).0
+    // }
+
+    // #[inline]
+    // fn iter_ahead(&self, off: usize) -> Self::Iter {
+    //     self.iter_bidi(off).1
+    // }
+    // #[inline]
+    // fn iter_behind(&self, off: usize) -> Rev<Self::Iter> {
+    //     self.iter_bidi(off).0
+    // }
+
+    // #[inline]
+    // fn iter_indices_ahead(&self, off: usize) -> Self::IterIndices {
+    //     self.iter_indices_bidi(off).1
+    // }
+    // #[inline]
+    // fn iter_indices_behind(&self, off: usize) -> Rev<Self::IterIndices> {
+    //     self.iter_indices_bidi(off).0
+    // }
+}
+
+impl<'i> Stream<'i> for &'i str {
+    type Slice = str;
+    // type Item = char;
+    // type Iter = Chars<'i>;
+    // type IterIndices = CharIndices<'i>;
+
+    // #[inline]
+    // fn iter(&self) -> Self::Iter {
+    //     (*self).chars()
+    // }
+    // #[inline]
+    // fn iter_bidi(&self, mid: usize) -> (Rev<Self::Iter>, Self::Iter) {
+    //     let (before, after) = self.split_at(mid);
+    //     (before.chars().rev(), after.chars())
+    // }
+
+    // #[inline]
+    // fn iter_indices(&self) -> Self::IterIndices {
+    //     (*self).char_indices()
+    // }
+    // #[inline]
+    // fn iter_indices_bidi(&self, mid: usize) -> (Rev<Self::IterIndices>, Self::IterIndices) {
+    //     let (before, after) = self.split_at(mid);
+    //     (before.char_indices().rev(), after.char_indices())
+    // }
+
+    // #[inline]
+    // fn starts_with(&self, prefix: &Self::Slice) -> bool {
+    //     (*self).starts_with(prefix)
+    // }
+}
+
+impl<'i, T> Stream<'i> for &'i [T]
+where
+    T: Debug + Clone + PartialEq + 'static,
+{
+    type Slice = [T];
+    // type Item = T;
+    // type Iter = Cloned<Iter<'i, T>>;
+    // type IterIndices = Enumerate<Cloned<Iter<'i, T>>>;
+
+    // #[inline]
+    // fn len(&self) -> usize {
+    //     (*self).len()
+    // }
+    // #[inline]
+    // fn len_of(&self, item: Self::Item) -> usize {
+    //     let _ = item;
+    //     1
+    // }
+
+    // #[inline]
+    // fn iter(&self) -> Self::Iter {
+    //     (*self).iter().cloned()
+    // }
+    // #[inline]
+    // fn iter_bidi(&self, mid: usize) -> (Rev<Self::Iter>, Self::Iter) {
+    //     let (before, after) = self.split_at(mid);
+    //     (before.iter().cloned().rev(), after.iter().cloned())
+    // }
+
+    // #[inline]
+    // fn iter_indices(&self) -> Self::IterIndices {
+    //     (*self).iter().cloned().enumerate()
+    // }
+    // #[inline]
+    // fn iter_indices_bidi(&self, mid: usize) -> (Rev<Self::IterIndices>, Self::IterIndices) {
+    //     let (before, after) = self.split_at(mid);
+    //     (
+    //         before.iter().cloned().enumerate().rev(),
+    //         after.iter().cloned().enumerate(),
+    //     )
+    // }
+
+    // #[inline]
+    // fn starts_with(&self, prefix: &Self::Slice) -> bool {
+    //     (*self).starts_with(prefix)
+    // }
 }
 
 //------------------------------------------------------------------------------

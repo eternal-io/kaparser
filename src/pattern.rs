@@ -22,12 +22,13 @@ pub type ParseResult<T, E = SimpleError> = Result<T, E>;
 // {
 //     pattern
 // }
+
 #[inline]
 pub const fn opaque_simple<'i, U, Cap>(
     pattern: impl Pattern<U, SimpleError, Captured<'i> = Cap>,
 ) -> impl Pattern<U, SimpleError, Captured<'i> = Cap>
 where
-    U: ?Sized + Slice + 'static,
+    U: ?Sized + Slice + 'i,
 {
     pattern
 }
@@ -36,17 +37,17 @@ where
 
 pub trait Pattern<U, E>
 where
-    U: ?Sized + Slice + 'static,
+    U: ?Sized + Slice,
     E: Situation,
 {
-    type Captured<'i>;
+    type Captured<'i>
+    where
+        U: 'i;
     type Internal: 'static;
 
     fn init(&self) -> Self::Internal;
 
-    fn advance<'i, S>(&self, slice: &S, entry: &mut Self::Internal) -> Result<Self::Captured<'i>, E>
-    where
-        S: Stream<'i, Part = U>;
+    fn advance<'i>(&self, slice: &'i U, entry: &mut Self::Internal) -> Result<Self::Captured<'i>, E>;
 
     // fn inject_base_off(&self, entry: &mut Self::Internal, base_off: usize) {
     //     let _ = (entry, base_off);
@@ -263,22 +264,21 @@ where
 
 //==================================================================================================
 
-impl<U, E> Pattern<U, E> for U
+impl<U, E> Pattern<U, E> for &U
 where
-    U: ?Sized + Slice + 'static,
+    U: ?Sized + Slice,
     E: Situation,
 {
-    type Captured<'i> = &'i U;
+    type Captured<'i>
+        = (&'i U, usize)
+    where
+        U: 'i;
     type Internal = ();
 
+    #[inline]
     fn init(&self) -> Self::Internal {}
-
-    fn advance<'i, S>(&self, slice: &S, entry: &mut Self::Internal) -> Result<Self::Captured<'i>, E>
-    where
-        S: Stream<'i, Part = U>,
-    {
-        // slice.before(self.len())
-        // slice.before(0)
+    #[inline]
+    fn advance<'i>(&self, slice: &'i U, _ntry: &mut Self::Internal) -> Result<Self::Captured<'i>, E> {
         todo!()
     }
 }
@@ -382,20 +382,30 @@ mod tests {
 
     #[test]
     fn test_lifetime() -> ParseResult<()> {
-        // let pat = opaque_simple("foobar");
-
         const MSG: &'static str = "foobar";
         let msging = String::from("foobar");
         let msg = msging.as_str();
 
-        let pat = msging.as_str();
+        let pating = String::from("foobar");
+        let pat = pating.as_str();
 
-        pat.advance(&MSG, &mut Pattern::<str, SimpleError>::init(pat))?;
-        pat.advance(&msg, &mut Pattern::<str, SimpleError>::init(pat))?;
-
-        // assert!(pat.fullmatch(MSG).is_ok());
-        // assert!(pat.fullmatch(msg).is_ok());
+        pat.advance(&MSG, unimplemented!())?;
+        pat.advance(&msg, unimplemented!())?;
 
         Ok(())
+    }
+
+    fn foo<'i, S: ?Sized + Slice>(s: &'i S) -> &'i S {
+        s.before(10)
+    }
+
+    #[test]
+    fn bar() {
+        let msging = String::from("foobar");
+        let msg = msging.as_str();
+        let _p = foo(msg);
+
+        let pat = opaque_simple("pattern");
+        println!("{_p}");
     }
 }
