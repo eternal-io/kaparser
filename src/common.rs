@@ -1,4 +1,7 @@
-use core::ops::{RangeFrom, RangeFull, RangeInclusive, RangeTo, RangeToInclusive};
+use core::{
+    num::NonZeroUsize,
+    ops::{RangeFrom, RangeFull, RangeInclusive, RangeTo, RangeToInclusive},
+};
 
 #[doc(hidden)]
 pub use paste::paste;
@@ -83,12 +86,12 @@ pub trait Slice {
 
     fn len(&self) -> usize;
     fn len_of(item: Self::Item) -> usize;
-    fn starts_with(&self, prefix: &Self) -> bool;
+
+    fn split_at(&self, mid: usize) -> (&Self, &Self);
+    fn subslice(&self, range: Range<usize>) -> &Self;
 
     fn iter(&self) -> impl DoubleEndedIterator<Item = Self::Item>;
     fn iter_indices(&self) -> impl DoubleEndedIterator<Item = (usize, Self::Item)>;
-    fn split_at(&self, mid: usize) -> (&Self, &Self);
-    fn subslice(&self, range: Range<usize>) -> &Self;
 
     #[inline]
     fn is_empty(&self) -> bool {
@@ -106,6 +109,23 @@ pub trait Slice {
     #[inline]
     fn after(&self, off: usize) -> &Self {
         self.split_at(off).1
+    }
+
+    #[inline]
+    fn starts_with(&self, prefix: &Self, eof: bool) -> Result<usize, Result<Option<NonZeroUsize>, usize>> {
+        if self.len() < prefix.len() {
+            match eof {
+                true => Err(Err(self.len())),
+                false => Err(Ok(Some((prefix.len() - self.len()).try_into().unwrap()))),
+            }
+        } else {
+            for ((off, item), expected) in self.iter_indices().zip(prefix.iter()) {
+                if item != expected {
+                    return Err(Err(off));
+                }
+            }
+            Ok(prefix.len())
+        }
     }
 
     #[inline]
@@ -128,19 +148,7 @@ impl Slice for str {
     fn len_of(item: Self::Item) -> usize {
         item.len_utf8()
     }
-    #[inline]
-    fn starts_with(&self, prefix: &Self) -> bool {
-        (*self).starts_with(prefix)
-    }
 
-    #[inline]
-    fn iter(&self) -> impl DoubleEndedIterator<Item = Self::Item> {
-        self.chars()
-    }
-    #[inline]
-    fn iter_indices(&self) -> impl DoubleEndedIterator<Item = (usize, Self::Item)> {
-        self.char_indices()
-    }
     #[inline]
     fn split_at(&self, mid: usize) -> (&Self, &Self) {
         (*self).split_at(mid)
@@ -148,6 +156,15 @@ impl Slice for str {
     #[inline]
     fn subslice(&self, range: Range<usize>) -> &Self {
         &self[range]
+    }
+
+    #[inline]
+    fn iter(&self) -> impl DoubleEndedIterator<Item = Self::Item> {
+        (*self).chars()
+    }
+    #[inline]
+    fn iter_indices(&self) -> impl DoubleEndedIterator<Item = (usize, Self::Item)> {
+        (*self).char_indices()
     }
 }
 
@@ -162,12 +179,18 @@ where
         (*self).len()
     }
     #[inline]
-    fn len_of(_tem: Self::Item) -> usize {
+    fn len_of(item: Self::Item) -> usize {
+        let _ = item;
         1
     }
+
     #[inline]
-    fn starts_with(&self, prefix: &Self) -> bool {
-        (*self).starts_with(prefix)
+    fn split_at(&self, mid: usize) -> (&Self, &Self) {
+        (*self).split_at(mid)
+    }
+    #[inline]
+    fn subslice(&self, range: Range<usize>) -> &Self {
+        &self[range]
     }
 
     #[inline]
@@ -177,14 +200,6 @@ where
     #[inline]
     fn iter_indices(&self) -> impl DoubleEndedIterator<Item = (usize, Self::Item)> {
         (*self).iter().copied().enumerate()
-    }
-    #[inline]
-    fn split_at(&self, mid: usize) -> (&Self, &Self) {
-        (*self).split_at(mid)
-    }
-    #[inline]
-    fn subslice(&self, range: Range<usize>) -> &Self {
-        &self[range]
     }
 }
 

@@ -42,7 +42,7 @@ where
     E: Situation,
 {
     type Captured;
-    type Internal: 'static + Clone;
+    type Internal: 'static;
 
     fn init(&self) -> Self::Internal;
 
@@ -261,36 +261,53 @@ where
 
 //==================================================================================================
 
-impl<'i, U, E> Pattern<'i, U, E> for &U
+impl<'i, E> Pattern<'i, str, E> for &str
 where
-    U: ?Sized + Slice + 'i,
     E: Situation,
 {
-    type Captured = &'i U;
+    type Captured = &'i str;
     type Internal = ();
 
     #[inline]
     fn init(&self) -> Self::Internal {}
-
     #[inline]
-    fn advance(&self, slice: &U, _ntry: &mut Self::Internal, eof: bool) -> Result<usize, E> {
-        if slice.len() < self.len() {
-            match eof {
-                true => E::raise_reject_at(slice.len()),
-                false => E::raise_unfulfilled(Some((self.len() - slice.len()).try_into().unwrap())),
-            }
-        } else {
-            for ((off, expected), item) in self.iter_indices().zip(slice.iter()) {
-                if item != expected {
-                    return E::raise_reject_at(off);
-                }
-            }
-            Ok(self.len())
+    fn advance(&self, slice: &str, _ntry: &mut Self::Internal, eof: bool) -> Result<usize, E> {
+        match Slice::starts_with(slice, self, eof) {
+            Ok(len) => Ok(len),
+            Err(res) => match res {
+                Ok(ext) => E::raise_unfulfilled(ext),
+                Err(off) => E::raise_reject_at(off),
+            },
         }
     }
+    #[inline]
+    fn extract(&self, slice: &'i str, _ntry: Self::Internal) -> Self::Captured {
+        slice.before(self.len())
+    }
+}
+
+impl<'i, T, E> Pattern<'i, [T], E> for &[T]
+where
+    T: Copy + PartialEq + 'i,
+    E: Situation,
+{
+    type Captured = &'i [T];
+    type Internal = ();
 
     #[inline]
-    fn extract(&self, slice: &'i U, _ntry: Self::Internal) -> Self::Captured {
+    fn init(&self) -> Self::Internal {}
+    #[inline]
+    fn advance(&self, slice: &[T], _ntry: &mut Self::Internal, eof: bool) -> Result<usize, E> {
+        match Slice::starts_with(slice, self, eof) {
+            Ok(len) => Ok(len),
+            Err(res) => match res {
+                Ok(ext) => E::raise_unfulfilled(ext),
+                Err(off) => E::raise_reject_at(off),
+            },
+        }
+    }
+    #[inline]
+    fn extract(&self, slice: &'i [T], _ntry: Self::Internal) -> Self::Captured {
         slice.before(self.len())
     }
 }
@@ -306,7 +323,6 @@ where
 
     #[inline]
     fn init(&self) -> Self::Internal {}
-
     #[inline]
     fn advance(&self, slice: &U, _ntry: &mut Self::Internal, eof: bool) -> Result<usize, E> {
         match slice.first() {
@@ -320,10 +336,33 @@ where
             },
         }
     }
-
     #[inline]
     fn extract(&self, slice: &'i U, _ntry: Self::Internal) -> Self::Captured {
         slice.first().unwrap()
+    }
+}
+
+#[allow(unused_variables)] // TODO!
+impl<'i, U, Cap, E, F> Pattern<'i, U, E> for F
+where
+    U: ?Sized + Slice + 'i,
+    E: Situation,
+    F: Fn(&mut &'i U) -> Result<Cap, E>,
+{
+    type Captured = Cap;
+    type Internal = ();
+
+    #[inline]
+    fn init(&self) -> Self::Internal {
+        todo!()
+    }
+    #[inline]
+    fn advance(&self, slice: &U, entry: &mut Self::Internal, eof: bool) -> Result<usize, E> {
+        todo!()
+    }
+    #[inline]
+    fn extract(&self, slice: &'i U, entry: Self::Internal) -> Self::Captured {
+        todo!()
     }
 }
 

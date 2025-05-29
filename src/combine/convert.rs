@@ -258,10 +258,11 @@ where
 
         // SAFETY: The captured is only used temporarily in this function.
         //         No leaks can occur without internal mutability.
-        match unsafe { (self.pred)(&self.body.extract(mem::transmute::<&U, &'i U>(slice), entry.clone())) } {
-            true => Ok(offset),
-            false => E::raise_reject_at(0),
-        }
+        // match unsafe { (self.pred)(&self.body.extract(mem::transmute::<&U, &'i U>(slice), entry.clone())) } {
+        //     true => Ok(offset),
+        //     false => E::raise_reject_at(0),
+        // }
+        todo!()
     }
     #[inline]
     fn extract(&self, slice: &'i U, entry: Self::Internal) -> Self::Captured {

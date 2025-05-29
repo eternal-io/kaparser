@@ -43,16 +43,15 @@ where
     fn init(&self) -> Self::Internal {
         let mut at_least: MaybeUninit<[(usize, P::Internal); AT_LEAST]> = MaybeUninit::uninit();
         let mut may_more: MaybeUninit<[(usize, P::Internal); MAY_MORE]> = MaybeUninit::uninit();
-        let item = self.body.init();
 
         for i in 0..AT_LEAST {
             unsafe {
-                (&raw mut (*at_least.as_mut_ptr())[i]).write((0, item.clone()));
+                (&raw mut (*at_least.as_mut_ptr())[i]).write((0, self.body.init()));
             }
         }
         for i in 0..MAY_MORE {
             unsafe {
-                (&raw mut (*may_more.as_mut_ptr())[i]).write((0, item.clone()));
+                (&raw mut (*may_more.as_mut_ptr())[i]).write((0, self.body.init()));
             }
         }
 
