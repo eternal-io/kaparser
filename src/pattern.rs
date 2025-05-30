@@ -46,22 +46,26 @@ where
 
     fn init(&self) -> Self::Internal;
 
+    fn parse_reentrant(
+        &self,
+        slice: &'i U,
+        entry: &mut Self::Internal,
+        ended: bool,
+    ) -> Result<(Self::Captured, usize), E>;
+
     fn inject_base_off(&self, entry: &mut Self::Internal, base_off: usize) {
         let _ = (entry, base_off);
     }
-
-    fn parse_reentrant<S>(&self, slice: &S, entry: &mut Self::Internal) -> Result<(Self::Captured, usize), E>
-    where
-        S: Stream<'i, Slice = U>;
 
     //------------------------------------------------------------------------------
 
     #[inline]
     fn parse<S>(&self, slice: &mut S) -> Result<Self::Captured, E>
     where
+        Self: Sized,
         S: Stream<'i, Slice = U>,
     {
-        let (cap, len) = self.parse_reentrant(slice, &mut self.init())?;
+        let (cap, len) = self.parse_reentrant(slice.rest(), &mut self.init(), slice.ended())?;
         slice.bump(len);
         Ok(cap)
     }
@@ -69,13 +73,13 @@ where
     #[inline]
     fn fullmatch<S>(&self, slice: &S) -> Result<Self::Captured, E>
     where
+        Self: Sized,
         S: Stream<'i, Slice = U>,
     {
-        let (cap, len) = self.parse_reentrant(slice, &mut self.init())?;
-        if len != slice.len() {
-            E::raise_reject_at(len)
-        } else {
-            Ok(cap)
+        let (cap, len) = self.parse_reentrant(slice.rest(), &mut self.init(), slice.ended())?;
+        match len != slice.len() {
+            true => E::raise_halt_at(len),
+            false => Ok(cap),
         }
     }
 }
@@ -307,6 +311,114 @@ where
 
 //==================================================================================================
 
+impl<'i, E> PatternV2<'i, str, E> for &str
+where
+    E: Situation,
+{
+    type Captured = &'i str;
+    type Internal = ();
+
+    #[inline]
+    fn init(&self) -> Self::Internal {}
+    #[inline]
+    fn parse_reentrant(
+        &self,
+        slice: &'i str,
+        _ntry: &mut Self::Internal,
+        ended: bool,
+    ) -> Result<(Self::Captured, usize), E> {
+        match Slice::starts_with(slice, self, ended) {
+            Ok(len) => Ok((slice.before(len), len)),
+            Err(res) => match res {
+                Ok(ext) => E::raise_unfulfilled(ext),
+                Err(off) => E::raise_reject_at(off),
+            },
+        }
+    }
+}
+
+impl<'i, T, E> PatternV2<'i, [T], E> for &[T]
+where
+    T: Copy + PartialEq + 'i,
+    E: Situation,
+{
+    type Captured = &'i [T];
+    type Internal = ();
+
+    #[inline]
+    fn init(&self) -> Self::Internal {}
+    #[inline]
+    fn parse_reentrant(
+        &self,
+        slice: &'i [T],
+        _ntry: &mut Self::Internal,
+        ended: bool,
+    ) -> Result<(Self::Captured, usize), E> {
+        match Slice::starts_with(slice, self, ended) {
+            Ok(len) => Ok((slice.before(len), len)),
+            Err(res) => match res {
+                Ok(ext) => E::raise_unfulfilled(ext),
+                Err(off) => E::raise_reject_at(off),
+            },
+        }
+    }
+}
+
+impl<'i, U, E, P> PatternV2<'i, U, E> for [P; 1]
+where
+    U: ?Sized + Slice + 'i,
+    E: Situation,
+    P: Predicate<U::Item>,
+{
+    type Captured = U::Item;
+    type Internal = ();
+
+    #[inline]
+    fn init(&self) -> Self::Internal {}
+    #[inline]
+    fn parse_reentrant(
+        &self,
+        slice: &'i U,
+        _ntry: &mut Self::Internal,
+        ended: bool,
+    ) -> Result<(Self::Captured, usize), E> {
+        match slice.first() {
+            Some(item) => match self[0].predicate(&item) {
+                true => Ok((item, U::len_of(item))),
+                false => E::raise_reject_at(0),
+            },
+            None => match ended {
+                true => E::raise_reject_at(0),
+                false => E::raise_unfulfilled(None),
+            },
+        }
+    }
+}
+
+impl<'i, U, E, Cap, F> PatternV2<'i, U, E> for F
+where
+    U: ?Sized + Slice + 'i,
+    E: Situation,
+    F: Fn(&'i U, bool) -> Result<(Cap, usize), E>,
+{
+    type Captured = Cap;
+    type Internal = ();
+
+    #[inline]
+    fn init(&self) -> Self::Internal {}
+    #[inline]
+    fn parse_reentrant(
+        &self,
+        slice: &'i U,
+        _ntry: &mut Self::Internal,
+        ended: bool,
+    ) -> Result<(Self::Captured, usize), E> {
+        self(slice, ended)
+    }
+}
+
+//==================================================================================================
+
 impl<'i, E> Pattern<'i, str, E> for &str
 where
     E: Situation,
@@ -385,30 +497,6 @@ where
     #[inline]
     fn extract(&self, slice: &'i U, _ntry: Self::Internal) -> Self::Captured {
         slice.first().unwrap()
-    }
-}
-
-#[allow(unused_variables)] // TODO!
-impl<'i, U, Cap, E, F> Pattern<'i, U, E> for F
-where
-    U: ?Sized + Slice + 'i,
-    E: Situation,
-    F: Fn(&mut &'i U) -> Result<Cap, E>,
-{
-    type Captured = Cap;
-    type Internal = ();
-
-    #[inline]
-    fn init(&self) -> Self::Internal {
-        todo!()
-    }
-    #[inline]
-    fn advance(&self, slice: &U, entry: &mut Self::Internal, eof: bool) -> Result<usize, E> {
-        todo!()
-    }
-    #[inline]
-    fn extract(&self, slice: &'i U, entry: Self::Internal) -> Self::Captured {
-        todo!()
     }
 }
 

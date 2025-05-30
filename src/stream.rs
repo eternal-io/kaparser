@@ -34,9 +34,9 @@ pub trait Slice {
     }
 
     #[inline]
-    fn starts_with(&self, prefix: &Self, eof: bool) -> Result<usize, Result<Option<NonZeroUsize>, usize>> {
+    fn starts_with(&self, prefix: &Self, ended: bool) -> Result<usize, Result<Option<NonZeroUsize>, usize>> {
         if self.len() < prefix.len() {
-            match eof {
+            match ended {
                 true => Err(Err(self.len())),
                 false => Err(Ok(Some((prefix.len() - self.len()).try_into().unwrap()))),
             }
@@ -122,6 +122,7 @@ where
 pub trait Stream<'i>: Deref<Target = Self::Slice> {
     type Slice: ?Sized + Slice;
 
+    fn rest(&self) -> &'i Self::Slice;
     fn bump(&mut self, n: usize);
     fn consumed(&self) -> usize;
     fn ended(&self) -> bool;
@@ -133,6 +134,10 @@ where
 {
     type Slice = U;
 
+    #[inline]
+    fn rest(&self) -> &'i Self::Slice {
+        self
+    }
     #[inline]
     fn bump(&mut self, n: usize) {
         *self = self.after(n);
@@ -165,9 +170,10 @@ where
 {
     #[inline]
     fn bump(&mut self, n: usize) -> &'i U {
-        let work = self.rest();
-        *self = self.after(n);
-        work
+        // let work = self.rest();
+        // *self = self.after(n);
+        // work
+        todo!()
     }
     #[inline]
     fn rest(&self) -> &'i U {
@@ -189,9 +195,10 @@ where
 {
     #[inline]
     fn bump(&mut self, n: usize) -> &'i U {
-        let work = self.rest();
-        self.consumed += n;
-        work
+        // let work = self.rest();
+        // self.consumed += n;
+        // work
+        todo!()
     }
     #[inline]
     fn rest(&self) -> &'i U {
