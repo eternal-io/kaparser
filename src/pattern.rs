@@ -1,11 +1,9 @@
 use crate::{
     // combine::{convert, modifier},
-    common::*,
     error::*,
     predicate::*,
     stream::*,
 };
-use core::ops::Deref;
 
 // pub mod bin;
 // pub mod def;
@@ -58,34 +56,6 @@ where
         S: Stream<'i, Slice = U>,
     {
         self.advance(slice, &mut self.init())
-    }
-}
-
-pub trait Stream<'i>: Deref<Target = Self::Slice> {
-    type Slice: ?Sized + Slice;
-
-    fn eof(&self) -> bool;
-    fn bump(&mut self, n: usize);
-    fn consumed(&self) -> usize;
-}
-
-impl<'i, U> Stream<'i> for &'i U
-where
-    U: ?Sized + Slice,
-{
-    type Slice = U;
-
-    #[inline]
-    fn eof(&self) -> bool {
-        true
-    }
-    #[inline]
-    fn bump(&mut self, n: usize) {
-        *self = self.after(n);
-    }
-    #[inline]
-    fn consumed(&self) -> usize {
-        0
     }
 }
 
