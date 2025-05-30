@@ -2,7 +2,7 @@
 
 #[cfg(test)]
 use crate::tester::*;
-use crate::{common::*, prelude::*};
+use crate::{common::*, prelude::*, stream::*};
 use core::marker::PhantomData;
 
 ////////////////
@@ -15,30 +15,30 @@ pub mod seq;
 
 ////////////////
 
-pub mod lens;
+// pub mod lens;
 
-pub mod take;
+// pub mod take;
 
-pub mod repeat;
+// pub mod repeat;
 
-pub mod skim;
-
-////////////////
-
-pub mod opt;
-
-pub mod peek;
-
-pub mod special;
+// pub mod skim;
 
 ////////////////
 
-pub mod control;
+// pub mod opt;
 
-pub mod convert;
+// pub mod peek;
 
-pub mod modifier;
+// pub mod special;
 
 ////////////////
 
-pub mod not;
+// pub mod control;
+
+// pub mod convert;
+
+// pub mod modifier;
+
+////////////////
+
+// pub mod not;

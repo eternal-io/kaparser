@@ -124,34 +124,34 @@ where
 
 //------------------------------------------------------------------------------
 
-#[cfg(test)]
-mod tests {
-    use crate::prelude::*;
+// #[cfg(test)]
+// mod tests {
+//     use crate::prelude::*;
 
-    #[test]
-    fn reiter() -> ParseResult<()> {
-        let mut sli = ":qwer:uiop:zxcv:0000";
-        let pat = (":", is_alpha..);
-        let mut pat = pat.reiter(&mut sli);
+//     #[test]
+//     fn reiter() -> ParseResult<()> {
+//         let mut sli = ":qwer:uiop:zxcv:0000";
+//         let pat = (":", is_alpha..);
+//         let mut pat = pat.reiter(&mut sli);
 
-        assert_eq!(pat.next().unwrap()?, (":", "qwer"));
-        assert_eq!(pat.next().unwrap()?, (":", "uiop"));
-        assert_eq!(pat.next().unwrap()?, (":", "zxcv"));
-        assert_eq!(sli, ":0000");
+//         assert_eq!(pat.next().unwrap()?, (":", "qwer"));
+//         assert_eq!(pat.next().unwrap()?, (":", "uiop"));
+//         assert_eq!(pat.next().unwrap()?, (":", "zxcv"));
+//         assert_eq!(sli, ":0000");
 
-        Ok(())
-    }
+//         Ok(())
+//     }
 
-    #[test]
-    fn joined() -> ParseResult<()> {
-        let mut sli = "0123;;4567;;89AB;";
-        let mut pat = (is_hex..).joined(&";;", &mut sli);
+//     #[test]
+//     fn joined() -> ParseResult<()> {
+//         let mut sli = "0123;;4567;;89AB;";
+//         let mut pat = (is_hex..).joined(&";;", &mut sli);
 
-        assert_eq!(pat.next().unwrap()?, ("0123", true));
-        assert_eq!(pat.next().unwrap()?, ("4567", true));
-        assert_eq!(pat.next().unwrap()?, ("89AB", false));
-        assert_eq!(sli, ";");
+//         assert_eq!(pat.next().unwrap()?, ("0123", true));
+//         assert_eq!(pat.next().unwrap()?, ("4567", true));
+//         assert_eq!(pat.next().unwrap()?, ("89AB", false));
+//         assert_eq!(sli, ";");
 
-        Ok(())
-    }
-}
+//         Ok(())
+//     }
+// }

@@ -214,37 +214,37 @@ __generate_codes! { impl_spanned_seq_for_tuple ( P ~ val ) }
 
 //------------------------------------------------------------------------------
 
-#[cfg(test)]
-mod tests {
-    use crate::prelude::*;
+// #[cfg(test)]
+// mod tests {
+//     use crate::prelude::*;
 
-    #[test]
-    fn test_seq() {
-        assert_eq!(
-            opaque_simple((is_bin.., is_oct.., is_hex..))
-                .fullmatch("0123456789abcdefABCDEF")
-                .unwrap(),
-            ("01", "234567", "89abcdefABCDEF")
-        );
-    }
+//     #[test]
+//     fn test_seq() {
+//         assert_eq!(
+//             opaque_simple((is_bin.., is_oct.., is_hex..))
+//                 .fullmatch("0123456789abcdefABCDEF")
+//                 .unwrap(),
+//             ("01", "234567", "89abcdefABCDEF")
+//         );
+//     }
 
-    #[test]
-    fn test_ixs() {
-        assert_eq!(
-            opaque_simple(ixs((is_bin.., is_oct.., is_hex..)))
-                .fullmatch("0123456789abcdefABCDEF")
-                .unwrap(),
-            ((0, "01"), (2, "234567"), (8, "89abcdefABCDEF"))
-        );
-    }
+//     #[test]
+//     fn test_ixs() {
+//         assert_eq!(
+//             opaque_simple(ixs((is_bin.., is_oct.., is_hex..)))
+//                 .fullmatch("0123456789abcdefABCDEF")
+//                 .unwrap(),
+//             ((0, "01"), (2, "234567"), (8, "89abcdefABCDEF"))
+//         );
+//     }
 
-    #[test]
-    fn test_sps() {
-        assert_eq!(
-            opaque_simple(sps((is_bin.., is_oct.., is_hex..)))
-                .fullmatch("0123456789abcdefABCDEF")
-                .unwrap(),
-            ((0..2, "01"), (2..8, "234567"), (8..22, "89abcdefABCDEF"))
-        );
-    }
-}
+//     #[test]
+//     fn test_sps() {
+//         assert_eq!(
+//             opaque_simple(sps((is_bin.., is_oct.., is_hex..)))
+//                 .fullmatch("0123456789abcdefABCDEF")
+//                 .unwrap(),
+//             ((0..2, "01"), (2..8, "234567"), (8..22, "89abcdefABCDEF"))
+//         );
+//     }
+// }

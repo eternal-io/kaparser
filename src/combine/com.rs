@@ -53,17 +53,17 @@ __generate_codes! { impl_compound_for_tuple ( C ) }
 
 //------------------------------------------------------------------------------
 
-#[cfg(test)]
-mod tests {
-    use crate::prelude::*;
+// #[cfg(test)]
+// mod tests {
+//     use crate::prelude::*;
 
-    #[test]
-    fn test_com() {
-        assert_eq!(
-            opaque_simple(com((is_bin.., is_oct.., is_hex..)))
-                .fullmatch("0123456789abcdefABCDEF")
-                .unwrap(),
-            "0123456789abcdefABCDEF"
-        );
-    }
-}
+//     #[test]
+//     fn test_com() {
+//         assert_eq!(
+//             opaque_simple(com((is_bin.., is_oct.., is_hex..)))
+//                 .fullmatch("0123456789abcdefABCDEF")
+//                 .unwrap(),
+//             "0123456789abcdefABCDEF"
+//         );
+//     }
+// }

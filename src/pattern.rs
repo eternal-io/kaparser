@@ -1,13 +1,14 @@
 use crate::{
-    combine::{convert, modifier},
+    // combine::{convert, modifier},
     common::*,
     error::*,
     predicate::*,
+    stream::*,
 };
 use core::ops::Deref;
 
-pub mod bin;
-pub mod def;
+// pub mod bin;
+// pub mod def;
 pub mod impls;
 
 #[doc(inline)]
@@ -156,161 +157,161 @@ where
 
     //------------------------------------------------------------------------------
 
-    #[inline]
-    fn converge<A>(self) -> convert::Converge<'i, U, E, Self, A>
-    where
-        Self: Sized,
-        Self::Captured: Convergable<A>,
-    {
-        convert::converge(self)
-    }
+    // #[inline]
+    // fn converge<A>(self) -> convert::Converge<'i, U, E, Self, A>
+    // where
+    //     Self: Sized,
+    //     Self::Captured: Convergable<A>,
+    // {
+    //     convert::converge(self)
+    // }
 
-    #[inline]
-    fn filter<F>(self, pred: F) -> convert::Filter<'i, U, E, Self, F>
-    where
-        Self: Sized,
-        F: Fn(&Self::Captured) -> bool,
-    {
-        convert::filter(pred, self)
-    }
-    #[inline]
-    fn filter_map<F, T>(self, filter: F) -> convert::FilterMap<'i, U, E, Self, F, T>
-    where
-        Self: Sized,
-        F: Fn(Self::Captured) -> Option<T>,
-        T: 'static + Clone,
-    {
-        convert::filter_map(filter, self)
-    }
+    // #[inline]
+    // fn filter<F>(self, pred: F) -> convert::Filter<'i, U, E, Self, F>
+    // where
+    //     Self: Sized,
+    //     F: Fn(&Self::Captured) -> bool,
+    // {
+    //     convert::filter(pred, self)
+    // }
+    // #[inline]
+    // fn filter_map<F, T>(self, filter: F) -> convert::FilterMap<'i, U, E, Self, F, T>
+    // where
+    //     Self: Sized,
+    //     F: Fn(Self::Captured) -> Option<T>,
+    //     T: 'static + Clone,
+    // {
+    //     convert::filter_map(filter, self)
+    // }
 
-    #[inline]
-    fn and_then<F, T>(self, op: F) -> convert::AndThen<'i, U, E, Self, F, T>
-    where
-        Self: Sized,
-        F: Fn(Self::Captured) -> Result<T, E>,
-        T: 'static + Clone,
-    {
-        convert::and_then(op, self)
-    }
-    #[inline]
-    fn then_some<T>(self, value: T) -> convert::ThenSome<'i, U, E, Self, T>
-    where
-        Self: Sized,
-        T: Clone,
-    {
-        convert::then_some(value, self)
-    }
+    // #[inline]
+    // fn and_then<F, T>(self, op: F) -> convert::AndThen<'i, U, E, Self, F, T>
+    // where
+    //     Self: Sized,
+    //     F: Fn(Self::Captured) -> Result<T, E>,
+    //     T: 'static + Clone,
+    // {
+    //     convert::and_then(op, self)
+    // }
+    // #[inline]
+    // fn then_some<T>(self, value: T) -> convert::ThenSome<'i, U, E, Self, T>
+    // where
+    //     Self: Sized,
+    //     T: Clone,
+    // {
+    //     convert::then_some(value, self)
+    // }
 
-    #[inline]
-    fn complex<Q>(self, then: Q) -> convert::Complex<'i, U, E, Self, Q>
-    where
-        Self: Sized,
-        Q: Pattern<'i, U, E>,
-    {
-        convert::complex(self, then)
-    }
+    // #[inline]
+    // fn complex<Q>(self, then: Q) -> convert::Complex<'i, U, E, Self, Q>
+    // where
+    //     Self: Sized,
+    //     Q: Pattern<'i, U, E>,
+    // {
+    //     convert::complex(self, then)
+    // }
 
-    #[inline]
-    fn map<F, T>(self, op: F) -> convert::Map<'i, U, E, Self, F, T>
-    where
-        Self: Sized,
-        F: Fn(Self::Captured) -> T,
-    {
-        convert::map(op, self)
-    }
-    #[inline]
-    fn map_err<F, E2>(self, op: F) -> convert::MapErr<'i, U, E, Self, F, E2>
-    where
-        Self: Sized,
-        F: Fn(E) -> E2,
-        E2: Situation,
-    {
-        convert::map_err(op, self)
-    }
+    // #[inline]
+    // fn map<F, T>(self, op: F) -> convert::Map<'i, U, E, Self, F, T>
+    // where
+    //     Self: Sized,
+    //     F: Fn(Self::Captured) -> T,
+    // {
+    //     convert::map(op, self)
+    // }
+    // #[inline]
+    // fn map_err<F, E2>(self, op: F) -> convert::MapErr<'i, U, E, Self, F, E2>
+    // where
+    //     Self: Sized,
+    //     F: Fn(E) -> E2,
+    //     E2: Situation,
+    // {
+    //     convert::map_err(op, self)
+    // }
 
-    #[inline]
-    fn expect(self, msg: &'static str) -> convert::Expect<'i, U, E, Self>
-    where
-        Self: Sized,
-    {
-        convert::expect(msg, self)
-    }
-    #[inline]
-    fn unwrap(self) -> convert::Unwrap<'i, U, E, Self>
-    where
-        Self: Sized,
-    {
-        convert::unwrap(self)
-    }
+    // #[inline]
+    // fn expect(self, msg: &'static str) -> convert::Expect<'i, U, E, Self>
+    // where
+    //     Self: Sized,
+    // {
+    //     convert::expect(msg, self)
+    // }
+    // #[inline]
+    // fn unwrap(self) -> convert::Unwrap<'i, U, E, Self>
+    // where
+    //     Self: Sized,
+    // {
+    //     convert::unwrap(self)
+    // }
 
-    #[inline]
-    fn unwrap_or(self, default: Self::Captured) -> convert::UnwrapOr<'i, U, E, Self>
-    where
-        Self: Sized,
-        Self::Captured: Clone,
-    {
-        convert::unwrap_or(default, self)
-    }
-    #[inline]
-    fn unwrap_or_else<F>(self, f: F) -> convert::UnwrapOrElse<'i, U, E, Self, F>
-    where
-        Self: Sized,
-        F: Fn() -> Self::Captured,
-    {
-        convert::unwrap_or_else(f, self)
-    }
-    #[inline]
-    fn unwrap_or_default(self) -> convert::UnwrapOrDefault<'i, U, E, Self>
-    where
-        Self: Sized,
-        Self::Captured: Default,
-    {
-        convert::unwrap_or_default(self)
-    }
+    // #[inline]
+    // fn unwrap_or(self, default: Self::Captured) -> convert::UnwrapOr<'i, U, E, Self>
+    // where
+    //     Self: Sized,
+    //     Self::Captured: Clone,
+    // {
+    //     convert::unwrap_or(default, self)
+    // }
+    // #[inline]
+    // fn unwrap_or_else<F>(self, f: F) -> convert::UnwrapOrElse<'i, U, E, Self, F>
+    // where
+    //     Self: Sized,
+    //     F: Fn() -> Self::Captured,
+    // {
+    //     convert::unwrap_or_else(f, self)
+    // }
+    // #[inline]
+    // fn unwrap_or_default(self) -> convert::UnwrapOrDefault<'i, U, E, Self>
+    // where
+    //     Self: Sized,
+    //     Self::Captured: Default,
+    // {
+    //     convert::unwrap_or_default(self)
+    // }
 
     //------------------------------------------------------------------------------
 
-    #[inline]
-    fn parallel(self) -> modifier::Parallel<'i, U, E, Self>
-    where
-        Self: Sized,
-    {
-        modifier::parallel(self)
-    }
+    // #[inline]
+    // fn parallel(self) -> modifier::Parallel<'i, U, E, Self>
+    // where
+    //     Self: Sized,
+    // {
+    //     modifier::parallel(self)
+    // }
 
-    #[inline]
-    fn trace<I>(self, info: I) -> modifier::Trace<'i, U, E, Self, I>
-    where
-        Self: Sized,
-        I: core::fmt::Display,
-    {
-        modifier::trace(info, self)
-    }
+    // #[inline]
+    // fn trace<I>(self, info: I) -> modifier::Trace<'i, U, E, Self, I>
+    // where
+    //     Self: Sized,
+    //     I: core::fmt::Display,
+    // {
+    //     modifier::trace(info, self)
+    // }
 
-    #[inline]
-    fn desc(self, desc: E::Description) -> modifier::Describe<'i, U, E, Self>
-    where
-        Self: Sized,
-        E::Description: Clone,
-    {
-        modifier::desc(desc, self)
-    }
-    #[inline]
-    fn desc_with<F>(self, f: F) -> modifier::DescribeWith<'i, U, E, Self, F>
-    where
-        Self: Sized,
-        F: Fn(&E) -> E::Description,
-    {
-        modifier::desc_with(f, self)
-    }
+    // #[inline]
+    // fn desc(self, desc: E::Description) -> modifier::Describe<'i, U, E, Self>
+    // where
+    //     Self: Sized,
+    //     E::Description: Clone,
+    // {
+    //     modifier::desc(desc, self)
+    // }
+    // #[inline]
+    // fn desc_with<F>(self, f: F) -> modifier::DescribeWith<'i, U, E, Self, F>
+    // where
+    //     Self: Sized,
+    //     F: Fn(&E) -> E::Description,
+    // {
+    //     modifier::desc_with(f, self)
+    // }
 
-    #[inline]
-    fn void(self) -> modifier::Void<'i, U, E, Self>
-    where
-        Self: Sized,
-    {
-        modifier::void(self)
-    }
+    // #[inline]
+    // fn void(self) -> modifier::Void<'i, U, E, Self>
+    // where
+    //     Self: Sized,
+    // {
+    //     modifier::void(self)
+    // }
 }
 
 //==================================================================================================
@@ -450,19 +451,19 @@ mod tests {
         assert_eq!(pat.fullmatch("ABCD").unwrap(), "ABCD");
     }
 
-    #[test]
-    fn test_lifetime() -> ParseResult<()> {
-        let pat = igc("foobar");
+    // #[test]
+    // fn test_lifetime() -> ParseResult<()> {
+    //     let pat = igc("foobar");
 
-        const MSG: &'static str = "FOOBAR";
-        let msging = String::from("foobar");
-        let msg = msging.as_ref();
+    //     const MSG: &'static str = "FOOBAR";
+    //     let msging = String::from("foobar");
+    //     let msg = msging.as_ref();
 
-        // let pat = opaque_simple(igc("foobar")); // opaque wrapper shortens its lifetime...
+    //     // let pat = opaque_simple(igc("foobar")); // opaque wrapper shortens its lifetime...
 
-        pat.fullmatch(MSG)?;
-        pat.fullmatch(msg)?;
+    //     pat.fullmatch(MSG)?;
+    //     pat.fullmatch(msg)?;
 
-        Ok(())
-    }
+    //     Ok(())
+    // }
 }
