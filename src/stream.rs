@@ -122,7 +122,7 @@ where
 pub trait Stream<'i>: Deref<Target = Self::Slice> {
     type Slice: ?Sized + Slice;
 
-    fn bump(&mut self, n: usize) -> &'i Self::Slice;
+    fn bump(&mut self, n: usize);
     fn consumed(&self) -> usize;
     fn ended(&self) -> bool;
 }
@@ -134,10 +134,8 @@ where
     type Slice = U;
 
     #[inline]
-    fn bump(&mut self, n: usize) -> &'i Self::Slice {
-        let past = *self;
+    fn bump(&mut self, n: usize) {
         *self = self.after(n);
-        past
     }
     #[inline]
     fn consumed(&self) -> usize {
