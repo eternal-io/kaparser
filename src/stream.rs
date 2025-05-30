@@ -1,19 +1,30 @@
 use core::{
+    iter::{Copied, Enumerate},
     num::NonZeroUsize,
-    ops::{Deref, Range},
+    ops::Range,
+    slice::Iter,
+    str::{CharIndices, Chars},
 };
 
 pub trait Slice {
     type Item: Copy + PartialEq;
 
+    type Iter<'i>: DoubleEndedIterator<Item = Self::Item>
+    where
+        Self: 'i;
+
+    type IterIndices<'i>: DoubleEndedIterator<Item = (usize, Self::Item)>
+    where
+        Self: 'i;
+
     fn len(&self) -> usize;
     fn len_of(item: Self::Item) -> usize;
 
-    fn split_at(&self, mid: usize) -> (&Self, &Self);
     fn subslice(&self, range: Range<usize>) -> &Self;
+    fn split_at(&self, mid: usize) -> (&Self, &Self);
 
-    fn iter(&self) -> impl DoubleEndedIterator<Item = Self::Item>;
-    fn iter_indices(&self) -> impl DoubleEndedIterator<Item = (usize, Self::Item)>;
+    fn iter(&self) -> Self::Iter<'_>;
+    fn iter_indices(&self) -> Self::IterIndices<'_>;
 
     #[inline]
     fn is_empty(&self) -> bool {
@@ -25,12 +36,12 @@ pub trait Slice {
     }
 
     #[inline]
-    fn before(&self, off: usize) -> &Self {
-        self.split_at(off).0
-    }
-    #[inline]
     fn after(&self, off: usize) -> &Self {
         self.split_at(off).1
+    }
+    #[inline]
+    fn before(&self, off: usize) -> &Self {
+        self.split_at(off).0
     }
 
     #[inline]
@@ -54,6 +65,16 @@ pub trait Slice {
 impl Slice for str {
     type Item = char;
 
+    type Iter<'i>
+        = Chars<'i>
+    where
+        Self: 'i;
+
+    type IterIndices<'i>
+        = CharIndices<'i>
+    where
+        Self: 'i;
+
     #[inline]
     fn len(&self) -> usize {
         (*self).len()
@@ -64,20 +85,20 @@ impl Slice for str {
     }
 
     #[inline]
-    fn split_at(&self, mid: usize) -> (&Self, &Self) {
-        (*self).split_at(mid)
-    }
-    #[inline]
     fn subslice(&self, range: Range<usize>) -> &Self {
         &self[range]
     }
+    #[inline]
+    fn split_at(&self, mid: usize) -> (&Self, &Self) {
+        (*self).split_at(mid)
+    }
 
     #[inline]
-    fn iter(&self) -> impl DoubleEndedIterator<Item = Self::Item> {
+    fn iter(&self) -> Self::Iter<'_> {
         (*self).chars()
     }
     #[inline]
-    fn iter_indices(&self) -> impl DoubleEndedIterator<Item = (usize, Self::Item)> {
+    fn iter_indices(&self) -> Self::IterIndices<'_> {
         (*self).char_indices()
     }
 }
@@ -87,6 +108,16 @@ where
     T: Copy + PartialEq,
 {
     type Item = T;
+
+    type Iter<'i>
+        = Copied<Iter<'i, T>>
+    where
+        Self: 'i;
+
+    type IterIndices<'i>
+        = Enumerate<Copied<Iter<'i, T>>>
+    where
+        Self: 'i;
 
     #[inline]
     fn len(&self) -> usize {
@@ -99,48 +130,99 @@ where
     }
 
     #[inline]
-    fn split_at(&self, mid: usize) -> (&Self, &Self) {
-        (*self).split_at(mid)
-    }
-    #[inline]
     fn subslice(&self, range: Range<usize>) -> &Self {
         &self[range]
     }
+    #[inline]
+    fn split_at(&self, mid: usize) -> (&Self, &Self) {
+        (*self).split_at(mid)
+    }
 
     #[inline]
-    fn iter(&self) -> impl DoubleEndedIterator<Item = Self::Item> {
+    fn iter(&self) -> Self::Iter<'_> {
         (*self).iter().copied()
     }
     #[inline]
-    fn iter_indices(&self) -> impl DoubleEndedIterator<Item = (usize, Self::Item)> {
+    fn iter_indices(&self) -> Self::IterIndices<'_> {
         (*self).iter().copied().enumerate()
     }
 }
 
 //------------------------------------------------------------------------------
 
-pub trait Stream<'i>: Deref<Target = Self::Slice> {
-    type Slice: ?Sized + Slice;
-
-    fn rest(&self) -> &'i Self::Slice;
-    fn bump(&mut self, n: usize);
+pub trait Stream<'i, U>
+where
+    U: ?Sized + Slice + 'i,
+{
+    fn rest(&self) -> &'i U;
+    fn bump(&mut self, n: usize) -> &'i U;
     fn consumed(&self) -> usize;
     fn ended(&self) -> bool;
+
+    /*
+        Delegation is needed since deref cannot meet the requirements.
+        It is also desirable to implement these methods in two traits,
+        as this allows for chaining of methods on slices.
+    */
+
+    #[inline]
+    fn len(&self) -> usize {
+        self.rest().len()
+    }
+    #[inline]
+    fn is_empty(&self) -> bool {
+        self.rest().is_empty()
+    }
+
+    #[inline]
+    fn first(&self) -> Option<U::Item> {
+        self.rest().iter().next()
+    }
+    #[inline]
+    fn iter(&self) -> U::Iter<'i> {
+        self.rest().iter()
+    }
+    #[inline]
+    fn iter_indices(&self) -> U::IterIndices<'i> {
+        self.rest().iter_indices()
+    }
+
+    #[inline]
+    fn after(&self, off: usize) -> &'i U {
+        self.rest().after(off)
+    }
+    #[inline]
+    fn before(&self, off: usize) -> &'i U {
+        self.rest().before(off)
+    }
+    #[inline]
+    fn subslice(&self, range: Range<usize>) -> &'i U {
+        self.rest().subslice(range)
+    }
+    #[inline]
+    fn split_at(&self, mid: usize) -> (&'i U, &'i U) {
+        self.rest().split_at(mid)
+    }
+
+    #[inline]
+    fn starts_with(&self, prefix: &U, ended: bool) -> Result<usize, Result<Option<NonZeroUsize>, usize>> {
+        self.rest().starts_with(prefix, ended)
+    }
 }
 
-impl<'i, U> Stream<'i> for &'i U
+impl<'i, U> Stream<'i, U> for &'i U
 where
     U: ?Sized + Slice,
 {
-    type Slice = U;
-
     #[inline]
-    fn rest(&self) -> &'i Self::Slice {
+    fn rest(&self) -> &'i U {
         self
     }
     #[inline]
-    fn bump(&mut self, n: usize) {
+    fn bump(&mut self, n: usize) -> &'i U {
+        let past = *self;
         *self = self.after(n);
+        past
     }
     #[inline]
     fn consumed(&self) -> usize {

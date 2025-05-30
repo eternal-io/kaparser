@@ -46,41 +46,31 @@ where
 
     fn init(&self) -> Self::Internal;
 
-    fn parse_reentrant(
-        &self,
-        slice: &'i U,
-        entry: &mut Self::Internal,
-        ended: bool,
-    ) -> Result<(Self::Captured, usize), E>;
-
-    fn inject_base_off(&self, entry: &mut Self::Internal, base_off: usize) {
-        let _ = (entry, base_off);
-    }
+    fn parse_reentrant<S>(&self, input: &mut S, entry: &mut Self::Internal) -> Result<Self::Captured, E>
+    where
+        S: Stream<'i, U>;
 
     //------------------------------------------------------------------------------
 
     #[inline]
-    fn parse<S>(&self, slice: &mut S) -> Result<Self::Captured, E>
+    fn parse<S>(&self, input: &mut S) -> Result<Self::Captured, E>
     where
-        Self: Sized,
-        S: Stream<'i, Slice = U>,
+        S: Stream<'i, U>,
     {
-        let (cap, len) = self.parse_reentrant(slice.rest(), &mut self.init(), slice.ended())?;
-        slice.bump(len);
-        Ok(cap)
+        self.parse_reentrant(input, &mut self.init())
     }
 
     #[inline]
-    fn fullmatch<S>(&self, slice: &S) -> Result<Self::Captured, E>
+    fn fullmatch<S>(&self, input: &mut S) -> Result<Self::Captured, E>
     where
-        Self: Sized,
-        S: Stream<'i, Slice = U>,
+        S: Stream<'i, U>,
     {
-        let (cap, len) = self.parse_reentrant(slice.rest(), &mut self.init(), slice.ended())?;
-        match len != slice.len() {
-            true => E::raise_halt_at(len),
-            false => Ok(cap),
+        let len = input.len();
+        let cap = self.parse_reentrant(input, &mut self.init())?;
+        if !input.is_empty() {
+            return E::raise_halt_at(len - input.len());
         }
+        Ok(cap)
     }
 }
 
@@ -321,14 +311,12 @@ where
     #[inline]
     fn init(&self) -> Self::Internal {}
     #[inline]
-    fn parse_reentrant(
-        &self,
-        slice: &'i str,
-        _ntry: &mut Self::Internal,
-        ended: bool,
-    ) -> Result<(Self::Captured, usize), E> {
-        match Slice::starts_with(slice, self, ended) {
-            Ok(len) => Ok((slice.before(len), len)),
+    fn parse_reentrant<S>(&self, input: &mut S, _ntry: &mut Self::Internal) -> Result<Self::Captured, E>
+    where
+        S: Stream<'i, str>,
+    {
+        match Slice::starts_with(input.rest(), self, input.ended()) {
+            Ok(len) => Ok(input.bump(len)),
             Err(res) => match res {
                 Ok(ext) => E::raise_unfulfilled(ext),
                 Err(off) => E::raise_reject_at(off),
@@ -348,14 +336,12 @@ where
     #[inline]
     fn init(&self) -> Self::Internal {}
     #[inline]
-    fn parse_reentrant(
-        &self,
-        slice: &'i [T],
-        _ntry: &mut Self::Internal,
-        ended: bool,
-    ) -> Result<(Self::Captured, usize), E> {
-        match Slice::starts_with(slice, self, ended) {
-            Ok(len) => Ok((slice.before(len), len)),
+    fn parse_reentrant<S>(&self, input: &mut S, _ntry: &mut Self::Internal) -> Result<Self::Captured, E>
+    where
+        S: Stream<'i, [T]>,
+    {
+        match Slice::starts_with(input.rest(), self, self.ended()) {
+            Ok(len) => Ok(input.bump(len)),
             Err(res) => match res {
                 Ok(ext) => E::raise_unfulfilled(ext),
                 Err(off) => E::raise_reject_at(off),
@@ -376,18 +362,19 @@ where
     #[inline]
     fn init(&self) -> Self::Internal {}
     #[inline]
-    fn parse_reentrant(
-        &self,
-        slice: &'i U,
-        _ntry: &mut Self::Internal,
-        ended: bool,
-    ) -> Result<(Self::Captured, usize), E> {
-        match slice.first() {
+    fn parse_reentrant<S>(&self, input: &mut S, _ntry: &mut Self::Internal) -> Result<Self::Captured, E>
+    where
+        S: Stream<'i, U>,
+    {
+        match input.first() {
             Some(item) => match self[0].predicate(&item) {
-                true => Ok((item, U::len_of(item))),
+                true => {
+                    input.bump(U::len_of(item));
+                    Ok(item)
+                }
                 false => E::raise_reject_at(0),
             },
-            None => match ended {
+            None => match input.ended() {
                 true => E::raise_reject_at(0),
                 false => E::raise_unfulfilled(None),
             },
@@ -399,7 +386,7 @@ impl<'i, U, E, Cap, F> PatternV2<'i, U, E> for F
 where
     U: ?Sized + Slice + 'i,
     E: Situation,
-    F: Fn(&'i U, bool) -> Result<(Cap, usize), E>,
+    F: Fn(&mut dyn Stream<'i, U>) -> Result<Cap, E>,
 {
     type Captured = Cap;
     type Internal = ();
@@ -407,13 +394,11 @@ where
     #[inline]
     fn init(&self) -> Self::Internal {}
     #[inline]
-    fn parse_reentrant(
-        &self,
-        slice: &'i U,
-        _ntry: &mut Self::Internal,
-        ended: bool,
-    ) -> Result<(Self::Captured, usize), E> {
-        self(slice, ended)
+    fn parse_reentrant<S>(&self, input: &mut S, _ntry: &mut Self::Internal) -> Result<Self::Captured, E>
+    where
+        S: Stream<'i, U>,
+    {
+        self(input)
     }
 }
 
