@@ -34,6 +34,26 @@ where
     pattern
 }
 
+#[inline]
+pub const fn opaque2<'i, U, E, Cap>(
+    pattern: impl PatternV2<'i, U, E, Captured = Cap>,
+) -> impl PatternV2<'i, U, E, Captured = Cap>
+where
+    U: ?Sized + Slice + 'i,
+    E: Situation,
+{
+    pattern
+}
+#[inline]
+pub const fn opaque_simple2<'i, U, Cap>(
+    pattern: impl PatternV2<'i, U, SimpleError, Captured = Cap>,
+) -> impl PatternV2<'i, U, SimpleError, Captured = Cap>
+where
+    U: ?Sized + Slice + 'i,
+{
+    pattern
+}
+
 //==================================================================================================
 
 pub trait PatternV2<'i, U, E>
@@ -46,7 +66,7 @@ where
 
     fn init(&self) -> Self::Internal;
 
-    fn parse_reentrant<S>(&self, input: &mut S, entry: &mut Self::Internal) -> Result<Self::Captured, E>
+    fn parse_reentrant<S>(&self, input: &S, entry: &mut Self::Internal) -> Result<(Self::Captured, usize), E>
     where
         S: Stream<'i, U>;
 
@@ -57,18 +77,19 @@ where
     where
         S: Stream<'i, U>,
     {
-        self.parse_reentrant(input, &mut self.init())
+        let (cap, len) = self.parse_reentrant(input, &mut self.init())?;
+        input.bump(len);
+        Ok(cap)
     }
 
     #[inline]
-    fn fullmatch<S>(&self, input: &mut S) -> Result<Self::Captured, E>
+    fn fullmatch<S>(&self, input: &S) -> Result<Self::Captured, E>
     where
         S: Stream<'i, U>,
     {
-        let len = input.len();
-        let cap = self.parse_reentrant(input, &mut self.init())?;
-        if !input.is_empty() {
-            return E::raise_halt_at(len - input.len());
+        let (cap, len) = self.parse_reentrant(input, &mut self.init())?;
+        if len != input.len() {
+            return E::raise_halt_at(len);
         }
         Ok(cap)
     }
@@ -311,12 +332,12 @@ where
     #[inline]
     fn init(&self) -> Self::Internal {}
     #[inline]
-    fn parse_reentrant<S>(&self, input: &mut S, _ntry: &mut Self::Internal) -> Result<Self::Captured, E>
+    fn parse_reentrant<S>(&self, input: &S, _ntry: &mut Self::Internal) -> Result<(Self::Captured, usize), E>
     where
         S: Stream<'i, str>,
     {
         match Slice::starts_with(input.rest(), self, input.ended()) {
-            Ok(len) => Ok(input.bump(len)),
+            Ok(()) => Ok((input.before(self.len()), self.len())),
             Err(res) => match res {
                 Ok(ext) => E::raise_unfulfilled(ext),
                 Err(off) => E::raise_reject_at(off),
@@ -336,12 +357,12 @@ where
     #[inline]
     fn init(&self) -> Self::Internal {}
     #[inline]
-    fn parse_reentrant<S>(&self, input: &mut S, _ntry: &mut Self::Internal) -> Result<Self::Captured, E>
+    fn parse_reentrant<S>(&self, input: &S, _ntry: &mut Self::Internal) -> Result<(Self::Captured, usize), E>
     where
         S: Stream<'i, [T]>,
     {
         match Slice::starts_with(input.rest(), self, self.ended()) {
-            Ok(len) => Ok(input.bump(len)),
+            Ok(()) => Ok((input.before(self.len()), self.len())),
             Err(res) => match res {
                 Ok(ext) => E::raise_unfulfilled(ext),
                 Err(off) => E::raise_reject_at(off),
@@ -362,16 +383,13 @@ where
     #[inline]
     fn init(&self) -> Self::Internal {}
     #[inline]
-    fn parse_reentrant<S>(&self, input: &mut S, _ntry: &mut Self::Internal) -> Result<Self::Captured, E>
+    fn parse_reentrant<S>(&self, input: &S, _ntry: &mut Self::Internal) -> Result<(Self::Captured, usize), E>
     where
         S: Stream<'i, U>,
     {
         match input.first() {
             Some(item) => match self[0].predicate(&item) {
-                true => {
-                    input.bump(U::len_of(item));
-                    Ok(item)
-                }
+                true => Ok((item, U::len_of(item))),
                 false => E::raise_reject_at(0),
             },
             None => match input.ended() {
@@ -386,7 +404,7 @@ impl<'i, U, E, Cap, F> PatternV2<'i, U, E> for F
 where
     U: ?Sized + Slice + 'i,
     E: Situation,
-    F: Fn(&mut dyn Stream<'i, U>) -> Result<Cap, E>,
+    F: Fn(&dyn Stream<'i, U>) -> Result<(Cap, usize), E>,
 {
     type Captured = Cap;
     type Internal = ();
@@ -394,7 +412,7 @@ where
     #[inline]
     fn init(&self) -> Self::Internal {}
     #[inline]
-    fn parse_reentrant<S>(&self, input: &mut S, _ntry: &mut Self::Internal) -> Result<Self::Captured, E>
+    fn parse_reentrant<S>(&self, input: &S, _ntry: &mut Self::Internal) -> Result<(Self::Captured, usize), E>
     where
         S: Stream<'i, U>,
     {
@@ -416,7 +434,7 @@ where
     #[inline]
     fn advance(&self, slice: &str, _ntry: &mut Self::Internal, eof: bool) -> Result<usize, E> {
         match Slice::starts_with(slice, self, eof) {
-            Ok(len) => Ok(len),
+            Ok(()) => Ok(self.len()),
             Err(res) => match res {
                 Ok(ext) => E::raise_unfulfilled(ext),
                 Err(off) => E::raise_reject_at(off),
@@ -442,7 +460,7 @@ where
     #[inline]
     fn advance(&self, slice: &[T], _ntry: &mut Self::Internal, eof: bool) -> Result<usize, E> {
         match Slice::starts_with(slice, self, eof) {
-            Ok(len) => Ok(len),
+            Ok(()) => Ok(self.len()),
             Err(res) => match res {
                 Ok(ext) => E::raise_unfulfilled(ext),
                 Err(off) => E::raise_reject_at(off),
@@ -487,47 +505,46 @@ where
 
 //==================================================================================================
 
-// #[cfg(test)]
-// mod tests {
-//     use crate::prelude::*;
-//     use std::string::String;
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use crate::prelude::*;
+    use std::string::String;
 
-//     #[test]
-//     fn slice() {
-//         let pat = opaque_simple("");
-//         assert!(pat.fullmatch("").is_ok());
-//         assert_eq!(pat.fullmatch("?").unwrap_err().offset(), 0);
-//         assert_eq!(pat.fullmatch("??").unwrap_err().offset(), 0);
+    #[test]
+    fn slice() {
+        let pat = opaque_simple2("");
+        assert!(pat.fullmatch(&"").is_ok());
+        assert_eq!(pat.fullmatch(&"?").unwrap_err().offset(), 0);
+        assert_eq!(pat.fullmatch(&"??").unwrap_err().offset(), 0);
 
-//         let pat = opaque_simple("A");
-//         assert_eq!(pat.fullmatch("").unwrap_err().offset(), 0);
-//         assert_eq!(pat.fullmatch("A").unwrap(), "A");
-//         assert_eq!(pat.fullmatch("AA").unwrap_err().offset(), 1);
+        let pat = opaque_simple2("A");
+        assert_eq!(pat.fullmatch(&"").unwrap_err().offset(), 0);
+        assert_eq!(pat.fullmatch(&"A").unwrap(), "A");
+        assert_eq!(pat.fullmatch(&"AA").unwrap_err().offset(), 1);
 
-//         let pat = opaque_simple("AB");
-//         assert_eq!(pat.fullmatch("").unwrap_err().offset(), 0);
-//         assert_eq!(pat.fullmatch("AB").unwrap(), "AB");
-//         assert_eq!(pat.fullmatch("ABCD").unwrap_err().offset(), 2);
+        let pat = opaque_simple2("AB");
+        assert_eq!(pat.fullmatch(&"").unwrap_err().offset(), 0);
+        assert_eq!(pat.fullmatch(&"AB").unwrap(), "AB");
+        assert_eq!(pat.fullmatch(&"ABCD").unwrap_err().offset(), 2);
 
-//         let pat = opaque_simple("ABCD");
-//         assert_eq!(pat.fullmatch("").unwrap_err().offset(), 0);
-//         assert_eq!(pat.fullmatch("AB").unwrap_err().offset(), 2);
-//         assert_eq!(pat.fullmatch("ABCD").unwrap(), "ABCD");
-//     }
+        let pat = opaque_simple2("ABCD");
+        assert_eq!(pat.fullmatch(&"").unwrap_err().offset(), 0);
+        assert_eq!(pat.fullmatch(&"AB").unwrap_err().offset(), 2);
+        assert_eq!(pat.fullmatch(&"ABCD").unwrap(), "ABCD");
+    }
 
-//     #[test]
-//     fn test_lifetime() -> ParseResult<()> {
-//         let pat = igc("foobar");
+    #[test]
+    fn test_lifetime() -> ParseResult<()> {
+        const MSG: &'static str = "foobar";
+        let msging = String::from("foobar");
+        let msg = msging.as_ref();
 
-//         const MSG: &'static str = "FOOBAR";
-//         let msging = String::from("foobar");
-//         let msg = msging.as_ref();
+        let pat = opaque_simple2("foobar");
 
-//         // let pat = opaque_simple(igc("foobar")); // opaque wrapper shortens its lifetime...
+        pat.fullmatch(&MSG)?;
+        pat.fullmatch(&msg)?;
 
-//         pat.fullmatch(MSG)?;
-//         pat.fullmatch(msg)?;
-
-//         Ok(())
-//     }
-// }
+        Ok(())
+    }
+}

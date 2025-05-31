@@ -45,7 +45,7 @@ pub trait Slice {
     }
 
     #[inline]
-    fn starts_with(&self, prefix: &Self, ended: bool) -> Result<usize, Result<Option<NonZeroUsize>, usize>> {
+    fn starts_with(&self, prefix: &Self, ended: bool) -> Result<(), Result<Option<NonZeroUsize>, usize>> {
         if self.len() < prefix.len() {
             match ended {
                 true => Err(Err(self.len())),
@@ -57,7 +57,7 @@ pub trait Slice {
                     return Err(Err(off));
                 }
             }
-            Ok(prefix.len())
+            Ok(())
         }
     }
 }
@@ -155,7 +155,7 @@ where
     U: ?Sized + Slice + 'i,
 {
     fn rest(&self) -> &'i U;
-    fn bump(&mut self, n: usize) -> &'i U;
+    fn bump(&mut self, n: usize);
     fn consumed(&self) -> usize;
     fn ended(&self) -> bool;
 
@@ -205,7 +205,7 @@ where
     }
 
     #[inline]
-    fn starts_with(&self, prefix: &U, ended: bool) -> Result<usize, Result<Option<NonZeroUsize>, usize>> {
+    fn starts_with(&self, prefix: &U, ended: bool) -> Result<(), Result<Option<NonZeroUsize>, usize>> {
         self.rest().starts_with(prefix, ended)
     }
 }
@@ -219,10 +219,8 @@ where
         self
     }
     #[inline]
-    fn bump(&mut self, n: usize) -> &'i U {
-        let past = *self;
+    fn bump(&mut self, n: usize) {
         *self = self.after(n);
-        past
     }
     #[inline]
     fn consumed(&self) -> usize {
