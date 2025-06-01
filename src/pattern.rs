@@ -62,32 +62,19 @@ where
     E: Situation,
 {
     type Captured;
-    type Internal: 'static;
 
-    fn init(&self) -> Self::Internal;
-
-    fn parse_reentrant<S>(&self, input: &S, entry: &mut Self::Internal) -> Result<(Self::Captured, usize), E>
-    where
-        S: Stream<'i, U>;
-
-    //------------------------------------------------------------------------------
+    fn parse_impl(&self, input: &impl Stream<'i, U>) -> Result<(Self::Captured, usize), E>;
 
     #[inline]
-    fn parse<S>(&self, input: &mut S) -> Result<Self::Captured, E>
-    where
-        S: Stream<'i, U>,
-    {
-        let (cap, len) = self.parse_reentrant(input, &mut self.init())?;
+    fn parse(&self, input: &mut impl Stream<'i, U>) -> Result<Self::Captured, E> {
+        let (cap, len) = self.parse_impl(input).map_err(|e| e.backtrack(input.consumed()))?;
         input.bump(len);
         Ok(cap)
     }
 
     #[inline]
-    fn fullmatch<S>(&self, input: &S) -> Result<Self::Captured, E>
-    where
-        S: Stream<'i, U>,
-    {
-        let (cap, len) = self.parse_reentrant(input, &mut self.init())?;
+    fn fullmatch(&self, input: &impl Stream<'i, U>) -> Result<Self::Captured, E> {
+        let (cap, len) = self.parse_impl(input).map_err(|e| e.backtrack(input.consumed()))?;
         if len != input.len() {
             return E::raise_halt_at(len);
         }
@@ -327,15 +314,9 @@ where
     E: Situation,
 {
     type Captured = &'i str;
-    type Internal = ();
 
     #[inline]
-    fn init(&self) -> Self::Internal {}
-    #[inline]
-    fn parse_reentrant<S>(&self, input: &S, _ntry: &mut Self::Internal) -> Result<(Self::Captured, usize), E>
-    where
-        S: Stream<'i, str>,
-    {
+    fn parse_impl(&self, input: &impl Stream<'i, str>) -> Result<(Self::Captured, usize), E> {
         match Slice::starts_with(input.rest(), self, input.ended()) {
             Ok(()) => Ok((input.before(self.len()), self.len())),
             Err(res) => match res {
@@ -352,16 +333,10 @@ where
     E: Situation,
 {
     type Captured = &'i [T];
-    type Internal = ();
 
     #[inline]
-    fn init(&self) -> Self::Internal {}
-    #[inline]
-    fn parse_reentrant<S>(&self, input: &S, _ntry: &mut Self::Internal) -> Result<(Self::Captured, usize), E>
-    where
-        S: Stream<'i, [T]>,
-    {
-        match Slice::starts_with(input.rest(), self, self.ended()) {
+    fn parse_impl(&self, input: &impl Stream<'i, [T]>) -> Result<(Self::Captured, usize), E> {
+        match Slice::starts_with(input.rest(), self, input.ended()) {
             Ok(()) => Ok((input.before(self.len()), self.len())),
             Err(res) => match res {
                 Ok(ext) => E::raise_unfulfilled(ext),
@@ -378,15 +353,9 @@ where
     P: Predicate<U::Item>,
 {
     type Captured = U::Item;
-    type Internal = ();
 
     #[inline]
-    fn init(&self) -> Self::Internal {}
-    #[inline]
-    fn parse_reentrant<S>(&self, input: &S, _ntry: &mut Self::Internal) -> Result<(Self::Captured, usize), E>
-    where
-        S: Stream<'i, U>,
-    {
+    fn parse_impl(&self, input: &impl Stream<'i, U>) -> Result<(Self::Captured, usize), E> {
         match input.first() {
             Some(item) => match self[0].predicate(&item) {
                 true => Ok((item, U::len_of(item))),
@@ -400,22 +369,16 @@ where
     }
 }
 
-impl<'i, U, E, Cap, F> PatternV2<'i, U, E> for F
+impl<'i, U, E, F, Out> PatternV2<'i, U, E> for F
 where
     U: ?Sized + Slice + 'i,
     E: Situation,
-    F: Fn(&dyn Stream<'i, U>) -> Result<(Cap, usize), E>,
+    F: Fn(&dyn Stream<'i, U>) -> Result<(Out, usize), E>,
 {
-    type Captured = Cap;
-    type Internal = ();
+    type Captured = Out;
 
     #[inline]
-    fn init(&self) -> Self::Internal {}
-    #[inline]
-    fn parse_reentrant<S>(&self, input: &S, _ntry: &mut Self::Internal) -> Result<(Self::Captured, usize), E>
-    where
-        S: Stream<'i, U>,
-    {
+    fn parse_impl(&self, input: &impl Stream<'i, U>) -> Result<(Self::Captured, usize), E> {
         self(input)
     }
 }
