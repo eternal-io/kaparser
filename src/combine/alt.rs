@@ -14,56 +14,26 @@ pub struct Alternate<A> {
 macro_rules! impl_alternate_for_tuple {
     ( $Len:literal, $($OrdN:literal ~ ($GenN:ident ~ $VarN:ident) ~ $_gen:ident ~ $_con:ident ~ $IdxN:tt)+ ) => { paste::paste! {
         #[doc(hidden)]
-        impl<'i, U, E, $($GenN),+> Pattern<'i, U, E> for Alternate<($($GenN,)+)>
+        impl<'i, U, E, $($GenN),+> PatternV2<'i, U, E> for Alternate<($($GenN,)+)>
         where
             U: ?Sized + Slice + 'i,
             E: Situation,
-          $($GenN: Pattern<'i, U, E>,)+
+          $($GenN: PatternV2<'i, U, E>,)+
         {
             type Captured = [<Alt $Len>]<$($GenN::Captured),+>;
-            type Internal = [<Alt $Len>]<$($GenN::Internal),+>;
 
             #[inline]
-            fn init(&self) -> Self::Internal {
-                [<Alt $Len>]::Var1(self.alt.0.init())
-            }
-
-            #[inline]
-            #[allow(irrefutable_let_patterns)]
-            fn advance(&self, slice: &U, entry: &mut Self::Internal, eof: bool) -> Result<usize, E> {
+            fn parse_impl(&self, input: &impl Stream<'i, U>) -> Result<(Self::Captured, usize), E> {
                 use [<Alt $Len>]::*;
-
-                __resume_advance! { entry ; $(
-                    $VarN(_) => {
-                        *entry = $VarN(self.alt.$IdxN.init());
-                    } {
-                        let $VarN(state) = entry else { unreachable!() };
-                        match self.alt.$IdxN.advance(slice, state, eof) {
-                            Ok(len) => return Ok(len),
-                            Err(e) => if !e.is_rejected() {
-                                return Err(e);
-                            }
-                        }
+            $(
+                match self.alt.$IdxN.parse_impl(input) {
+                    Ok((cap, len)) => return Ok(($VarN(cap), len)),
+                    Err(e) => if !e.is_rejected() {
+                        return Err(e);
                     }
-                )+ }
-
+                }
+            )+
                 E::raise_reject_at(0)
-            }
-
-            #[inline]
-            fn extract(&self, slice: &'i U, entry: Self::Internal) -> Self::Captured {
-                use [<Alt $Len>]::*;
-                match entry { $(
-                    $VarN(state) => $VarN(self.alt.$IdxN.extract(slice, state)),
-                )+ }
-            }
-
-            #[inline]
-            fn inject_base_off(&self, entry: &mut Self::Internal, base_off: usize) {
-                use [<Alt $Len>]::*;
-                match entry { $(
-                    $VarN(state) => self.alt.$IdxN.inject_base_off(state, base_off),
-                )+ }
             }
         }
     } };

@@ -3,6 +3,7 @@ pub use crate::{common::alts::*, error::*, line_col::*, predicate::*};
 pub use crate::pattern::{
     ParseResult,
     Pattern,
+    PatternV2,
     // bin, def,
     opaque,
     opaque_simple,
