@@ -1,6 +1,14 @@
 #![no_std]
-#![deny(unsafe_code)]
 
 #[cfg(test)]
 #[cfg_attr(test, macro_use)]
 extern crate std;
+
+#[cfg(feature = "alloc")]
+extern crate alloc;
+
+pub mod common;
+pub mod input;
+pub mod pattern;
+pub mod predicate;
+pub mod slice;

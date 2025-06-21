@@ -12,6 +12,10 @@ license = "MIT OR Apache-2.0"
 readme = false
 
 
+[features]
+default = ["alloc"]
+alloc = []
+
 [dependencies]
 paste = "1.0.15"
 memchr = "2.7.5"
