@@ -26,8 +26,12 @@ pub trait InputSlice<'src, 'tmp> {
 
     /// # Safety
     ///
-    /// If `'tmp` doesn't outlives `'src`, the previous return value must be dropped
-    /// before the next call to any method in this trait, otherwise UB.
+    /// If `'tmp` doesn't outlives `'src`, the returned slice must be dropped before:
+    ///
+    /// - Calling any other method of this trait (and super-trait), or
+    /// - Ending the mutable borrow of the input.
+    ///
+    /// Violating this contract may cause undefined behavior.
     unsafe fn get_slice<'once>(&mut self) -> &'once Self::View
     where
         'src: 'once,

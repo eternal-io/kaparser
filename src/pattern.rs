@@ -1,47 +1,67 @@
 use crate::input::*;
 
-pub trait Quattrn<'src, U: Input<'src>> {
-    type View<'tmp>;
+pub trait Quattrn<'src, 'tmp, U>
+where
+    U: Input<'src, 'tmp>,
+{
+    type View<'once>
+    where
+        'src: 'once,
+        'once: 'tmp;
 
-    fn fullmatch_v<'tmp>(&self, input: &mut U) -> Self::View<'tmp>;
+    unsafe fn fullmatch_v<'once>(&self, input: &mut U) -> Self::View<'once>
+    where
+        'src: 'once,
+        'once: 'tmp;
 }
 
-pub trait Pattern<'src, U: Input<'src>> {
+pub trait Pattern<'src, U>
+where
+    U: Input<'src, 'src>,
+{
     type Captured;
 
     fn fullmatch(&self, input: &mut U) -> Self::Captured;
 }
 
-impl<'src, U, Q> Pattern<'src, U> for Q
-where
-    U: Input<'src>,
-    Q: Quattrn<'src, U>,
-    for<'tmp> Q::View<'tmp>: 'src,
-{
-    type Captured = Q::View<'src>;
+// impl<'src, U, Q> Pattern<'src, U> for Q
+// where
+//     U: Input<'src, 'src>,
+//     Q: Quattrn<'src, 'src, U>,
+//     for<'once> Q::View<'once>: 'src,
+// {
+//     type Captured = Q::View<'src>;
 
-    fn fullmatch(&self, input: &mut U) -> Self::Captured {
-        self.fullmatch_v(input)
-    }
-}
+//     fn fullmatch(&self, input: &mut U) -> Self::Captured {
+//         unsafe { self.fullmatch_v(input) }
+//     }
+// }
 
 //------------------------------------------------------------------------------
 
-impl<'src, U> Quattrn<'src, U> for ()
+impl<'src, 'tmp, U> Quattrn<'src, 'tmp, U> for ()
 where
-    U: for<'tmp> InputSlice<'src, Slice<'tmp> = &'src str>,
+    U: InputSlice<'src, 'tmp, Slice = str>,
 {
-    type View<'tmp> = U::Slice<'tmp>;
+    type View<'once>
+        = &'once U::Slice
+    where
+        'src: 'once,
+        'once: 'tmp;
 
-    fn fullmatch_v<'tmp>(&self, input: &mut U) -> Self::View<'tmp> {
+    unsafe fn fullmatch_v<'once>(&self, input: &mut U) -> Self::View<'once>
+    where
+        'src: 'once,
+        'once: 'tmp,
+    {
         let mut cursor = input.begin();
-        input.discard_slice(&mut cursor, 0)
+        unsafe { input.discard_slice(&mut cursor, 0) }
     }
 }
 
 use alloc::string::String;
 
-// pub fn q_string<'src>() -> impl for<'tmp> Quattrn<'src, String, View<'tmp> = &'tmp str> {
+// pub fn q_string<'src: 'static, 'tmp>() -> impl for<'once> Quattrn<'src, 'tmp, String, View<'once> = &'once str> {
 //     ()
 // }
 
@@ -49,7 +69,7 @@ use alloc::string::String;
 //     ()
 // }
 
-// pub fn q_str<'src>() -> impl for<'tmp> Quattrn<'src, &'src str, View<'tmp> = &'tmp str> {
+// pub fn q_str<'src: 'static>() -> impl for<'once> Quattrn<'src, 'src, &'src str, View<'once> = &'once str> {
 //     ()
 // }
 
