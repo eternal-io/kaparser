@@ -1,95 +1,69 @@
-use crate::{common::*, slice::*};
+use crate::{common::*, marker, slice::*};
 use core::{convert::Infallible, ops::Range};
 
-pub trait Input<'src, 'tmp> {
-    type Token;
-    type TokenMaybe<'once>: MaybeRef<'once, Self::Token>
+pub trait Input<'src>: 'src {
+    type _Mark;
+
+    type Token: 'src;
+    type TokenMaybe<'tmp>: RefVal<'tmp, Self::Token>
     where
-        'src: 'once,
-        'once: 'tmp;
+        'src: 'tmp;
 
     type Error;
     type Cursor: Clone;
 
     fn begin(&self) -> Self::Cursor;
 
-    /// # Safety
-    ///
-    /// If `'tmp` doesn't outlives `'src`, the returned value must be dropped before:
-    ///
-    /// - Calling any other method of this trait (or super-trait), or
-    /// - Ending the mutable borrow of the input.
-    ///
-    /// Violating this contract may cause undefined behavior.
-    unsafe fn next_maybe_ref<'once>(
-        &mut self,
+    fn next_maybe_ref<'tmp>(
+        &'tmp mut self,
         cursor: &mut Self::Cursor,
-    ) -> Result<Option<Self::TokenMaybe<'once>>, Self::Error>
+    ) -> Result<Option<Self::TokenMaybe<'tmp>>, Self::Error>
     where
-        'src: 'once,
-        'once: 'tmp;
+        'src: 'tmp;
 
     fn span(&self, range: Range<Self::Cursor>) -> Range<usize>;
 
     fn offset(&self, cursor: Self::Cursor) -> usize;
 }
 
-pub trait InputOwnableToken<'src, 'tmp>: Input<'src, 'tmp> {
+pub trait InputOwnableToken<'src>: Input<'src> {
     fn next(&mut self, cursor: Self::Cursor) -> Result<Option<Self::Token>, Self::Error>;
 }
 
-pub trait InputBorrowableToken<'src, 'tmp>: Input<'src, 'tmp> {
+pub trait InputBorrowableToken<'src>: Input<'src> {
     fn next_ref(&mut self, cursor: Self::Cursor) -> Result<Option<&'src Self::Token>, Self::Error>;
 }
 
-pub trait InputSlice<'src, 'tmp>: Input<'src, 'tmp> {
-    type Slice: ?Sized + Slice<'tmp, Item = Self::Token> + 'tmp;
+pub trait InputSlice<'src>: Input<'src> {
+    type Slice: ?Sized + Slice<'src, Item = Self::Token> + 'src;
 
-    /// # Safety
-    ///
-    /// If `'tmp` doesn't outlives `'src`, the returned slice must be dropped before:
-    ///
-    /// - Calling any other method of this trait (or super-trait), or
-    /// - Ending the mutable borrow of the input.
-    ///
-    /// Violating this contract may cause undefined behavior.
-    unsafe fn acquire_slice<'once>(&mut self, cursor: Self::Cursor) -> Result<(&'once Self::Slice, bool), Self::Error>
+    fn acquire_slice<'tmp>(&'tmp mut self, cursor: Self::Cursor) -> Result<(&'tmp Self::Slice, bool), Self::Error>
     where
-        'src: 'once,
-        'once: 'tmp;
+        'src: 'tmp;
 
-    /// # Safety
-    ///
-    /// If `'tmp` doesn't outlives `'src`, the returned slice must be dropped before:
-    ///
-    /// - Calling any other method of this trait (or super-trait), or
-    /// - Ending the mutable borrow of the input.
-    ///
-    /// Violating this contract may cause undefined behavior.
-    unsafe fn discard_slice<'once>(&mut self, cursor: &mut Self::Cursor, length: usize) -> &'once Self::Slice
+    fn discard_slice<'tmp>(&'tmp mut self, cursor: &mut Self::Cursor, length: usize) -> &'tmp Self::Slice
     where
-        'src: 'once,
-        'once: 'tmp;
+        'src: 'tmp;
 }
 
-pub trait InputThinSlice<'src, 'tmp>: InputSlice<'src, 'tmp, Token = u8> {}
+pub trait InputThinSlice<'src>: InputSlice<'src, Token = u8> {}
 
 #[cfg(feature = "alloc")]
-pub trait InputBoxableSlice<'src, 'tmp>: InputSlice<'src, 'tmp>
+pub trait InputBoxableSlice<'src>: InputSlice<'src>
 where
-    Self::Slice: BoxableSlice<'tmp, Item = Self::Token>,
+    Self::Slice: BoxableSlice<'src, Item = Self::Token>,
 {
 }
 
 //------------------------------------------------------------------------------
 
-impl<'src> Input<'src, 'src> for &'src str {
+impl<'src> Input<'src> for &'src str {
+    type _Mark = marker::StaticInput;
     type Token = char;
-    type TokenMaybe<'once>
+    type TokenMaybe<'tmp>
         = char
     where
-        'src: 'once,
-        'once: 'src;
+        'src: 'tmp;
     type Error = Infallible;
     type Cursor = usize;
 
@@ -97,15 +71,11 @@ impl<'src> Input<'src, 'src> for &'src str {
         todo!()
     }
 
-    unsafe fn next_maybe_ref<'once>(
-        &mut self,
-        cursor: &mut Self::Cursor,
-    ) -> Result<Option<Self::TokenMaybe<'once>>, Self::Error>
+    fn next_maybe_ref<'tmp>(&mut self, cursor: &mut Self::Cursor) -> Result<Option<Self::TokenMaybe<'tmp>>, Self::Error>
     where
-        'src: 'once,
-        'once: 'src,
+        'src: 'tmp,
     {
-        Ok(self[*cursor..].chars().next())
+        todo!()
     }
 
     fn span(&self, range: Range<Self::Cursor>) -> Range<usize> {
@@ -117,23 +87,21 @@ impl<'src> Input<'src, 'src> for &'src str {
     }
 }
 
-impl<'src> InputSlice<'src, 'src> for &'src str {
+impl<'src> InputSlice<'src> for &'src str {
     type Slice = str;
 
-    unsafe fn acquire_slice<'once>(&mut self, cursor: Self::Cursor) -> Result<(&'once Self::Slice, bool), Self::Error>
+    fn acquire_slice<'tmp>(&'tmp mut self, cursor: Self::Cursor) -> Result<(&'tmp Self::Slice, bool), Self::Error>
     where
-        'src: 'once,
-        'once: 'src,
+        'src: 'tmp,
     {
         todo!()
     }
 
-    unsafe fn discard_slice<'once>(&mut self, cursor: &mut Self::Cursor, length: usize) -> &'once Self::Slice
+    fn discard_slice<'tmp>(&'tmp mut self, cursor: &mut Self::Cursor, length: usize) -> &'tmp Self::Slice
     where
-        'src: 'once,
-        'once: 'src,
+        'src: 'tmp,
     {
-        *self
+        self
     }
 }
 
@@ -141,13 +109,15 @@ impl<'src> InputSlice<'src, 'src> for &'src str {
 
 use alloc::string::String;
 
-impl<'src, 'tmp> Input<'src, 'tmp> for String {
+impl<'src> Input<'src> for String {
+    type _Mark = marker::DynamicInput;
+
     type Token = char;
-    type TokenMaybe<'once>
+    type TokenMaybe<'tmp>
         = char
     where
-        'src: 'once,
-        'once: 'tmp;
+        'src: 'tmp;
+
     type Error = Infallible;
     type Cursor = usize;
 
@@ -155,15 +125,11 @@ impl<'src, 'tmp> Input<'src, 'tmp> for String {
         todo!()
     }
 
-    unsafe fn next_maybe_ref<'once>(
-        &mut self,
-        cursor: &mut Self::Cursor,
-    ) -> Result<Option<Self::TokenMaybe<'once>>, Self::Error>
+    fn next_maybe_ref<'tmp>(&mut self, cursor: &mut Self::Cursor) -> Result<Option<Self::TokenMaybe<'tmp>>, Self::Error>
     where
-        'src: 'once,
-        'once: 'tmp,
+        'src: 'tmp,
     {
-        Ok(self[*cursor..].chars().next())
+        todo!()
     }
 
     fn span(&self, range: Range<Self::Cursor>) -> Range<usize> {
@@ -175,22 +141,20 @@ impl<'src, 'tmp> Input<'src, 'tmp> for String {
     }
 }
 
-impl<'src, 'tmp> InputSlice<'src, 'tmp> for String {
+impl<'src> InputSlice<'src> for String {
     type Slice = str;
 
-    unsafe fn acquire_slice<'once>(&mut self, cursor: Self::Cursor) -> Result<(&'once Self::Slice, bool), Self::Error>
+    fn acquire_slice<'tmp>(&'tmp mut self, cursor: Self::Cursor) -> Result<(&'tmp Self::Slice, bool), Self::Error>
     where
-        'src: 'once,
-        'once: 'tmp,
+        'src: 'tmp,
     {
         todo!()
     }
 
-    unsafe fn discard_slice<'once>(&mut self, cursor: &mut Self::Cursor, length: usize) -> &'once Self::Slice
+    fn discard_slice<'tmp>(&'tmp mut self, cursor: &mut Self::Cursor, length: usize) -> &'tmp Self::Slice
     where
-        'src: 'once,
-        'once: 'tmp,
+        'src: 'tmp,
     {
-        unsafe { core::mem::transmute(self.as_str()) }
+        self.as_str()
     }
 }
