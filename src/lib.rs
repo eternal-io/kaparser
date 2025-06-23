@@ -15,62 +15,116 @@ pub mod slice;
 
 //------------------------------------------------------------------------------
 
-pub trait Slice {
+pub trait Slice<'src> {
     fn identity(&self) -> &Self {
         self
     }
 }
 
-pub trait InputSlice<'src, 'tmp> {
-    type View: ?Sized + Slice + 'tmp;
+impl<'src> Slice<'src> for &'src str {}
 
-    /// # Safety
-    ///
-    /// If `'tmp` doesn't outlives `'src`, the returned slice must be dropped before:
-    ///
-    /// - Calling any other method of this trait (and super-trait), or
-    /// - Ending the mutable borrow of the input.
-    ///
-    /// Violating this contract may cause undefined behavior.
-    unsafe fn get_slice<'once>(&mut self) -> &'once Self::View
-    where
-        'src: 'once,
-        'once: 'tmp;
+//------------------------------------------------------------------------------
+
+pub trait InputSliceTy<'src, 'tmp, _Alive = &'tmp &'src ()> {
+    type Sliced: ?Sized + Slice<'tmp>;
+
+    fn get_slice(&'src mut self) -> Self::Sliced;
 }
 
-impl Slice for str {}
+pub trait InputSlice<'src>: for<'tmp> InputSliceTy<'src, 'tmp> {}
 
-impl<'src> InputSlice<'src, 'src> for &'src str {
-    type View = str;
+impl<'src, I> InputSlice<'src> for I where I: for<'tmp> InputSliceTy<'src, 'tmp> {}
 
-    unsafe fn get_slice<'once>(&mut self) -> &'once Self::View
-    where
-        'src: 'once,
-        'once: 'src,
-    {
+use alloc::string::String;
+
+impl<'src, 'tmp> InputSliceTy<'src, 'tmp> for &'src str {
+    type Sliced = &'tmp str;
+
+    fn get_slice(&'src mut self) -> Self::Sliced {
         *self
     }
 }
 
-use alloc::string::String;
+impl<'src, 'tmp> InputSliceTy<'src, 'tmp> for String {
+    type Sliced = &'tmp str;
 
-impl<'src, 'tmp> InputSlice<'src, 'tmp> for String {
-    type View = str;
-
-    unsafe fn get_slice<'once>(&mut self) -> &'once Self::View
-    where
-        'src: 'once,
-        'once: 'tmp,
-    {
-        unsafe { core::mem::transmute(self.as_str()) }
+    fn get_slice(&'src mut self) -> Self::Sliced {
+        self.as_str()
     }
 }
 
+//------------------------------------------------------------------------------
+
+pub trait QuattrnTy<'src, 'tmp, I, _Alive = &'tmp &'src ()> {
+    type View;
+
+    fn fullmatch_v(&self, input: &'src mut I) -> Self::View;
+}
+
+impl<'src, 'tmp, I> QuattrnTy<'src, 'tmp, I> for ()
+where
+    I: InputSliceTy<'src, 'tmp, Sliced = &'tmp str>,
+    // I: for<'all> InputSliceTy<'src, 'all, Sliced = &'all str>,
+{
+    type View = <I as InputSliceTy<'src, 'tmp>>::Sliced;
+
+    fn fullmatch_v(&self, input: &'src mut I) -> Self::View {
+        input.get_slice()
+    }
+}
+
+pub trait Quattrn<'src, I: InputSlice<'src>>: for<'tmp> QuattrnTy<'src, 'tmp, I> {}
+
+impl<'src, I, Q> Quattrn<'src, I> for Q
+where
+    I: InputSlice<'src>,
+    Q: for<'tmp> QuattrnTy<'src, 'tmp, I>,
+{
+}
+
+pub trait Pattern<'src, I: InputSlice<'src>> {
+    type Captured;
+
+    fn fullmatch(&self, input: &'src mut I) -> Self::Captured;
+}
+
+impl<'src, I, Q> Pattern<'src, I> for Q
+where
+    I: InputSlice<'src>,
+    Q: Quattrn<'src, I>,
+{
+    type Captured = <Q as QuattrnTy<'src, 'src, I>>::View;
+
+    fn fullmatch(&self, input: &'src mut I) -> Self::Captured {
+        self.fullmatch_v(input)
+    }
+}
+
+//------------------------------------------------------------------------------
+
+pub fn q_string<'src, 'tmp>() -> impl for<'all> Quattrn<'src, String> {
+    ()
+}
+
+pub fn p_string<'src>() -> impl Pattern<'src, String> {
+    ()
+}
+
+pub fn q_str<'src>() -> impl Quattrn<'src, &'src str> {
+    ()
+}
+
+// pub fn p_str<'src>() -> impl Pattern<'src, &'src str> {
+//     ()
+// }
+
 #[test]
-#[ignore = "undefined behavior"]
 fn foo() {
-    let mut s = String::new();
-    let a = unsafe { s.get_slice() };
-    let b = unsafe { s.get_slice() };
-    println!("{}, {}", a, b); // UB!!
+    // let pat = p_string();
+    // let mut s = String::new();
+    // let a = pat.fullmatch(&mut s);
+
+    let pat = q_str();
+    let mut s = "";
+    let a = pat.fullmatch(&mut s);
 }
