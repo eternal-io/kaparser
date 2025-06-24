@@ -1,23 +1,24 @@
 use crate::{common::*, marker, slice::*};
-use core::{convert::Infallible, ops::Range};
+use core::{convert::Infallible, fmt::Debug, ops::Range};
 
 pub trait Input<'src>: 'src {
-    type _Mark;
+    type _Marker;
 
     type Token: 'src;
     type TokenMaybe<'tmp>: RefVal<'tmp, Self::Token>
     where
         'src: 'tmp;
 
-    type Error;
+    type Error: Debug;
     type Cursor: Clone;
 
     fn begin(&self) -> Self::Cursor;
 
+    // DESIGN: Returns `None` if out of index.
     fn next_maybe_ref<'tmp>(
         &'tmp mut self,
-        cursor: &mut Self::Cursor,
-    ) -> Result<Option<Self::TokenMaybe<'tmp>>, Self::Error>
+        cursor: Self::Cursor,
+    ) -> Result<Option<(Self::Cursor, Self::TokenMaybe<'tmp>)>, Self::Error>
     where
         'src: 'tmp;
 
@@ -26,27 +27,43 @@ pub trait Input<'src>: 'src {
     fn offset(&self, cursor: Self::Cursor) -> usize;
 }
 
-pub trait InputOwnableToken<'src>: Input<'src> {
-    fn next(&mut self, cursor: Self::Cursor) -> Result<Option<Self::Token>, Self::Error>;
+pub trait InputBorrowableToken<'src>: Input<'src> {
+    fn get_borrowed(&self, cursor: Self::Cursor) -> Option<&'src Self::Token>;
 }
 
-pub trait InputBorrowableToken<'src>: Input<'src> {
-    fn next_ref(&mut self, cursor: Self::Cursor) -> Result<Option<&'src Self::Token>, Self::Error>;
+pub trait InputOwnableToken<'src>: Input<'src> {
+    fn get_owned(&mut self, cursor: Self::Cursor) -> Option<Self::Token>;
+}
+
+impl<'src, I> InputOwnableToken<'src> for I
+where
+    I: Input<'src>,
+    I::Token: Clone,
+{
+    fn get_owned(&mut self, cursor: Self::Cursor) -> Option<Self::Token> {
+        self.next_maybe_ref(cursor)
+            .unwrap()
+            .map(|(_cursor, item)| item.cloned())
+    }
 }
 
 pub trait InputSlice<'src>: Input<'src> {
     type Slice: ?Sized + Slice<'src, Item = Self::Token> + 'src;
 
-    fn acquire_slice<'tmp>(&'tmp mut self, cursor: Self::Cursor) -> Result<(&'tmp Self::Slice, bool), Self::Error>
+    fn fetch_slice<'tmp>(&'tmp mut self, start: Self::Cursor) -> Result<(&'tmp Self::Slice, bool), Self::Error>
     where
         'src: 'tmp;
 
-    fn discard_slice<'tmp>(&'tmp mut self, cursor: &mut Self::Cursor, length: usize) -> &'tmp Self::Slice
+    fn discard_slice<'tmp>(&'tmp mut self, start: Self::Cursor, length: usize) -> (&'tmp Self::Slice, Self::Cursor)
     where
         'src: 'tmp;
 }
 
-pub trait InputThinSlice<'src>: InputSlice<'src, Token = u8> {}
+pub trait InputByteSlice<'src>: InputSlice<'src> {
+    fn fetch_byte_slice<'tmp>(&'tmp mut self, start: Self::Cursor) -> Result<(&'tmp [u8], bool), Self::Error>
+    where
+        'src: 'tmp;
+}
 
 #[cfg(feature = "alloc")]
 pub trait InputBoxableSlice<'src>: InputSlice<'src>
@@ -55,106 +72,164 @@ where
 {
 }
 
+#[cfg(feature = "alloc")]
+impl<'src, I> InputBoxableSlice<'src> for I
+where
+    I: InputSlice<'src>,
+    I::Slice: BoxableSlice<'src, Item = Self::Token>,
+{
+}
+
 //------------------------------------------------------------------------------
 
 impl<'src> Input<'src> for &'src str {
-    type _Mark = marker::StaticInput;
+    type _Marker = marker::StaticInput;
+
     type Token = char;
     type TokenMaybe<'tmp>
         = char
     where
         'src: 'tmp;
+
     type Error = Infallible;
     type Cursor = usize;
 
+    #[inline]
     fn begin(&self) -> Self::Cursor {
-        todo!()
+        0
     }
 
-    fn next_maybe_ref<'tmp>(&mut self, cursor: &mut Self::Cursor) -> Result<Option<Self::TokenMaybe<'tmp>>, Self::Error>
+    #[inline]
+    fn next_maybe_ref<'tmp>(
+        &'tmp mut self,
+        cursor: Self::Cursor,
+    ) -> Result<Option<(Self::Cursor, Self::TokenMaybe<'tmp>)>, Self::Error>
     where
         'src: 'tmp,
     {
-        todo!()
+        Ok(self.after(cursor).iter_indices().next())
     }
 
+    #[inline]
     fn span(&self, range: Range<Self::Cursor>) -> Range<usize> {
-        todo!()
+        assert!(self.is_item_boundary(range.start));
+        assert!(self.is_item_boundary(range.end));
+        range
     }
 
+    #[inline]
     fn offset(&self, cursor: Self::Cursor) -> usize {
-        todo!()
+        assert!(self.is_item_boundary(cursor));
+        cursor
     }
 }
 
 impl<'src> InputSlice<'src> for &'src str {
     type Slice = str;
 
-    fn acquire_slice<'tmp>(&'tmp mut self, cursor: Self::Cursor) -> Result<(&'tmp Self::Slice, bool), Self::Error>
+    #[inline]
+    fn fetch_slice<'tmp>(&'tmp mut self, start: Self::Cursor) -> Result<(&'tmp Self::Slice, bool), Self::Error>
     where
         'src: 'tmp,
     {
-        todo!()
+        Ok((self.after(start), true))
     }
 
-    fn discard_slice<'tmp>(&'tmp mut self, cursor: &mut Self::Cursor, length: usize) -> &'tmp Self::Slice
+    #[inline]
+    fn discard_slice<'tmp>(&'tmp mut self, start: Self::Cursor, length: usize) -> (&'tmp Self::Slice, Self::Cursor)
     where
         'src: 'tmp,
     {
-        self
+        let end = start + length;
+        (self.subslice(start..end), end)
+    }
+}
+
+impl<'src> InputByteSlice<'src> for &'src str {
+    fn fetch_byte_slice<'tmp>(&'tmp mut self, start: Self::Cursor) -> Result<(&'tmp [u8], bool), Self::Error>
+    where
+        'src: 'tmp,
+    {
+        Ok((self.after(start).as_bytes(), true))
     }
 }
 
 //------------------------------------------------------------------------------
 
-use alloc::string::String;
+impl<'src, T> Input<'src> for &'src [T] {
+    type _Marker = marker::StaticInput;
 
-impl<'src> Input<'src> for String {
-    type _Mark = marker::DynamicInput;
-
-    type Token = char;
+    type Token = T;
     type TokenMaybe<'tmp>
-        = char
+        = &'tmp T
     where
         'src: 'tmp;
 
     type Error = Infallible;
     type Cursor = usize;
 
+    #[inline]
     fn begin(&self) -> Self::Cursor {
-        todo!()
+        0
     }
 
-    fn next_maybe_ref<'tmp>(&mut self, cursor: &mut Self::Cursor) -> Result<Option<Self::TokenMaybe<'tmp>>, Self::Error>
+    #[inline]
+    fn next_maybe_ref<'tmp>(
+        &'tmp mut self,
+        cursor: Self::Cursor,
+    ) -> Result<Option<(Self::Cursor, Self::TokenMaybe<'tmp>)>, Self::Error>
     where
         'src: 'tmp,
     {
-        todo!()
+        Ok(self.after(cursor).iter_indices().next())
     }
 
+    #[inline]
     fn span(&self, range: Range<Self::Cursor>) -> Range<usize> {
-        todo!()
+        assert!(self.is_item_boundary(range.start));
+        assert!(self.is_item_boundary(range.end));
+        range
     }
 
+    #[inline]
     fn offset(&self, cursor: Self::Cursor) -> usize {
-        todo!()
+        assert!(self.is_item_boundary(cursor));
+        cursor
     }
 }
 
-impl<'src> InputSlice<'src> for String {
-    type Slice = str;
+impl<'src, T> InputBorrowableToken<'src> for &'src [T] {
+    fn get_borrowed(&self, cursor: Self::Cursor) -> Option<&'src Self::Token> {
+        self.get(cursor)
+    }
+}
 
-    fn acquire_slice<'tmp>(&'tmp mut self, cursor: Self::Cursor) -> Result<(&'tmp Self::Slice, bool), Self::Error>
+impl<'src, T: 'src> InputSlice<'src> for &'src [T] {
+    type Slice = [T];
+
+    #[inline]
+    fn fetch_slice<'tmp>(&'tmp mut self, start: Self::Cursor) -> Result<(&'tmp Self::Slice, bool), Self::Error>
     where
         'src: 'tmp,
     {
-        todo!()
+        Ok((self.after(start), true))
     }
 
-    fn discard_slice<'tmp>(&'tmp mut self, cursor: &mut Self::Cursor, length: usize) -> &'tmp Self::Slice
+    #[inline]
+    fn discard_slice<'tmp>(&'tmp mut self, start: Self::Cursor, length: usize) -> (&'tmp Self::Slice, Self::Cursor)
     where
         'src: 'tmp,
     {
-        self.as_str()
+        let end = start + length;
+        (self.subslice(start..end), end)
+    }
+}
+
+impl<'src> InputByteSlice<'src> for &'src [u8] {
+    fn fetch_byte_slice<'tmp>(&'tmp mut self, start: Self::Cursor) -> Result<(&'tmp [u8], bool), Self::Error>
+    where
+        'src: 'tmp,
+    {
+        self.fetch_slice(start)
     }
 }

@@ -1,7 +1,11 @@
+use crate::common::*;
 use core::ops::Range;
 
-pub trait Slice<'src> {
-    type Item;
+pub trait Slice<'src>: 'src {
+    type Item: 'src;
+    type ItemMaybe<'tmp>: RefVal<'tmp, Self::Item>
+    where
+        'src: 'tmp;
 
     fn len(&self) -> usize;
     fn len_of(&self, item: Self::Item) -> usize;
@@ -9,8 +13,12 @@ pub trait Slice<'src> {
     fn subslice(&self, range: Range<usize>) -> &Self;
     fn split_at(&self, mid: usize) -> (&Self, &Self);
 
-    fn iter(&'src self) -> impl DoubleEndedIterator<Item = Self::Item>;
-    fn iter_indices(&'src self) -> impl DoubleEndedIterator<Item = (usize, Self::Item)>;
+    fn iter<'tmp>(&'tmp self) -> impl DoubleEndedIterator<Item = Self::ItemMaybe<'tmp>>
+    where
+        'src: 'tmp;
+    fn iter_indices<'tmp>(&'tmp self) -> impl DoubleEndedIterator<Item = (usize, Self::ItemMaybe<'tmp>)>
+    where
+        'src: 'tmp;
 
     fn is_item_boundary(&self, idx: usize) -> bool;
 
@@ -20,7 +28,10 @@ pub trait Slice<'src> {
     }
 
     #[inline]
-    fn first(&'src self) -> Option<Self::Item> {
+    fn first<'tmp>(&'tmp self) -> Option<Self::ItemMaybe<'tmp>>
+    where
+        'src: 'tmp,
+    {
         self.iter().next()
     }
 
@@ -36,6 +47,10 @@ pub trait Slice<'src> {
 
 impl<'src> Slice<'src> for str {
     type Item = char;
+    type ItemMaybe<'tmp>
+        = char
+    where
+        'src: 'tmp;
 
     #[inline]
     fn len(&self) -> usize {
@@ -56,11 +71,17 @@ impl<'src> Slice<'src> for str {
     }
 
     #[inline]
-    fn iter(&'src self) -> impl DoubleEndedIterator<Item = Self::Item> {
+    fn iter<'tmp>(&'tmp self) -> impl DoubleEndedIterator<Item = Self::ItemMaybe<'tmp>>
+    where
+        'src: 'tmp,
+    {
         (*self).chars()
     }
     #[inline]
-    fn iter_indices(&'src self) -> impl DoubleEndedIterator<Item = (usize, Self::Item)> {
+    fn iter_indices<'tmp>(&'tmp self) -> impl DoubleEndedIterator<Item = (usize, Self::ItemMaybe<'tmp>)>
+    where
+        'src: 'tmp,
+    {
         (*self).char_indices()
     }
 
@@ -71,7 +92,11 @@ impl<'src> Slice<'src> for str {
 }
 
 impl<'src, T: 'src> Slice<'src> for [T] {
-    type Item = &'src T;
+    type Item = T;
+    type ItemMaybe<'tmp>
+        = &'tmp T
+    where
+        'src: 'tmp;
 
     #[inline]
     fn len(&self) -> usize {
@@ -93,18 +118,23 @@ impl<'src, T: 'src> Slice<'src> for [T] {
     }
 
     #[inline]
-    fn iter(&'src self) -> impl DoubleEndedIterator<Item = Self::Item> {
+    fn iter<'tmp>(&'tmp self) -> impl DoubleEndedIterator<Item = Self::ItemMaybe<'tmp>>
+    where
+        'src: 'tmp,
+    {
         (*self).iter()
     }
     #[inline]
-    fn iter_indices(&'src self) -> impl DoubleEndedIterator<Item = (usize, Self::Item)> {
+    fn iter_indices<'tmp>(&'tmp self) -> impl DoubleEndedIterator<Item = (usize, Self::ItemMaybe<'tmp>)>
+    where
+        'src: 'tmp,
+    {
         (*self).iter().enumerate()
     }
 
     #[inline]
     fn is_item_boundary(&self, idx: usize) -> bool {
-        #![allow(unused_variables)]
-        true
+        idx <= self.len()
     }
 }
 

@@ -31,14 +31,22 @@ where
 
 impl<'src, U, Q> Pattern<'src, U> for Q
 where
-    U::_Mark: marker::Static,
+    U::_Marker: marker::Static,
     U: Input<'src>,
     Q: Quattrn<'src, U>,
 {
     type Captured = Q::View<'src>;
 
     fn fullmatch(&self, input: &mut U) -> Self::Captured {
-        unsafe { core::mem::transmute(self.fullmatch_v(input)) }
+        // SAFETY:
+        // This balnket implementation only works for inputs that marked as `StaticInput`,
+        // which ensures `'tmp` outlives `'src`, therefore the lifetime can be safely extended.
+        // In other words, they are inputs that do not need to be mutated when getting a slice or item.
+        unsafe {
+            core::mem::transmute(self.fullmatch_v(input))
+            // Src = for<'tmp> Q::View<'tmp>;
+            // Dst = Q::View<'src>;
+        }
     }
 }
 
@@ -57,8 +65,8 @@ where
     where
         'src: 'tmp,
     {
-        let mut cursor = input.begin();
-        input.discard_slice(&mut cursor, 0)
+        let cursor = input.begin();
+        input.discard_slice(cursor, 0).0
     }
 }
 
@@ -67,15 +75,15 @@ where
 //     () // OK, doesn't compile.
 // }
 
-pub fn pat_str<'src>() -> impl Pattern<'src, &'src str, Captured = &'src str> {
-    ()
-}
+// pub fn pat_str<'src>() -> impl Pattern<'src, &'src str, Captured = &'src str> {
+//     ()
+// }
 
-#[test]
-fn test_str() {
-    let mut msg = "";
-    let pat = pat_str();
-    let a = pat.fullmatch(&mut msg);
-    let b = pat.fullmatch(&mut msg);
-    println!("{} {}", a, b)
-}
+// #[test]
+// fn test_str() {
+//     let mut msg = "";
+//     let pat = pat_str();
+//     let a = pat.fullmatch(&mut msg);
+//     let b = pat.fullmatch(&mut msg);
+//     println!("{} {}", a, b)
+// }
