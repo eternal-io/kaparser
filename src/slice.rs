@@ -8,7 +8,7 @@ pub trait Slice<'src>: 'src {
         'src: 'tmp;
 
     fn len(&self) -> usize;
-    fn len_of(&self, item: Self::Item) -> usize;
+    fn len_of(&self, item: &Self::Item) -> usize;
 
     fn subslice(&self, range: Range<usize>) -> &Self;
     fn split_at(&self, mid: usize) -> (&Self, &Self);
@@ -57,7 +57,7 @@ impl<'src> Slice<'src> for str {
         (*self).len()
     }
     #[inline]
-    fn len_of(&self, item: Self::Item) -> usize {
+    fn len_of(&self, item: &Self::Item) -> usize {
         item.len_utf8()
     }
 
@@ -103,7 +103,7 @@ impl<'src, T: 'src> Slice<'src> for [T] {
         (*self).len()
     }
     #[inline]
-    fn len_of(&self, item: Self::Item) -> usize {
+    fn len_of(&self, item: &Self::Item) -> usize {
         #![allow(unused_variables)]
         1
     }

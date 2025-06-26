@@ -10,6 +10,8 @@ extern crate alloc;
 mod marker;
 
 pub mod common;
+pub mod error;
+pub mod extra;
 pub mod input;
 pub mod pattern;
 pub mod predicate;

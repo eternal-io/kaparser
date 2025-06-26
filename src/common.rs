@@ -3,7 +3,7 @@ use crate::predicate::*;
 pub trait RefVal<'tmp, T: 'tmp> {
     fn predicate<P: Predicate<T>>(&self, pred: &P) -> bool;
 
-    fn as_ref(&self) -> &'tmp T;
+    fn as_ref(&self) -> &T;
 
     fn cloned(&self) -> T
     where
@@ -15,7 +15,7 @@ impl<'tmp, T: 'tmp> RefVal<'tmp, T> for &'tmp T {
         pred.predicate(self)
     }
 
-    fn as_ref(&self) -> &'tmp T {
+    fn as_ref(&self) -> &T {
         self
     }
 
@@ -32,8 +32,8 @@ impl<'tmp, T: 'tmp> RefVal<'tmp, T> for T {
         pred.predicate(self)
     }
 
-    fn as_ref(&self) -> &'tmp T {
-        unimplemented!()
+    fn as_ref(&self) -> &T {
+        self
     }
 
     fn cloned(&self) -> T
