@@ -1,15 +1,20 @@
-use core::fmt::Debug;
-
 use crate::{extra::Extra, input::Input};
+use core::fmt::{Debug, Display};
 
-pub trait Error: Debug {}
+pub trait Error: Sized + Debug {
+    fn push_runtime<T: Display>(self, msg: T) -> Self;
+}
 
-// impl<'src, I, E> Extra<'src, I> for E
-// where
-//     I: Input<'src>,
-//     E: Error + From<I::Error> + 'src,
-// {
-//     type Error = E;
-//     type State = ();
-//     type Context = ();
-// }
+impl<'src, I, E> Extra<'src, I> for E
+where
+    I: Input<'src>,
+    E: Error + 'src,
+{
+    type Error = E;
+    type State = ();
+    type Context = ();
+}
+
+//------------------------------------------------------------------------------
+
+pub struct EmptyErr;

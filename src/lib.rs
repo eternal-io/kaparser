@@ -9,10 +9,14 @@ extern crate alloc;
 
 mod marker;
 
+pub mod combinator;
 pub mod common;
 pub mod error;
 pub mod extra;
 pub mod input;
+pub mod parser;
 pub mod pattern;
 pub mod predicate;
+pub mod primitive;
+pub mod quattrn;
 pub mod slice;

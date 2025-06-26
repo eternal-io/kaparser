@@ -5,6 +5,7 @@ pub trait Input<'src>: 'src {
     type _Marker;
 
     type Token: 'src;
+
     type TokenMaybe<'tmp>: RefVal<'tmp, Self::Token>
     where
         'src: 'tmp;
@@ -102,6 +103,7 @@ where
     type _Marker = marker::StaticInput;
 
     type Token = S::Item;
+
     type TokenMaybe<'tmp>
         = S::ItemMaybe<'tmp>
     where
