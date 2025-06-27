@@ -37,6 +37,10 @@ pub trait InputBorrowableToken<'src>: Input<'src> {
 pub trait InputSlice<'src>: Input<'src> {
     type Slice: ?Sized + Slice<'src, Item = Self::Token>;
 
+    fn get_slice<'tmp>(&'tmp self, range: Range<Self::Cursor>) -> Option<&'tmp Self::Slice>
+    where
+        'src: 'tmp;
+
     fn fetch_slice<'tmp, E: Error>(&'tmp mut self, start: Self::Cursor) -> Result<(&'tmp Self::Slice, bool), E>
     where
         'src: 'tmp;
@@ -141,6 +145,14 @@ where
     S: ?Sized + Slice<'src>,
 {
     type Slice = S;
+
+    #[inline]
+    fn get_slice<'tmp>(&'tmp self, range: Range<Self::Cursor>) -> Option<&'tmp Self::Slice>
+    where
+        'src: 'tmp,
+    {
+        (self.is_item_boundary(range.start) && self.is_item_boundary(range.end)).then(|| self.subslice(range))
+    }
 
     #[inline]
     fn fetch_slice<'tmp, E: Error>(&'tmp mut self, start: Self::Cursor) -> Result<(&'tmp Self::Slice, bool), E>
