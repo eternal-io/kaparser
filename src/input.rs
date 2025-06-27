@@ -27,27 +27,31 @@ pub trait Input<'src>: 'src {
 }
 
 pub trait InputOwnableToken<'src>: Input<'src> {
-    fn get_owned<E: Error>(&mut self, cursor: Self::Cursor) -> Option<Self::Token>;
+    fn get_owned(&self, cursor: Self::Cursor) -> Option<Self::Token>;
 }
 
 pub trait InputBorrowableToken<'src>: Input<'src> {
-    fn get_borrowed<E: Error>(&self, cursor: Self::Cursor) -> Option<&'src Self::Token>;
+    fn get_borrowed(&self, cursor: Self::Cursor) -> Option<&'src Self::Token>;
 }
 
 pub trait InputSlice<'src>: Input<'src> {
     type Slice: ?Sized + Slice<'src, Item = Self::Token>;
 
-    fn fetch_slice<'tmp, E: Error>(&'tmp mut self, cursor: Self::Cursor) -> Result<(&'tmp Self::Slice, bool), E>
+    fn fetch_slice<'tmp, E: Error>(&'tmp mut self, start: Self::Cursor) -> Result<(&'tmp Self::Slice, bool), E>
     where
         'src: 'tmp;
 
-    fn discard_slice<'tmp>(&'tmp mut self, cursor: &mut Self::Cursor, length: usize) -> &'tmp Self::Slice
+    fn discard_in_cursor<'tmp>(&'tmp mut self, start: Self::Cursor, end: Self::Cursor) -> &'tmp Self::Slice
+    where
+        'src: 'tmp;
+
+    fn discard_in_length<'tmp>(&'tmp mut self, start: &mut Self::Cursor, length: usize) -> &'tmp Self::Slice
     where
         'src: 'tmp;
 }
 
 pub trait InputByteSlice<'src>: InputSlice<'src> {
-    fn fetch_byte_slice<'tmp, E: Error>(&'tmp mut self, cursor: Self::Cursor) -> Result<(&'tmp [u8], bool), E>
+    fn fetch_byte_slice<'tmp, E: Error>(&'tmp mut self, start: Self::Cursor) -> Result<(&'tmp [u8], bool), E>
     where
         'src: 'tmp;
 }
@@ -61,28 +65,16 @@ where
 
 //------------------------------------------------------------------------------
 
-impl<'src, I> InputOwnableToken<'src> for I
-where
-    I: Input<'src>,
-    I::Token: Clone,
-{
-    fn get_owned<E: Error>(&mut self, cursor: Self::Cursor) -> Option<Self::Token> {
-        self.next_maybe_ref::<E>(&mut cursor.clone())
-            .unwrap()
-            .map(|item| item.cloned())
-    }
-}
-
 impl<'src, I> InputByteSlice<'src> for I
 where
     I: InputSlice<'src>,
     I::Slice: AsRef<[u8]>,
 {
-    fn fetch_byte_slice<'tmp, E: Error>(&'tmp mut self, cursor: Self::Cursor) -> Result<(&'tmp [u8], bool), E>
+    fn fetch_byte_slice<'tmp, E: Error>(&'tmp mut self, start: Self::Cursor) -> Result<(&'tmp [u8], bool), E>
     where
         'src: 'tmp,
     {
-        self.fetch_slice(cursor).map(|(slice, eof)| (slice.as_ref(), eof))
+        self.fetch_slice(start).map(|(slice, eof)| (slice.as_ref(), eof))
     }
 }
 
@@ -126,8 +118,7 @@ where
     {
         Ok(self
             .after(*cursor)
-            .iter()
-            .next()
+            .first()
             .inspect(|item| *cursor += self.len_of(item.as_ref())))
     }
 
@@ -152,15 +143,27 @@ where
     type Slice = S;
 
     #[inline]
-    fn fetch_slice<'tmp, E: Error>(&'tmp mut self, cursor: Self::Cursor) -> Result<(&'tmp Self::Slice, bool), E>
+    fn fetch_slice<'tmp, E: Error>(&'tmp mut self, start: Self::Cursor) -> Result<(&'tmp Self::Slice, bool), E>
     where
         'src: 'tmp,
     {
-        Ok((self.after(cursor), true))
+        Ok((self.after(start), true))
     }
 
     #[inline]
-    fn discard_slice<'tmp>(&'tmp mut self, cursor: &mut Self::Cursor, length: usize) -> &'tmp Self::Slice
+
+    fn discard_in_cursor<'tmp>(&'tmp mut self, start: Self::Cursor, end: Self::Cursor) -> &'tmp Self::Slice
+    where
+        'src: 'tmp,
+    {
+        debug_assert!(self.is_item_boundary(start));
+        debug_assert!(self.is_item_boundary(end));
+
+        self.subslice(start..end)
+    }
+
+    #[inline]
+    fn discard_in_length<'tmp>(&'tmp mut self, cursor: &mut Self::Cursor, length: usize) -> &'tmp Self::Slice
     where
         'src: 'tmp,
     {
@@ -176,8 +179,18 @@ where
     }
 }
 
+impl<'src, S> InputOwnableToken<'src> for &'src S
+where
+    S: ?Sized + Slice<'src>,
+    S::Item: Clone,
+{
+    fn get_owned(&self, cursor: Self::Cursor) -> Option<Self::Token> {
+        self.after(cursor).first().map(|item| item.cloned())
+    }
+}
+
 impl<'src, T> InputBorrowableToken<'src> for &'src [T] {
-    fn get_borrowed<E: Error>(&self, cursor: Self::Cursor) -> Option<&'src Self::Token> {
+    fn get_borrowed(&self, cursor: Self::Cursor) -> Option<&'src Self::Token> {
         self.get(cursor)
     }
 }
