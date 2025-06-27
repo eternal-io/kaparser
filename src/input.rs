@@ -1,9 +1,9 @@
-use crate::{common::*, error::Error, marker, slice::*};
+use crate::{common::*, error::Error, slice::*};
 use core::ops::Range;
 
-pub trait Input<'src>: 'src {
-    type _Marker;
+pub unsafe trait StaticInput {}
 
+pub trait Input<'src>: 'src {
     type Token: 'src;
 
     type TokenMaybe<'tmp>: RefVal<'tmp, Self::Token>
@@ -20,6 +20,8 @@ pub trait Input<'src>: 'src {
     ) -> Result<Option<Self::TokenMaybe<'tmp>>, E>
     where
         'src: 'tmp;
+
+    fn has_reached_end(&mut self, cursor: Self::Cursor) -> bool;
 
     fn span(&self, range: Range<Self::Cursor>) -> Range<usize>;
 
@@ -92,12 +94,12 @@ where
 
 //------------------------------------------------------------------------------
 
+unsafe impl<'src, S> StaticInput for &'src S where S: ?Sized + Slice<'src> {}
+
 impl<'src, S> Input<'src> for &'src S
 where
     S: ?Sized + Slice<'src>,
 {
-    type _Marker = marker::StaticInput;
-
     type Token = S::Item;
 
     type TokenMaybe<'tmp>
@@ -124,6 +126,12 @@ where
             .after(*cursor)
             .first()
             .inspect(|item| *cursor += self.len_of(item.as_ref())))
+    }
+
+    #[inline]
+    fn has_reached_end(&mut self, cursor: Self::Cursor) -> bool {
+        debug_assert!(self.is_item_boundary(cursor));
+        cursor == self.len()
     }
 
     #[inline]
