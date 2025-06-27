@@ -171,7 +171,6 @@ where
     }
 
     #[inline]
-
     fn discard_in_cursor<'tmp>(&'tmp mut self, start: Self::Cursor, end: Self::Cursor) -> &'tmp Self::Slice
     where
         'src: 'tmp,
