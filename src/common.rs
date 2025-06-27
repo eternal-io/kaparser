@@ -1,4 +1,19 @@
 use crate::predicate::*;
+use core::fmt;
+
+//------------------------------------------------------------------------------
+
+pub trait Describe {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result;
+}
+
+impl<'a> fmt::Display for &'a dyn Describe {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        (*self).fmt(f)
+    }
+}
+
+//------------------------------------------------------------------------------
 
 pub trait RefVal<'tmp, T: 'tmp> {
     fn predicate<P: Predicate<T>>(&self, pred: &P) -> bool;

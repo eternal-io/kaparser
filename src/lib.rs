@@ -9,8 +9,9 @@ extern crate alloc;
 
 mod marker;
 
-pub mod combinator;
+#[macro_use]
 pub mod common;
+pub mod combinator;
 pub mod error;
 pub mod extra;
 pub mod input;

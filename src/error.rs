@@ -1,13 +1,20 @@
-use crate::{extra::Extra, input::Input};
+use crate::{common::Describe, extra::Extra, input::Input};
 use core::{
-    fmt::{self, Debug, Display},
+    fmt::{self, Debug},
     ops::Range,
 };
 
 pub trait Error: Sized + Debug {
+    type Label;
+
     fn new(span: Range<usize>, kind: ErrorKind) -> Self;
 
-    fn merge(self, newer: Self) -> Self {
+    fn merge(self, other: Self) -> Self {
+        #![allow(unused_variables)]
+        self
+    }
+
+    fn label(self, label: Self::Label) -> Self {
         #![allow(unused_variables)]
         self
     }
@@ -15,21 +22,18 @@ pub trait Error: Sized + Debug {
 
 //------------------------------------------------------------------------------
 
-#[derive(Debug)]
 #[non_exhaustive]
-pub enum ErrorKind {
-    #[doc(hidden)]
-    #[cfg(feature = "alloc")]
-    __Display(alloc::boxed::Box<dyn core::error::Error>),
-
-    #[doc(hidden)]
-    #[cfg(not(feature = "alloc"))]
-    __Display,
+pub enum ErrorKind<'a> {
+    Expected(&'a dyn Describe),
+    Other(&'a dyn core::error::Error),
 }
 
-impl Display for ErrorKind {
+impl<'a> Describe for ErrorKind<'a> {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        todo!()
+        match self {
+            ErrorKind::Expected(pat) => write!(f, "expected {}", pat),
+            ErrorKind::Other(err) => write!(f, "error: {}", err),
+        }
     }
 }
 
