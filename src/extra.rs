@@ -1,21 +1,15 @@
 use crate::{
+    common::{MaybeMut, MaybeRef},
     error::{EmptyErr, Error},
-    input::Input,
+    input::*,
 };
-use core::marker::PhantomData;
-
-pub(crate) type ProvideExtra<'src, I, Ext> =
-    Full<<Ext as Extra<'src, I>>::Error, <Ext as Extra<'src, I>>::State, <Ext as Extra<'src, I>>::Context>;
+use core::{marker::PhantomData, ops::Range};
 
 pub type State<S> = Full<EmptyErr, S, ()>;
 
 pub type Context<C> = Full<EmptyErr, (), C>;
 
-pub struct Full<E, S, C> {
-    error: PhantomData<E>,
-    pub(crate) state: S,
-    pub(crate) context: C,
-}
+pub struct Full<E, S, C>(PhantomData<(E, S, C)>);
 
 impl<'src, I, E, S, C> Extra<'src, I> for Full<E, S, C>
 where
@@ -36,46 +30,46 @@ where
     type Error: Error;
     type State: 'src;
     type Context: 'src;
+}
 
-    fn new() -> ProvideExtra<'src, I, Self>
-    where
-        Self::State: Default,
-        Self::Context: Default,
-    {
-        Full {
-            error: PhantomData,
-            state: Self::State::default(),
-            context: Self::Context::default(),
-        }
+//------------------------------------------------------------------------------
+
+pub struct ProvideExtra<'a, 'b, I, Ext>
+where
+    I: Input<'a>,
+    Ext: Extra<'a, I>,
+{
+    input: &'b I,
+    range: Range<I::Cursor>,
+    state: MaybeMut<'b, Ext::State>,
+    context: MaybeRef<'b, Ext::Context>,
+}
+
+impl<'a, 'b, I, Ext> ProvideExtra<'a, 'b, I, Ext>
+where
+    I: Input<'a>,
+    Ext: Extra<'a, I>,
+{
+    pub fn span(&self) -> Range<usize> {
+        self.input.span(self.range.clone())
     }
 
-    fn with_state(state: Self::State) -> ProvideExtra<'src, I, Self>
-    where
-        Self::Context: Default,
-    {
-        Full {
-            error: PhantomData,
-            state,
-            context: Self::Context::default(),
-        }
+    pub fn offset(&self) -> usize {
+        self.input.offset(self.range.start.clone())
     }
 
-    fn with_context(context: Self::Context) -> ProvideExtra<'src, I, Self>
+    pub fn slice(&self) -> &I::Slice
     where
-        Self::State: Default,
+        I: InputSlice<'a>,
     {
-        Full {
-            error: PhantomData,
-            state: Self::State::default(),
-            context,
-        }
+        self.input.get_slice(self.range.clone()).unwrap()
     }
 
-    fn with_state_and_context(state: Self::State, context: Self::Context) -> ProvideExtra<'src, I, Self> {
-        Full {
-            error: PhantomData,
-            state,
-            context,
-        }
+    pub fn state(&mut self) -> &mut Ext::State {
+        self.state.as_mut()
+    }
+
+    pub fn context(&self) -> &Ext::Context {
+        self.context.as_ref()
     }
 }

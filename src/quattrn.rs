@@ -1,4 +1,4 @@
-use crate::{extra::*, input::*};
+use crate::{common::*, extra::*, input::*};
 
 pub trait Quattrn<'src, I, Ext>
 where
@@ -14,7 +14,8 @@ where
         &self,
         input: &'tmp mut I,
         start: I::Cursor,
-        extra: &mut ProvideExtra<'src, I, Ext>,
+        state: MaybeMut<Ext::State>,
+        context: MaybeRef<Ext::Context>,
     ) -> Result<(Self::View<'tmp>, I::Cursor), Ext::Error>
     where
         'src: 'tmp;
