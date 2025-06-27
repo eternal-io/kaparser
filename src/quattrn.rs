@@ -9,7 +9,13 @@ where
     where
         'src: 'tmp;
 
-    fn fullmatch_impl<'tmp>(&self, input: &'tmp mut I) -> Self::View<'tmp>
+    #[doc(hidden)]
+    fn advance<'tmp>(
+        &self,
+        input: &'tmp mut I,
+        start: I::Cursor,
+        extra: &mut ProvideExtra<'src, I, Ext>,
+    ) -> Result<(Self::View<'tmp>, I::Cursor), Ext::Error>
     where
         'src: 'tmp;
 }
