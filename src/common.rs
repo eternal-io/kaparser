@@ -78,15 +78,6 @@ impl<'a, T> MaybeRef<'a, T> {
     }
 }
 
-impl<'a, T> AsRef<T> for MaybeRef<'a, T> {
-    fn as_ref(&self) -> &T {
-        match self {
-            MaybeRef::Ref(v) => v,
-            MaybeRef::Val(v) => v,
-        }
-    }
-}
-
 impl<'a, T> Deref for MaybeRef<'a, T> {
     type Target = T;
 
@@ -122,24 +113,6 @@ impl<'a, T> MaybeMut<'a, T> {
         match self {
             MaybeMut::Mut(v) => Self::Mut(v),
             MaybeMut::Val(v) => Self::Mut(v),
-        }
-    }
-}
-
-impl<'a, T> AsRef<T> for MaybeMut<'a, T> {
-    fn as_ref(&self) -> &T {
-        match self {
-            MaybeMut::Mut(v) => v,
-            MaybeMut::Val(v) => v,
-        }
-    }
-}
-
-impl<'a, T> AsMut<T> for MaybeMut<'a, T> {
-    fn as_mut(&mut self) -> &mut T {
-        match self {
-            MaybeMut::Mut(v) => v,
-            MaybeMut::Val(v) => v,
         }
     }
 }

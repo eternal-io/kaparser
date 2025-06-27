@@ -66,10 +66,10 @@ where
     }
 
     pub fn state(&mut self) -> &mut Ext::State {
-        self.state.as_mut()
+        &mut self.state
     }
 
     pub fn context(&self) -> &Ext::Context {
-        self.context.as_ref()
+        &self.context
     }
 }
