@@ -9,15 +9,9 @@ pub trait Error: Sized + Debug {
 
     fn new(span: Range<usize>, kind: ErrorKind) -> Self;
 
-    fn merge(self, other: Self) -> Self {
-        #![allow(unused_variables)]
-        self
-    }
+    fn merge(self, other: Self) -> Self;
 
-    fn label(self, label: Self::Label) -> Self {
-        #![allow(unused_variables)]
-        self
-    }
+    fn label(self, label: Self::Label) -> Self;
 }
 
 //------------------------------------------------------------------------------
@@ -26,6 +20,9 @@ pub trait Error: Sized + Debug {
 pub enum ErrorKind<'a> {
     Expected(&'a dyn Describe),
     Other(&'a dyn core::error::Error),
+
+    // non-fatal kinds.
+    InvalidInput,
 }
 
 impl<'a> Describe for ErrorKind<'a> {
@@ -33,6 +30,8 @@ impl<'a> Describe for ErrorKind<'a> {
         match self {
             ErrorKind::Expected(pat) => write!(f, "expected {}", pat),
             ErrorKind::Other(err) => write!(f, "error: {}", err),
+
+            ErrorKind::InvalidInput => write!(f, "invalid input"),
         }
     }
 }
@@ -51,4 +50,24 @@ where
 
 //------------------------------------------------------------------------------
 
+#[derive(Debug, Clone, Copy)]
 pub struct EmptyErr;
+
+impl Error for EmptyErr {
+    type Label = ();
+
+    fn new(span: Range<usize>, kind: ErrorKind) -> Self {
+        #![allow(unused_variables)]
+        Self
+    }
+
+    fn merge(self, other: Self) -> Self {
+        #![allow(unused_variables)]
+        Self
+    }
+
+    fn label(self, label: Self::Label) -> Self {
+        #![allow(unused_variables)]
+        Self
+    }
+}
