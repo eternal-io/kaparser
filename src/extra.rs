@@ -34,41 +34,48 @@ where
 
 //------------------------------------------------------------------------------
 
-pub struct ProvideExtra<'a, 'b, I, Ext>
+pub struct ProvideExtra<'src, 'tmp, I, Ext>
 where
-    I: Input<'a>,
-    Ext: Extra<'a, I>,
+    'src: 'tmp,
+    I: Input<'src>,
+    Ext: Extra<'src, I>,
 {
-    input: &'b I,
+    input: &'tmp I,
     range: Range<I::Cursor>,
-    state: MaybeMut<'b, Ext::State>,
-    context: MaybeRef<'b, Ext::Context>,
+    state: MaybeMut<'tmp, Ext::State>,
+    context: MaybeRef<'tmp, Ext::Context>,
 }
 
-impl<'a, 'b, I, Ext> ProvideExtra<'a, 'b, I, Ext>
+impl<'src, 'tmp, I, Ext> ProvideExtra<'src, 'tmp, I, Ext>
 where
-    I: Input<'a>,
-    Ext: Extra<'a, I>,
+    'src: 'tmp,
+    I: Input<'src>,
+    Ext: Extra<'src, I>,
 {
     pub fn span(&self) -> Range<usize> {
         self.input.span(self.range.clone())
     }
-
     pub fn offset(&self) -> usize {
         self.input.offset(self.range.start.clone())
     }
 
-    pub fn slice(&self) -> &I::Slice
+    pub fn slice(&self) -> &'tmp I::Slice
     where
-        I: InputSlice<'a>,
+        I: InputSlice<'src>,
     {
         self.input.get_slice(self.range.clone()).unwrap()
+    }
+    pub fn slice_outlived(&self) -> &'src I::Slice
+    where
+        I: InputSlice<'src> + StaticInput,
+    {
+        // SAFETY: TODO! See StaticInput.
+        unsafe { core::mem::transmute::<&'tmp I::Slice, &'src I::Slice>(self.slice()) }
     }
 
     pub fn state(&mut self) -> &mut Ext::State {
         &mut self.state
     }
-
     pub fn context(&self) -> &Ext::Context {
         &self.context
     }
