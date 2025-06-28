@@ -19,4 +19,12 @@ where
     ) -> Result<(Self::View<'tmp>, I::Cursor), Ext::Error>
     where
         'src: 'tmp;
+
+    fn lift<F, Out>(self, f: F)
+    where
+        Self: Sized,
+        F: for<'all> Fn(Self::View<'all>) -> Out,
+    {
+        todo!()
+    }
 }

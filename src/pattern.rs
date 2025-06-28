@@ -1,27 +1,31 @@
 use crate::{extra::Extra, input::*, marker};
 
-pub trait Quattrn<'src, I, Ext>
+pub trait Pattern<'src, I, Ext>
 where
     I: Input<'src>,
     Ext: Extra<'src, I>,
 {
-    type View<'tmp>
-    where
-        'src: 'tmp;
+    type Captured;
 
-    fn fullmatch_impl<'tmp>(&self, input: &'tmp mut I) -> Self::View<'tmp>
+    // TODO: Custom result type due to here are non-fatal errors.
+    fn fullmatch(&self, input: &mut I) -> Result<Self::Captured, Ext::Error>
     where
-        'src: 'tmp;
+        Ext::State: Default,
+        Ext::Context: Default;
+
+    fn fullmatch_with_state(&self, input: &mut I, state: &'src mut Ext::State) -> Result<Self::Captured, Ext::Error>
+    where
+        Ext::Context: Default;
+
+    fn flycheck(&self, input: &mut I) -> Result<(), Ext::Error>
+    where
+        Ext::State: Default,
+        Ext::Context: Default;
+
+    fn flycheck_with_state(&self, input: &mut I, state: &'src mut Ext::State) -> Result<(), Ext::Error>
+    where
+        Ext::Context: Default;
 }
-
-// pub trait Pattern<'src, U>
-// where
-//     U: Input<'src>,
-// {
-//     type Captured;
-
-//     fn fullmatch(&self, input: &mut U) -> Self::Captured;
-// }
 
 // impl<'src, U, Q> Pattern<'src, U> for Q
 // where
