@@ -1,4 +1,4 @@
-use crate::{common::*, extra::*, input::*};
+use crate::{common::*, extra::*, input::*, private};
 
 pub trait Quattrn<'src, I, Ext>
 where
@@ -10,21 +10,28 @@ where
         'src: 'tmp;
 
     #[doc(hidden)]
-    fn advance<'tmp>(
+    fn __fullmatch<'tmp>(
         &self,
         input: &'tmp mut I,
         start: I::Cursor,
         state: MaybeMut<Ext::State>,
-        context: MaybeRef<Ext::Context>,
-    ) -> Result<(Self::View<'tmp>, I::Cursor), Ext::Error>
+        ctx: MaybeRef<Ext::Context>,
+        _: private::Token,
+    ) -> PResult<(Self::View<'tmp>, I::Cursor), Ext::Error>
     where
         'src: 'tmp;
 
-    fn lift<F, Out>(self, f: F)
+    #[doc(hidden)]
+    fn __flycheck<'tmp>(
+        &self,
+        input: &'tmp mut I,
+        start: I::Cursor,
+        state: MaybeMut<Ext::State>,
+        ctx: MaybeRef<Ext::Context>,
+        _: private::Token,
+    ) -> PResult<I::Cursor, Ext::Error>
     where
-        Self: Sized,
-        F: for<'all> Fn(Self::View<'all>) -> Out,
-    {
-        todo!()
-    }
+        'src: 'tmp;
+
+    //------------------------------------------------------------------------------
 }

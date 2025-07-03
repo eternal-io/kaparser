@@ -7,7 +7,7 @@ extern crate std;
 #[cfg(feature = "alloc")]
 extern crate alloc;
 
-mod marker;
+mod private;
 
 #[macro_use]
 pub mod common;

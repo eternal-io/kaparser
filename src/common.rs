@@ -1,8 +1,82 @@
-use crate::predicate::*;
+use crate::{error::Error, predicate::*};
 use core::{
     fmt,
     ops::{Deref, DerefMut},
 };
+
+pub struct PResult<T, E: Error> {
+    pub(crate) value: Option<T>,
+    pub(crate) error: Option<E>,
+}
+
+impl<T, E: Error> PResult<T, E> {
+    pub fn has_output(&self) -> bool {
+        self.value.is_some()
+    }
+    pub fn has_error(&self) -> bool {
+        self.error.is_some()
+    }
+
+    pub fn output(&self) -> Option<&T> {
+        self.value.as_ref()
+    }
+    pub fn error(&self) -> Option<&E> {
+        self.error.as_ref()
+    }
+
+    pub fn into_output(self) -> Option<T> {
+        self.value
+    }
+    pub fn into_error(self) -> Option<E> {
+        self.error
+    }
+
+    pub fn into_output_error(self) -> (Option<T>, Option<E>) {
+        (self.value, self.error)
+    }
+    pub fn into_result(self) -> Result<T, E> {
+        if let Some(e) = self.error {
+            Err(e)
+        } else if let Some(t) = self.value {
+            Ok(t)
+        } else {
+            unreachable!()
+        }
+    }
+
+    #[track_caller]
+    pub fn unwrap(self) -> T {
+        self.error.unwrap();
+        self.value.unwrap()
+    }
+
+    #[inline]
+    pub(crate) fn verify_map<F, U>(self, f: F) -> PResult<U, E>
+    where
+        F: FnOnce(T) -> (U, Option<E>),
+    {
+        let PResult { value, error: err1 } = self;
+
+        if let Some(value) = value {
+            let (out, err2) = f(value);
+
+            PResult {
+                value: Some(out),
+                error: match (err1, err2) {
+                    (None, None) => None,
+                    (Some(e1), None) => Some(e1),
+                    (None, Some(e2)) => Some(e2),
+                    (Some(e1), Some(e2)) => Some(e1.merge(e2)),
+                },
+            }
+        } else {
+            PResult {
+                value: None,
+                error: err1,
+            }
+        }
+    }
+}
 
 //------------------------------------------------------------------------------
 

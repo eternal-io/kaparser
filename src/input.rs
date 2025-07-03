@@ -14,6 +14,8 @@ pub trait Input<'src>: 'src {
 
     fn begin(&self) -> Self::Cursor;
 
+    fn virtual_end(&self) -> Self::Cursor; // TODO: doc panic if used in `span` or `offset`
+
     fn next_maybe_ref<'tmp, E: Error>(
         &'tmp mut self,
         cursor: &mut Self::Cursor,
@@ -115,6 +117,11 @@ where
     }
 
     #[inline]
+    fn virtual_end(&self) -> Self::Cursor {
+        usize::MAX
+    }
+
+    #[inline]
     fn next_maybe_ref<'tmp, E: Error>(
         &'tmp mut self,
         cursor: &mut Self::Cursor,
@@ -130,8 +137,8 @@ where
 
     #[inline]
     fn has_reached_end(&mut self, cursor: Self::Cursor) -> bool {
-        debug_assert!(self.is_item_boundary(cursor));
-        cursor == self.len()
+        debug_assert!(self.is_item_boundary(cursor) || cursor == usize::MAX);
+        cursor >= self.len()
     }
 
     #[inline]
