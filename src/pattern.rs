@@ -41,7 +41,7 @@ where
         Self: Sized,
         I: StaticInput,
     {
-        converter::Captured { quattrn: self }
+        converter::Captured { pattern: self }
     }
 
     fn lift<F, Out>(self, mapper: F) -> impl Parser<'src, I, Ext, Output = Out>
@@ -50,7 +50,7 @@ where
         F: for<'all> Fn(Self::View<'all>) -> Out,
     {
         converter::Lift {
-            quattrn: self,
+            pattern: self,
             mapper,
             phantom: PhantomData,
         }

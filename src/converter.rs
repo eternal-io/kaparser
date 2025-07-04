@@ -1,17 +1,17 @@
 use crate::{common::*, extra::*, input::*, parser::*, pattern::*, private};
 use core::marker::PhantomData;
 
-pub struct Captured<Q> {
-    pub(crate) quattrn: Q,
+pub struct Captured<P> {
+    pub(crate) pattern: P,
 }
 
-impl<'src, I, Ext, Q> Parser<'src, I, Ext> for Captured<Q>
+impl<'src, I, Ext, P> Parser<'src, I, Ext> for Captured<P>
 where
     I: Input<'src> + StaticInput,
     Ext: Extra<'src, I>,
-    Q: Pattern<'src, I, Ext>,
+    P: Pattern<'src, I, Ext>,
 {
-    type Output = Q::View<'src>;
+    type Output = P::View<'src>;
 
     fn __parse(
         &self,
@@ -21,7 +21,7 @@ where
         ctx: MaybeRef<Ext::Context>,
         _: private::Token,
     ) -> PResult<(Self::Output, I::Cursor), Ext::Error> {
-        let PResult { value, error } = self.quattrn.__parse(input, start, state, ctx, private::Token);
+        let PResult { value, error } = self.pattern.__parse(input, start, state, ctx, private::Token);
 
         PResult {
             value: value.map(|(view, cur)| {
@@ -43,24 +43,24 @@ where
         ctx: MaybeRef<Ext::Context>,
         _: private::Token,
     ) -> PResult<I::Cursor, Ext::Error> {
-        self.quattrn.__check(input, start, state, ctx, private::Token)
+        self.pattern.__check(input, start, state, ctx, private::Token)
     }
 }
 
 //------------------------------------------------------------------------------
 
-pub struct Lift<Q, F, Out> {
-    pub(crate) quattrn: Q,
+pub struct Lift<P, F, Out> {
+    pub(crate) pattern: P,
     pub(crate) mapper: F,
     pub(crate) phantom: PhantomData<Out>,
 }
 
-impl<'src, I, Ext, Q, F, Out> Parser<'src, I, Ext> for Lift<Q, F, Out>
+impl<'src, I, Ext, P, F, Out> Parser<'src, I, Ext> for Lift<P, F, Out>
 where
     I: Input<'src>,
     Ext: Extra<'src, I>,
-    Q: Pattern<'src, I, Ext>,
-    F: for<'all> Fn(Q::View<'all>) -> Out,
+    P: Pattern<'src, I, Ext>,
+    F: for<'all> Fn(P::View<'all>) -> Out,
 {
     type Output = Out;
 
@@ -72,7 +72,7 @@ where
         ctx: MaybeRef<Ext::Context>,
         _: private::Token,
     ) -> PResult<(Self::Output, I::Cursor), Ext::Error> {
-        let PResult { value, error } = self.quattrn.__parse(input, start, state, ctx, private::Token);
+        let PResult { value, error } = self.pattern.__parse(input, start, state, ctx, private::Token);
 
         PResult {
             value: value.map(|(view, cur)| ((self.mapper)(view), cur)),
@@ -88,7 +88,7 @@ where
         ctx: MaybeRef<Ext::Context>,
         _: private::Token,
     ) -> PResult<I::Cursor, Ext::Error> {
-        self.quattrn.__check(input, start, state, ctx, private::Token)
+        self.pattern.__check(input, start, state, ctx, private::Token)
     }
 }
 
