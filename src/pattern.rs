@@ -77,15 +77,15 @@ where
         .verify_map(|(cap, cur)| (cap, input.shall_reached_end(cur)))
     }
 
-    fn flycheck(&self, input: &mut I) -> Result<(), Ext::Error>
+    fn fullcheck(&self, input: &mut I) -> Result<(), Ext::Error>
     where
         Ext::State: Default,
         Ext::Context: Default,
     {
-        self.flycheck_with_state(input, &mut Ext::State::default())
+        self.fullcheck_with_state(input, &mut Ext::State::default())
     }
 
-    fn flycheck_with_state(&self, input: &mut I, state: &mut Ext::State) -> Result<(), Ext::Error>
+    fn fullcheck_with_state(&self, input: &mut I, state: &mut Ext::State) -> Result<(), Ext::Error>
     where
         Ext::Context: Default,
     {
