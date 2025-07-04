@@ -1,104 +1,58 @@
-use crate::{common::*, extra::*, input::*, private};
+use crate::{common::*, converter, extra::*, input::*, parser::*, private};
+use core::marker::PhantomData;
 
 pub trait Pattern<'src, I, Ext>
 where
     I: Input<'src>,
     Ext: Extra<'src, I>,
 {
-    type Output;
+    type View<'tmp>
+    where
+        'src: 'tmp;
 
     #[doc(hidden)]
-    fn __parse(
+    fn __parse<'tmp>(
         &self,
-        input: &mut I,
+        input: &'tmp mut I,
         start: I::Cursor,
         state: MaybeMut<Ext::State>,
         ctx: MaybeRef<Ext::Context>,
         _: private::Token,
-    ) -> PResult<(Self::Output, I::Cursor), Ext::Error>;
+    ) -> PResult<(Self::View<'tmp>, I::Cursor), Ext::Error>
+    where
+        'src: 'tmp;
 
     #[doc(hidden)]
-    fn __check(
+    fn __check<'tmp>(
         &self,
-        input: &mut I,
+        input: &'tmp mut I,
         start: I::Cursor,
         state: MaybeMut<Ext::State>,
         ctx: MaybeRef<Ext::Context>,
         _: private::Token,
-    ) -> PResult<I::Cursor, Ext::Error>;
+    ) -> PResult<I::Cursor, Ext::Error>
+    where
+        'src: 'tmp;
 
     //------------------------------------------------------------------------------
 
-    fn parse(&self, input: &mut I, start: I::Cursor) -> PResult<(Self::Output, I::Cursor), Ext::Error>
+    fn captured(self) -> impl Parser<'src, I, Ext, Output = Self::View<'src>>
     where
-        Ext::State: Default,
-        Ext::Context: Default,
+        Self: Sized,
+        I: StaticInput,
     {
-        self.parse_with_state(input, start, &mut Ext::State::default())
+        converter::Captured { quattrn: self }
     }
 
-    fn parse_with_state(
-        &self,
-        input: &mut I,
-        start: I::Cursor,
-        state: &mut Ext::State,
-    ) -> PResult<(Self::Output, I::Cursor), Ext::Error>
+    fn lift<F, Out>(self, mapper: F) -> impl Parser<'src, I, Ext, Output = Out>
     where
-        Ext::Context: Default,
+        Self: Sized,
+        F: for<'all> Fn(Self::View<'all>) -> Out,
     {
-        self.__parse(
-            input,
-            start,
-            state.into(),
-            Ext::Context::default().into(),
-            private::Token,
-        )
+        converter::Lift {
+            quattrn: self,
+            mapper,
+            phantom: PhantomData,
+        }
     }
-
-    fn fullmatch(&self, input: &mut I) -> PResult<Self::Output, Ext::Error>
-    where
-        Ext::State: Default,
-        Ext::Context: Default,
-    {
-        self.fullmatch_with_state(input, &mut Ext::State::default())
-    }
-
-    fn fullmatch_with_state(&self, input: &mut I, state: &mut Ext::State) -> PResult<Self::Output, Ext::Error>
-    where
-        Ext::Context: Default,
-    {
-        self.__parse(
-            input,
-            input.begin(),
-            state.into(),
-            Ext::Context::default().into(),
-            private::Token,
-        )
-        .verify_map(|(cap, cur)| (cap, input.shall_reached_end(cur)))
-    }
-
-    fn fullcheck(&self, input: &mut I) -> Result<(), Ext::Error>
-    where
-        Ext::State: Default,
-        Ext::Context: Default,
-    {
-        self.fullcheck_with_state(input, &mut Ext::State::default())
-    }
-
-    fn fullcheck_with_state(&self, input: &mut I, state: &mut Ext::State) -> Result<(), Ext::Error>
-    where
-        Ext::Context: Default,
-    {
-        self.__check(
-            input,
-            input.begin(),
-            state.into(),
-            Ext::Context::default().into(),
-            private::Token,
-        )
-        .verify_map(|cur| ((), input.shall_reached_end(cur)))
-        .into_result()
-    }
-
-    //------------------------------------------------------------------------------
 }

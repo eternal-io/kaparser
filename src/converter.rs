@@ -1,15 +1,15 @@
-use crate::{common::*, extra::*, input::*, pattern::*, private, quattrn::*};
+use crate::{common::*, extra::*, input::*, parser::*, pattern::*, private};
 use core::marker::PhantomData;
 
 pub struct Captured<Q> {
     pub(crate) quattrn: Q,
 }
 
-impl<'src, I, Ext, Q> Pattern<'src, I, Ext> for Captured<Q>
+impl<'src, I, Ext, Q> Parser<'src, I, Ext> for Captured<Q>
 where
     I: Input<'src> + StaticInput,
     Ext: Extra<'src, I>,
-    Q: Quattrn<'src, I, Ext>,
+    Q: Pattern<'src, I, Ext>,
 {
     type Output = Q::View<'src>;
 
@@ -55,11 +55,11 @@ pub struct Lift<Q, F, Out> {
     pub(crate) phantom: PhantomData<Out>,
 }
 
-impl<'src, I, Ext, Q, F, Out> Pattern<'src, I, Ext> for Lift<Q, F, Out>
+impl<'src, I, Ext, Q, F, Out> Parser<'src, I, Ext> for Lift<Q, F, Out>
 where
     I: Input<'src>,
     Ext: Extra<'src, I>,
-    Q: Quattrn<'src, I, Ext>,
+    Q: Pattern<'src, I, Ext>,
     F: for<'all> Fn(Q::View<'all>) -> Out,
 {
     type Output = Out;

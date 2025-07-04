@@ -20,5 +20,4 @@ pub mod parser;
 pub mod pattern;
 pub mod predicate;
 pub mod primitive;
-pub mod quattrn;
 pub mod slice;
