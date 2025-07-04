@@ -4,12 +4,12 @@ use core::{
     ops::{Deref, DerefMut},
 };
 
-pub struct PResult<T, E: Error> {
+pub struct PResult<T, E> {
     pub(crate) value: Option<T>,
     pub(crate) error: Option<E>,
 }
 
-impl<T, E: Error> PResult<T, E> {
+impl<T, E> PResult<T, E> {
     pub fn has_output(&self) -> bool {
         self.value.is_some()
     }
@@ -34,11 +34,13 @@ impl<T, E: Error> PResult<T, E> {
     pub fn into_output_error(self) -> (Option<T>, Option<E>) {
         (self.value, self.error)
     }
+
+    #[inline]
     pub fn into_result(self) -> Result<T, E> {
         if let Some(e) = self.error {
             Err(e)
-        } else if let Some(t) = self.value {
-            Ok(t)
+        } else if let Some(val) = self.value {
+            Ok(val)
         } else {
             unreachable!()
         }
@@ -53,12 +55,13 @@ impl<T, E: Error> PResult<T, E> {
     #[inline]
     pub(crate) fn verify_map<F, U>(self, f: F) -> PResult<U, E>
     where
+        E: Error,
         F: FnOnce(T) -> (U, Option<E>),
     {
         let PResult { value, error: err1 } = self;
 
-        if let Some(value) = value {
-            let (out, err2) = f(value);
+        if let Some(val) = value {
+            let (out, err2) = f(val);
 
             PResult {
                 value: Some(out),
@@ -76,6 +79,55 @@ impl<T, E: Error> PResult<T, E> {
             }
         }
     }
+
+    #[inline]
+    pub(crate) fn raise_or_map<F, U>(self, f: F) -> PResult<U, E>
+    where
+        F: FnOnce(T) -> U,
+    {
+        match self.into_result() {
+            Ok(val) => PResult::submit(f(val)),
+            Err(e) => PResult::raise(e),
+        }
+    }
+
+    #[inline]
+    pub(crate) fn map<F, U>(self, f: F) -> PResult<U, E>
+    where
+        F: FnOnce(T) -> U,
+    {
+        PResult {
+            value: self.value.map(f),
+            error: self.error,
+        }
+    }
+
+    #[inline]
+    pub(crate) fn map_err<F, E2>(self, f: F) -> PResult<T, E2>
+    where
+        F: FnOnce(E) -> E2,
+    {
+        PResult {
+            value: self.value,
+            error: self.error.map(f),
+        }
+    }
+
+    #[inline]
+    pub(crate) fn submit(value: T) -> PResult<T, E> {
+        PResult {
+            value: Some(value),
+            error: None,
+        }
+    }
+
+    #[inline]
+    pub(crate) fn raise(error: E) -> PResult<T, E> {
+        PResult {
+            value: None,
+            error: Some(error),
+        }
+    }
 }
 
 //------------------------------------------------------------------------------
@@ -84,7 +136,7 @@ pub trait Describe {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result;
 }
 
-impl<'a> fmt::Display for &'a dyn Describe {
+impl fmt::Debug for &dyn Describe {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         (*self).fmt(f)
     }
@@ -221,6 +273,20 @@ impl<'a, T> From<&'a mut T> for MaybeMut<'a, T> {
     fn from(value: &'a mut T) -> Self {
         Self::Mut(value)
     }
+}
+
+//------------------------------------------------------------------------------
+
+macro_rules! dyn_coerce {
+    ( $expr:expr $(=> $trait:path)* ) => {
+        dyn_coerce! { @ $expr $(=> $trait)* }
+    };
+
+    ( @ $expr:expr => $trait:path $(=> $traits:path)* ) => {
+        dyn_coerce! { @ &$expr as &dyn $trait $(=> $traits)* }
+    };
+
+    ( @ $expr:expr ) => { $expr };
 }
 
 //------------------------------------------------------------------------------

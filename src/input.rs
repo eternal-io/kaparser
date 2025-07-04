@@ -24,16 +24,16 @@ pub trait Input<'src>: 'src {
     fn has_reached_end(&mut self, cursor: Self::Cursor) -> bool;
 
     fn shall_reached_end<E: Error>(&mut self, cursor: Self::Cursor) -> Option<E> {
-        (!self.has_reached_end(cursor.clone())).then(|| E::new(self.offset_span(cursor), ErrorKind::ExpectedEnd))
+        (!self.has_reached_end(cursor.clone())).then(|| E::new(Self::offset_span(cursor), ErrorKind::ExpectedEnd))
     }
 
-    fn span(&self, range: Range<Self::Cursor>) -> Range<usize>;
+    fn span(range: Range<Self::Cursor>) -> Range<usize>;
 
-    fn offset(&self, cursor: Self::Cursor) -> usize;
+    fn offset(cursor: Self::Cursor) -> usize;
 
-    fn offset_span(&self, offset: Self::Cursor) -> Range<usize> {
-        let off = self.offset(offset);
-        off..off
+    fn offset_span(cursor: Self::Cursor) -> Range<usize> {
+        let o = Self::offset(cursor);
+        o..o
     }
 }
 
@@ -144,15 +144,12 @@ where
     }
 
     #[inline]
-    fn span(&self, range: Range<Self::Cursor>) -> Range<usize> {
-        assert!(self.is_item_boundary(range.start));
-        assert!(self.is_item_boundary(range.end));
+    fn span(range: Range<Self::Cursor>) -> Range<usize> {
         range
     }
 
     #[inline]
-    fn offset(&self, cursor: Self::Cursor) -> usize {
-        assert!(self.is_item_boundary(cursor));
+    fn offset(cursor: Self::Cursor) -> usize {
         cursor
     }
 }

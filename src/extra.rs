@@ -53,10 +53,10 @@ where
     Ext: Extra<'src, I>,
 {
     pub fn span(&self) -> Range<usize> {
-        self.input.span(self.range.clone())
+        I::span(self.range.clone())
     }
     pub fn offset(&self) -> usize {
-        self.input.offset(self.range.start.clone())
+        I::offset(self.range.start.clone())
     }
 
     pub fn slice(&self) -> &'tmp I::Slice

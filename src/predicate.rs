@@ -1,55 +1,100 @@
-use core::ops::{Range, RangeInclusive};
+use core::{
+    any::type_name,
+    fmt::{self, Debug},
+    ops::{Range, RangeInclusive},
+};
+
+use crate::common::Describe;
 
 pub struct ANY;
 
-pub fn just<T: PartialEq>(item: T) -> impl Predicate<T> {
-    move |subj: &T| item.eq(subj)
-}
+pub struct Just<T>(pub T);
+
+pub struct Except<P>(P);
 
 pub fn except<T, P: Predicate<T>>(pred: P) -> impl Predicate<T> {
-    move |subj: &T| !pred.predicate(subj)
+    Except(pred)
 }
 
 //------------------------------------------------------------------------------
 
-pub trait Predicate<T>: Sized {
+impl<T> Describe for &dyn Predicate<T> {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        write!(f, "single token matches ")?;
+        self.describe(f)
+    }
+}
+
+pub trait Predicate<T> {
     fn predicate(&self, item: &T) -> bool;
+
+    fn describe(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result;
 }
 
 impl<T> Predicate<T> for ANY {
-    #[inline]
     fn predicate(&self, item: &T) -> bool {
         #![allow(unused_variables)]
         true
     }
+    fn describe(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        write!(f, "ANY")
+    }
+}
+
+impl<T: PartialEq + Debug> Predicate<T> for Just<T> {
+    fn predicate(&self, item: &T) -> bool {
+        self.0.eq(item)
+    }
+    fn describe(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        write!(f, "{:?}", self.0)
+    }
+}
+
+impl<T, P: Predicate<T>> Predicate<T> for Except<P> {
+    fn predicate(&self, item: &T) -> bool {
+        !self.0.predicate(item)
+    }
+    fn describe(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        write!(f, "except ")?;
+        self.0.describe(f)
+    }
 }
 
 impl<T, F: Fn(&T) -> bool> Predicate<T> for F {
-    #[inline]
     fn predicate(&self, item: &T) -> bool {
         self(item)
     }
+    fn describe(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        write!(f, "guard {}", type_name::<F>())
+    }
 }
 
-impl<T: PartialOrd> Predicate<T> for Range<T> {
-    #[inline]
+impl<T: PartialOrd + Debug> Predicate<T> for Range<T> {
     fn predicate(&self, item: &T) -> bool {
         self.contains(item)
     }
+    fn describe(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        write!(f, "{:?}..{:?}", self.start, self.end)
+    }
 }
-impl<T: PartialOrd> Predicate<T> for RangeInclusive<T> {
-    #[inline]
+
+impl<T: PartialOrd + Debug> Predicate<T> for RangeInclusive<T> {
     fn predicate(&self, item: &T) -> bool {
         self.contains(item)
+    }
+    fn describe(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        write!(f, "{:?}..={:?}", self.start(), self.end())
     }
 }
 
 macro_rules! impl_predicate_for_primitives {
     ( $($ty:ty),+ $(,)? ) => { $(
         impl Predicate<$ty> for $ty {
-            #[inline]
             fn predicate(&self, item: &$ty) -> bool {
                 self.eq(item)
+            }
+            fn describe(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+                write!(f, "{:?}", self)
             }
         }
     )+ };
@@ -68,20 +113,34 @@ macro_rules! impl_predicate_for_tuple {
         where
           $($GenN: Predicate<T>,)+
         {
-            #[inline]
             fn predicate(&self, item: &T) -> bool {
-                impl_predicate_for_tuple!( @ self item $($IdxN),+ )
+                impl_predicate_for_tuple!( @pred self item $($IdxN),+ )
+            }
+            fn describe(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+                f.write_str("{ ")?;
+                impl_predicate_for_tuple!( @desc self f $($IdxN),+ )?;
+                f.write_str(" }")
             }
         }
     };
 
-    ( @ $self:ident $item:ident $IdxA:tt ) => {
+    ( @pred $self:ident $item:ident $IdxA:tt ) => {
         $self.$IdxA.predicate($item)
     };
 
-    ( @ $self:ident $item:ident $IdxA:tt, $($IdxN:tt),* ) => {
-        $self.$IdxA.predicate($item) || impl_predicate_for_tuple!( @ $self $item $($IdxN),* )
+    ( @pred $self:ident $item:ident $IdxA:tt, $($IdxN:tt),* ) => {
+        $self.$IdxA.predicate($item) || impl_predicate_for_tuple!( @pred $self $item $($IdxN),* )
     };
+
+    ( @desc $self:ident $fmtr:ident $IdxA:tt ) => {
+        $self.$IdxA.describe($fmtr)
+    };
+
+    ( @desc $self:ident $fmtr:ident $IdxA:tt, $($IdxN:tt),* ) => {{
+        $self.$IdxA.describe($fmtr)?;
+        $fmtr.write_str(" | ")?;
+        impl_predicate_for_tuple!( @desc $self $fmtr $($IdxN),* )
+    }};
 }
 
 __generate_codes! { impl_predicate_for_tuple ( P ) }
@@ -115,6 +174,8 @@ macro_rules! gen_unicode_predicates {
         }
     )* } };
 }
+
+// TODO: provide structs instead, because `Fn`s are not describable.
 
 gen_ascii_predicates! {
     /// U+0000 NUL ..= U+001F UNIT SEPARATOR, or U+007F DELETE.
