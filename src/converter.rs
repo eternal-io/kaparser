@@ -29,7 +29,7 @@ where
                 // This converter only works for inputs that marked as `StaticInput`,
                 // which ensures `'tmp` outlives `'src`, therefore the lifetime can be safely extended.
                 // In other words, they are inputs that do not need to be mutated when getting a slice or item.
-                (unsafe { core::mem::transmute(view) }, cur)
+                (unsafe { core::mem::transmute::<P::View<'_>, P::View<'src>>(view) }, cur)
             }),
             error,
         }
