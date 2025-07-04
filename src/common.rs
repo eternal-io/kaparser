@@ -224,3 +224,18 @@ impl<'a, T> From<&'a mut T> for MaybeMut<'a, T> {
 }
 
 //------------------------------------------------------------------------------
+
+macro_rules! __forward_check {
+    ( $p:ident ) => {
+        fn __check(
+            &self,
+            input: &mut I,
+            start: I::Cursor,
+            state: MaybeMut<Ext::State>,
+            ctx: MaybeRef<Ext::Context>,
+            _: private::Token,
+        ) -> PResult<I::Cursor, Ext::Error> {
+            self.$p.__check(input, start, state, ctx, private::Token)
+        }
+    };
+}

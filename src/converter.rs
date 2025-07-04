@@ -35,16 +35,7 @@ where
         }
     }
 
-    fn __check(
-        &self,
-        input: &mut I,
-        start: I::Cursor,
-        state: MaybeMut<Ext::State>,
-        ctx: MaybeRef<Ext::Context>,
-        _: private::Token,
-    ) -> PResult<I::Cursor, Ext::Error> {
-        self.pattern.__check(input, start, state, ctx, private::Token)
-    }
+    __forward_check!(pattern);
 }
 
 //------------------------------------------------------------------------------
@@ -80,16 +71,7 @@ where
         }
     }
 
-    fn __check(
-        &self,
-        input: &mut I,
-        start: I::Cursor,
-        state: MaybeMut<Ext::State>,
-        ctx: MaybeRef<Ext::Context>,
-        _: private::Token,
-    ) -> PResult<I::Cursor, Ext::Error> {
-        self.pattern.__check(input, start, state, ctx, private::Token)
-    }
+    __forward_check!(pattern);
 }
 
 //------------------------------------------------------------------------------
