@@ -1,4 +1,4 @@
-use crate::{common::*, extra::*, input::*, private};
+use crate::{common::*, extra::*, input::*, private, quattrn::*};
 
 pub trait Pattern<'src, I, Ext>
 where
@@ -103,23 +103,48 @@ where
     //------------------------------------------------------------------------------
 }
 
-// impl<'src, U, Q> Pattern<'src, U> for Q
-// where
-//     U::_Marker: marker::Static,
-//     U: Input<'src>,
-//     Q: Quattrn<'src, U>,
-// {
-//     type Captured = Q::View<'src>;
+//------------------------------------------------------------------------------
 
-//     fn fullmatch(&self, input: &mut U) -> Self::Captured {
-//         // SAFETY:
-//         // This balnket implementation only works for inputs that marked as `StaticInput`,
-//         // which ensures `'tmp` outlives `'src`, therefore the lifetime can be safely extended.
-//         // In other words, they are inputs that do not need to be mutated when getting a slice or item.
-//         unsafe {
-//             core::mem::transmute(self.fullmatch_impl(input))
-//             // Src = for<'tmp> Q::View<'tmp>;
-//             // Dst = Q::View<'src>;
-//         }
-//     }
-// }
+impl<'src, I, Ext, Q> Pattern<'src, I, Ext> for Q
+where
+    I: Input<'src> + StaticInput,
+    Ext: Extra<'src, I>,
+    Q: Quattrn<'src, I, Ext>,
+{
+    type Captured = Q::View<'src>;
+
+    fn __parse(
+        &self,
+        input: &mut I,
+        start: I::Cursor,
+        state: MaybeMut<Ext::State>,
+        ctx: MaybeRef<Ext::Context>,
+        _: private::Token,
+    ) -> PResult<(Self::Captured, I::Cursor), Ext::Error> {
+        let PResult { value, error } = self.__parse(input, start, state, ctx, private::Token);
+
+        PResult {
+            error,
+            value: value.map(|(cap, cur)| {
+                // SAFETY:
+                // This balnket implementation only works for inputs that marked as `StaticInput`,
+                // which ensures `'tmp` outlives `'src`, therefore the lifetime can be safely extended.
+                // In other words, they are inputs that do not need to be mutated when getting a slice or item.
+                let cap = unsafe { core::mem::transmute(cap) };
+
+                (cap, cur)
+            }),
+        }
+    }
+
+    fn __check(
+        &self,
+        input: &mut I,
+        start: I::Cursor,
+        state: MaybeMut<Ext::State>,
+        ctx: MaybeRef<Ext::Context>,
+        _: private::Token,
+    ) -> PResult<I::Cursor, Ext::Error> {
+        self.__check(input, start, state, ctx, private::Token)
+    }
+}
