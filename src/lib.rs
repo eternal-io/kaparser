@@ -12,6 +12,7 @@ mod private;
 #[macro_use]
 pub mod common;
 pub mod combinator;
+pub mod converter;
 pub mod error;
 pub mod extra;
 pub mod input;
