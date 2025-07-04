@@ -1,4 +1,4 @@
-use crate::{common::*, error::Error, slice::*};
+use crate::{common::*, error::*, slice::*};
 use core::ops::Range;
 
 pub unsafe trait StaticInput {}
@@ -14,8 +14,6 @@ pub trait Input<'src>: 'src {
 
     fn begin(&self) -> Self::Cursor;
 
-    fn virtual_end(&self) -> Self::Cursor; // TODO: doc panic if used in `span` or `offset`
-
     fn next_maybe_ref<'tmp, E: Error>(
         &'tmp mut self,
         cursor: &mut Self::Cursor,
@@ -25,7 +23,16 @@ pub trait Input<'src>: 'src {
 
     fn has_reached_end(&mut self, cursor: Self::Cursor) -> bool;
 
+    fn shall_reached_end<E: Error>(&mut self, cursor: Self::Cursor) -> Option<E> {
+        (!self.has_reached_end(cursor.clone())).then(|| E::new(self.offset_span(cursor), ErrorKind::ExpectedEnd))
+    }
+
     fn span(&self, range: Range<Self::Cursor>) -> Range<usize>;
+
+    fn offset_span(&self, offset: Self::Cursor) -> Range<usize> {
+        let off = self.offset(offset);
+        off..off
+    }
 
     fn offset(&self, cursor: Self::Cursor) -> usize;
 }
@@ -117,11 +124,6 @@ where
     }
 
     #[inline]
-    fn virtual_end(&self) -> Self::Cursor {
-        usize::MAX
-    }
-
-    #[inline]
     fn next_maybe_ref<'tmp, E: Error>(
         &'tmp mut self,
         cursor: &mut Self::Cursor,
@@ -137,8 +139,8 @@ where
 
     #[inline]
     fn has_reached_end(&mut self, cursor: Self::Cursor) -> bool {
-        debug_assert!(self.is_item_boundary(cursor) || cursor == usize::MAX);
-        cursor >= self.len()
+        debug_assert!(self.is_item_boundary(cursor));
+        cursor == self.len()
     }
 
     #[inline]

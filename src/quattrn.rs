@@ -10,7 +10,7 @@ where
         'src: 'tmp;
 
     #[doc(hidden)]
-    fn __fullmatch<'tmp>(
+    fn __parse<'tmp>(
         &self,
         input: &'tmp mut I,
         start: I::Cursor,
@@ -22,7 +22,7 @@ where
         'src: 'tmp;
 
     #[doc(hidden)]
-    fn __flycheck<'tmp>(
+    fn __check<'tmp>(
         &self,
         input: &'tmp mut I,
         start: I::Cursor,
