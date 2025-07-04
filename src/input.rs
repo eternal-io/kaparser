@@ -29,12 +29,12 @@ pub trait Input<'src>: 'src {
 
     fn span(&self, range: Range<Self::Cursor>) -> Range<usize>;
 
+    fn offset(&self, cursor: Self::Cursor) -> usize;
+
     fn offset_span(&self, offset: Self::Cursor) -> Range<usize> {
         let off = self.offset(offset);
         off..off
     }
-
-    fn offset(&self, cursor: Self::Cursor) -> usize;
 }
 
 pub trait InputOwnableToken<'src>: Input<'src> {
