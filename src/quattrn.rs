@@ -1,4 +1,5 @@
-use crate::{common::*, extra::*, input::*, private};
+use crate::{common::*, converter, extra::*, input::*, pattern::*, private};
+use core::marker::PhantomData;
 
 pub trait Quattrn<'src, I, Ext>
 where
@@ -34,4 +35,24 @@ where
         'src: 'tmp;
 
     //------------------------------------------------------------------------------
+
+    fn captured(self) -> impl Pattern<'src, I, Ext, Output = Self::View<'src>>
+    where
+        Self: Sized,
+        I: StaticInput,
+    {
+        converter::Captured { quattrn: self }
+    }
+
+    fn lift<F, Out>(self, mapper: F) -> impl Pattern<'src, I, Ext, Output = Out>
+    where
+        Self: Sized,
+        F: for<'all> Fn(Self::View<'all>) -> Out,
+    {
+        converter::Lift {
+            quattrn: self,
+            mapper,
+            phantom: PhantomData,
+        }
+    }
 }

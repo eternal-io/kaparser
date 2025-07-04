@@ -1,11 +1,11 @@
-use crate::{common::*, extra::*, input::*, private, quattrn::*};
+use crate::{common::*, extra::*, input::*, private};
 
 pub trait Pattern<'src, I, Ext>
 where
     I: Input<'src>,
     Ext: Extra<'src, I>,
 {
-    type Captured;
+    type Output;
 
     #[doc(hidden)]
     fn __parse(
@@ -15,7 +15,7 @@ where
         state: MaybeMut<Ext::State>,
         ctx: MaybeRef<Ext::Context>,
         _: private::Token,
-    ) -> PResult<(Self::Captured, I::Cursor), Ext::Error>;
+    ) -> PResult<(Self::Output, I::Cursor), Ext::Error>;
 
     #[doc(hidden)]
     fn __check(
@@ -29,7 +29,7 @@ where
 
     //------------------------------------------------------------------------------
 
-    fn parse(&self, input: &mut I, start: I::Cursor) -> PResult<(Self::Captured, I::Cursor), Ext::Error>
+    fn parse(&self, input: &mut I, start: I::Cursor) -> PResult<(Self::Output, I::Cursor), Ext::Error>
     where
         Ext::State: Default,
         Ext::Context: Default,
@@ -42,7 +42,7 @@ where
         input: &mut I,
         start: I::Cursor,
         state: &mut Ext::State,
-    ) -> PResult<(Self::Captured, I::Cursor), Ext::Error>
+    ) -> PResult<(Self::Output, I::Cursor), Ext::Error>
     where
         Ext::Context: Default,
     {
@@ -55,7 +55,7 @@ where
         )
     }
 
-    fn fullmatch(&self, input: &mut I) -> PResult<Self::Captured, Ext::Error>
+    fn fullmatch(&self, input: &mut I) -> PResult<Self::Output, Ext::Error>
     where
         Ext::State: Default,
         Ext::Context: Default,
@@ -63,7 +63,7 @@ where
         self.fullmatch_with_state(input, &mut Ext::State::default())
     }
 
-    fn fullmatch_with_state(&self, input: &mut I, state: &mut Ext::State) -> PResult<Self::Captured, Ext::Error>
+    fn fullmatch_with_state(&self, input: &mut I, state: &mut Ext::State) -> PResult<Self::Output, Ext::Error>
     where
         Ext::Context: Default,
     {

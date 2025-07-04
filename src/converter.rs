@@ -11,7 +11,7 @@ where
     Ext: Extra<'src, I>,
     Q: Quattrn<'src, I, Ext>,
 {
-    type Captured = Q::View<'src>;
+    type Output = Q::View<'src>;
 
     fn __parse(
         &self,
@@ -20,7 +20,7 @@ where
         state: MaybeMut<Ext::State>,
         ctx: MaybeRef<Ext::Context>,
         _: private::Token,
-    ) -> PResult<(Self::Captured, I::Cursor), Ext::Error> {
+    ) -> PResult<(Self::Output, I::Cursor), Ext::Error> {
         let PResult { value, error } = self.quattrn.__parse(input, start, state, ctx, private::Token);
 
         PResult {
@@ -60,9 +60,9 @@ where
     I: Input<'src>,
     Ext: Extra<'src, I>,
     Q: Quattrn<'src, I, Ext>,
-    F: for<'tmp> Fn(Q::View<'tmp>) -> Out,
+    F: for<'all> Fn(Q::View<'all>) -> Out,
 {
-    type Captured = Out;
+    type Output = Out;
 
     fn __parse(
         &self,
@@ -71,7 +71,7 @@ where
         state: MaybeMut<Ext::State>,
         ctx: MaybeRef<Ext::Context>,
         _: private::Token,
-    ) -> PResult<(Self::Captured, I::Cursor), Ext::Error> {
+    ) -> PResult<(Self::Output, I::Cursor), Ext::Error> {
         let PResult { value, error } = self.quattrn.__parse(input, start, state, ctx, private::Token);
 
         PResult {
