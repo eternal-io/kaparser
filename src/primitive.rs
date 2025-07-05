@@ -1,6 +1,17 @@
 use crate::{common::*, error::*, extra::*, input::*, pattern::*, predicate::*, private, slice::*};
 use core::{fmt, marker::PhantomData};
 
+pub(crate) struct Single<'a, Token, Pred>(&'a Pred, PhantomData<Token>);
+
+impl<'a, Token, Pred> Describe for Single<'a, Token, Pred>
+where
+    Pred: Predicate<Token>,
+{
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        todo!()
+    }
+}
+
 impl<'src, I, Ext, Pred> Pattern<'src, I, Ext> for [Pred; 1]
 where
     I: InputOwnableToken<'src>,
@@ -46,7 +57,10 @@ where
             .flatten()
             .raise_or_and_then(|token| match token.verify_by(&self[0]) {
                 true => Ok(end),
-                false => Err(self[0].report(I::span(start..end))),
+                false => Err(Ext::Error::new(
+                    I::span(start..end),
+                    ErrorKind::Expected(&Single(&self[0], PhantomData)),
+                )),
             })
     }
 }
@@ -100,7 +114,10 @@ where
             .flatten()
             .raise_or_and_then(|token| match token.verify_by(&self.0) {
                 true => Ok(end),
-                false => Err(self.0.report(I::span(start..end))),
+                false => Err(Ext::Error::new(
+                    I::span(start..end),
+                    ErrorKind::Expected(&Single(&self.0, PhantomData)),
+                )),
             })
     }
 }

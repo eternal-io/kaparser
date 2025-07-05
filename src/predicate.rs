@@ -1,4 +1,4 @@
-use crate::{common::*, error::*, extra::*, input::*, pattern::*, primitive};
+use crate::{common::*, extra::*, input::*, pattern::*, primitive};
 use core::{
     any::type_name,
     fmt::{self, Debug},
@@ -32,17 +32,6 @@ pub trait Predicate<Token> {
     fn predicate(&self, item: &Token) -> bool;
 
     fn describe(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result;
-
-    #[doc(hidden)]
-    fn report<E: Error>(&self, span: Range<usize>) -> E
-    where
-        Self: Sized,
-    {
-        E::new(
-            span,
-            ErrorKind::Expected(coerce_dyn! { self => Predicate<Token> => Describe }),
-        )
-    }
 
     fn take<'src, I, Ext, R>(self, range: R) -> impl Pattern<'src, I, Ext>
     where
