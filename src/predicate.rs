@@ -8,17 +8,20 @@ use core::{
 
 pub struct ANY;
 
-pub struct Just<T: PartialEq + Debug>(pub T);
+pub struct Just<Token: PartialEq + Debug>(pub Token);
 
-pub struct Except<P>(P);
+pub struct Except<Pred>(Pred);
 
-pub fn except<T, P: Predicate<T>>(pred: P) -> impl Predicate<T> {
+pub fn except<Token, Pred>(pred: Pred) -> impl Predicate<Token>
+where
+    Pred: Predicate<Token>,
+{
     Except(pred)
 }
 
 //------------------------------------------------------------------------------
 
-impl<T> Describe for &dyn Predicate<T> {
+impl<Token> Describe for &dyn Predicate<Token> {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         write!(f, "single token matches ")?;
         self.describe(f)
@@ -43,10 +46,9 @@ pub trait Predicate<Token> {
 
     fn take<'src, I, Ext, R>(self, range: R) -> impl Pattern<'src, I, Ext>
     where
-        Self: Sized,
+        Self: Sized + Predicate<I::Token>,
         I: InputSlice<'src>,
         Ext: Extra<'src, I>,
-        Self: Predicate<I::Token>,
         R: URangeBounds,
     {
         primitive::Take {
@@ -58,10 +60,9 @@ pub trait Predicate<Token> {
 
     fn take0more<'src, I, Ext>(self) -> impl Pattern<'src, I, Ext>
     where
-        Self: Sized,
+        Self: Sized + Predicate<I::Token>,
         I: InputSlice<'src>,
         Ext: Extra<'src, I>,
-        Self: Predicate<I::Token>,
     {
         primitive::Take {
             pred: self,
@@ -72,10 +73,9 @@ pub trait Predicate<Token> {
 
     fn take1more<'src, I, Ext>(self) -> impl Pattern<'src, I, Ext>
     where
-        Self: Sized,
+        Self: Sized + Predicate<I::Token>,
         I: InputSlice<'src>,
         Ext: Extra<'src, I>,
-        Self: Predicate<I::Token>,
     {
         primitive::Take {
             pred: self,
@@ -85,8 +85,8 @@ pub trait Predicate<Token> {
     }
 }
 
-impl<T> Predicate<T> for ANY {
-    fn predicate(&self, item: &T) -> bool {
+impl<Token> Predicate<Token> for ANY {
+    fn predicate(&self, item: &Token) -> bool {
         #![allow(unused_variables)]
         true
     }
@@ -95,8 +95,8 @@ impl<T> Predicate<T> for ANY {
     }
 }
 
-impl<T: PartialEq + Debug> Predicate<T> for Just<T> {
-    fn predicate(&self, item: &T) -> bool {
+impl<Token: PartialEq + Debug> Predicate<Token> for Just<Token> {
+    fn predicate(&self, item: &Token) -> bool {
         self.0.eq(item)
     }
     fn describe(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
@@ -104,8 +104,8 @@ impl<T: PartialEq + Debug> Predicate<T> for Just<T> {
     }
 }
 
-impl<T, P: Predicate<T>> Predicate<T> for Except<P> {
-    fn predicate(&self, item: &T) -> bool {
+impl<Token, Pred: Predicate<Token>> Predicate<Token> for Except<Pred> {
+    fn predicate(&self, item: &Token) -> bool {
         !self.0.predicate(item)
     }
     fn describe(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
@@ -114,8 +114,8 @@ impl<T, P: Predicate<T>> Predicate<T> for Except<P> {
     }
 }
 
-impl<T, F: Fn(&T) -> bool> Predicate<T> for F {
-    fn predicate(&self, item: &T) -> bool {
+impl<Token, F: Fn(&Token) -> bool> Predicate<Token> for F {
+    fn predicate(&self, item: &Token) -> bool {
         self(item)
     }
     fn describe(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
@@ -123,8 +123,8 @@ impl<T, F: Fn(&T) -> bool> Predicate<T> for F {
     }
 }
 
-impl<T: PartialOrd + Debug> Predicate<T> for Range<T> {
-    fn predicate(&self, item: &T) -> bool {
+impl<Token: PartialOrd + Debug> Predicate<Token> for Range<Token> {
+    fn predicate(&self, item: &Token) -> bool {
         self.contains(item)
     }
     fn describe(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
@@ -132,8 +132,8 @@ impl<T: PartialOrd + Debug> Predicate<T> for Range<T> {
     }
 }
 
-impl<T: PartialOrd + Debug> Predicate<T> for RangeInclusive<T> {
-    fn predicate(&self, item: &T) -> bool {
+impl<Token: PartialOrd + Debug> Predicate<Token> for RangeInclusive<Token> {
+    fn predicate(&self, item: &Token) -> bool {
         self.contains(item)
     }
     fn describe(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
@@ -163,11 +163,11 @@ impl_predicate_for_primitives! {
 
 macro_rules! impl_predicate_for_tuple {
     ( $Len:literal, $($OrdN:literal ~ ($GenN:ident) ~ $_gen:ident ~ $_con:ident ~ $IdxN:tt)+ ) => {
-        impl<T, $($GenN),+> Predicate<T> for ($($GenN,)+)
+        impl<Token, $($GenN),+> Predicate<Token> for ($($GenN,)+)
         where
-          $($GenN: Predicate<T>,)+
+          $($GenN: Predicate<Token>,)+
         {
-            fn predicate(&self, item: &T) -> bool {
+            fn predicate(&self, item: &Token) -> bool {
                 impl_predicate_for_tuple!( @pred self item $($IdxN),+ )
             }
             fn describe(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
