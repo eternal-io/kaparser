@@ -57,13 +57,11 @@ pub trait InputSlice<'src>: Input<'src> {
     where
         'src: 'tmp;
 
-    fn discard_in_cursor<'tmp>(&'tmp mut self, start: Self::Cursor, end: Self::Cursor) -> &'tmp Self::Slice
+    fn discard_slice<'tmp>(&'tmp mut self, range: Range<Self::Cursor>) -> &'tmp Self::Slice
     where
         'src: 'tmp;
 
-    fn discard_in_length<'tmp>(&'tmp mut self, start: &mut Self::Cursor, length: usize) -> &'tmp Self::Slice
-    where
-        'src: 'tmp;
+    fn bump_cursor(cursor: Self::Cursor, length: usize) -> Self::Cursor;
 }
 
 pub trait InputByteSlice<'src>: InputSlice<'src> {
@@ -178,30 +176,19 @@ where
     }
 
     #[inline]
-    fn discard_in_cursor<'tmp>(&'tmp mut self, start: Self::Cursor, end: Self::Cursor) -> &'tmp Self::Slice
+    fn discard_slice<'tmp>(&'tmp mut self, range: Range<Self::Cursor>) -> &'tmp Self::Slice
     where
         'src: 'tmp,
     {
-        debug_assert!(self.is_item_boundary(start));
-        debug_assert!(self.is_item_boundary(end));
+        debug_assert!(self.is_item_boundary(range.start));
+        debug_assert!(self.is_item_boundary(range.end));
 
-        self.subslice(start..end)
+        self.subslice(range)
     }
 
     #[inline]
-    fn discard_in_length<'tmp>(&'tmp mut self, cursor: &mut Self::Cursor, length: usize) -> &'tmp Self::Slice
-    where
-        'src: 'tmp,
-    {
-        let start = *cursor;
-        let end = start + length;
-
-        debug_assert!(self.is_item_boundary(start));
-        debug_assert!(self.is_item_boundary(end));
-
-        *cursor = end;
-
-        self.subslice(start..end)
+    fn bump_cursor(cursor: Self::Cursor, length: usize) -> Self::Cursor {
+        cursor + length
     }
 }
 

@@ -1,10 +1,8 @@
-use crate::{
-    common::Describe,
-    error::{Error, ErrorKind},
-};
+use crate::{common::*, error::*, extra::*, input::*, pattern::*, primitive};
 use core::{
     any::type_name,
     fmt::{self, Debug},
+    marker::PhantomData,
     ops::{Range, RangeInclusive},
 };
 
@@ -27,8 +25,8 @@ impl<T> Describe for &dyn Predicate<T> {
     }
 }
 
-pub trait Predicate<T> {
-    fn predicate(&self, item: &T) -> bool;
+pub trait Predicate<Token> {
+    fn predicate(&self, item: &Token) -> bool;
 
     fn describe(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result;
 
@@ -39,8 +37,51 @@ pub trait Predicate<T> {
     {
         E::new(
             span,
-            ErrorKind::Expected(coerce_dyn! { self => Predicate<T> => Describe }),
+            ErrorKind::Expected(coerce_dyn! { self => Predicate<Token> => Describe }),
         )
+    }
+
+    fn take<'src, I, Ext, R>(self, range: R) -> impl Pattern<'src, I, Ext>
+    where
+        Self: Sized,
+        I: InputSlice<'src>,
+        Ext: Extra<'src, I>,
+        Self: Predicate<I::Token>,
+        R: URangeBounds,
+    {
+        primitive::Take {
+            pred: self,
+            range,
+            phantom: PhantomData,
+        }
+    }
+
+    fn take0more<'src, I, Ext>(self) -> impl Pattern<'src, I, Ext>
+    where
+        Self: Sized,
+        I: InputSlice<'src>,
+        Ext: Extra<'src, I>,
+        Self: Predicate<I::Token>,
+    {
+        primitive::Take {
+            pred: self,
+            range: ..,
+            phantom: PhantomData,
+        }
+    }
+
+    fn take1more<'src, I, Ext>(self) -> impl Pattern<'src, I, Ext>
+    where
+        Self: Sized,
+        I: InputSlice<'src>,
+        Ext: Extra<'src, I>,
+        Self: Predicate<I::Token>,
+    {
+        primitive::Take {
+            pred: self,
+            range: OneOrMore,
+            phantom: PhantomData,
+        }
     }
 }
 

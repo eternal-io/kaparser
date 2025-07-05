@@ -1,8 +1,58 @@
 use crate::{error::Error, predicate::*};
 use core::{
-    fmt,
-    ops::{Deref, DerefMut},
+    fmt::{self, Debug},
+    ops::{Deref, DerefMut, Range, RangeFrom, RangeFull, RangeInclusive, RangeTo, RangeToInclusive},
 };
+
+//------------------------------------------------------------------------------
+
+/// You can abbreviate `n..=n` to `n`.
+pub trait URangeBounds {
+    fn contains(&self, times: usize) -> bool;
+    fn unfulfilled(&self, times: usize) -> bool;
+}
+
+#[rustfmt::skip]
+mod urange_bounds {
+    use super::*;
+
+    impl URangeBounds for usize {
+        fn contains(&self, times: usize) -> bool { times == *self }
+        fn unfulfilled(&self, times: usize) -> bool { times < *self }
+    }
+    impl URangeBounds for RangeFull {
+        fn contains(&self, _t: usize) -> bool { true }
+        fn unfulfilled(&self, _t: usize) -> bool { true }
+    }
+    impl URangeBounds for RangeFrom<usize> {
+        fn contains(&self, times: usize) -> bool { self.contains(&times) }
+        fn unfulfilled(&self, _t: usize) -> bool { true }
+    }
+    impl URangeBounds for Range<usize> {
+        fn contains(&self, times: usize) -> bool { self.contains(&times) }
+        fn unfulfilled(&self, times: usize) -> bool { times + 1 < self.end }
+    }
+    impl URangeBounds for RangeTo<usize> {
+        fn contains(&self, times: usize) -> bool { self.contains(&times) }
+        fn unfulfilled(&self, times: usize) -> bool { times + 1 < self.end }
+    }
+    impl URangeBounds for RangeInclusive<usize> {
+        fn contains(&self, times: usize) -> bool { self.contains(&times) }
+        fn unfulfilled(&self, times: usize) -> bool { times < *self.end() }
+    }
+    impl URangeBounds for RangeToInclusive<usize> {
+        fn contains(&self, times: usize) -> bool { self.contains(&times) }
+        fn unfulfilled(&self, times: usize) -> bool { times < self.end }
+    }
+    impl URangeBounds for OneOrMore {
+        fn contains(&self, times: usize) -> bool { times >= 1 }
+        fn unfulfilled(&self, _t: usize) -> bool { true }
+    }
+}
+
+pub(crate) struct OneOrMore;
+
+//------------------------------------------------------------------------------
 
 pub struct PResult<T, E> {
     pub(crate) value: Option<T>,
@@ -170,7 +220,7 @@ pub trait Describe {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result;
 }
 
-impl fmt::Debug for &dyn Describe {
+impl Debug for &dyn Describe {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         (*self).fmt(f)
     }
