@@ -1,12 +1,10 @@
-use crate::{common::*, extra::*, input::*, private};
+use crate::{common::*, error::EmptyErr, extra::*, input::*, private};
 
-pub trait Parser<'src, I, Ext>
+pub trait Parser<'src, I, O, Ext = EmptyErr>
 where
     I: Input<'src>,
     Ext: Extra<'src, I>,
 {
-    type Output;
-
     #[doc(hidden)]
     fn __parse(
         &self,
@@ -15,7 +13,7 @@ where
         state: MaybeMut<Ext::State>,
         ctx: MaybeRef<Ext::Context>,
         _: private::Token,
-    ) -> PResult<(Self::Output, I::Cursor), Ext::Error>;
+    ) -> PResult<(O, I::Cursor), Ext::Error>;
 
     #[doc(hidden)]
     fn __check(
@@ -29,7 +27,7 @@ where
 
     //------------------------------------------------------------------------------
 
-    fn parse(&self, input: &mut I, start: I::Cursor) -> PResult<(Self::Output, I::Cursor), Ext::Error>
+    fn parse(&self, input: &mut I, start: I::Cursor) -> PResult<(O, I::Cursor), Ext::Error>
     where
         Ext::State: Default,
         Ext::Context: Default,
@@ -42,7 +40,7 @@ where
         input: &mut I,
         start: I::Cursor,
         state: &mut Ext::State,
-    ) -> PResult<(Self::Output, I::Cursor), Ext::Error>
+    ) -> PResult<(O, I::Cursor), Ext::Error>
     where
         Ext::Context: Default,
     {
@@ -55,7 +53,7 @@ where
         )
     }
 
-    fn fullmatch(&self, input: I) -> PResult<Self::Output, Ext::Error>
+    fn fullmatch(&self, input: I) -> PResult<O, Ext::Error>
     where
         Ext::State: Default,
         Ext::Context: Default,
@@ -63,7 +61,7 @@ where
         self.fullmatch_with_state(input, &mut Ext::State::default())
     }
 
-    fn fullmatch_with_state(&self, input: I, state: &mut Ext::State) -> PResult<Self::Output, Ext::Error>
+    fn fullmatch_with_state(&self, input: I, state: &mut Ext::State) -> PResult<O, Ext::Error>
     where
         Ext::Context: Default,
     {

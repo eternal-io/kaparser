@@ -36,7 +36,7 @@ where
 
     //------------------------------------------------------------------------------
 
-    fn captured(self) -> impl Parser<'src, I, Ext, Output = Self::View<'src>>
+    fn captured(self) -> impl Parser<'src, I, Self::View<'src>, Ext>
     where
         Self: Sized,
         I: StaticInput,
@@ -44,10 +44,10 @@ where
         converter::Captured { pattern: self }
     }
 
-    fn lift<F, Out>(self, mapper: F) -> impl Parser<'src, I, Ext, Output = Out>
+    fn lift<F, O>(self, mapper: F) -> impl Parser<'src, I, O, Ext>
     where
         Self: Sized,
-        F: for<'all> Fn(Self::View<'all>) -> Out,
+        F: for<'all> Fn(Self::View<'all>) -> O,
     {
         converter::Lift {
             pattern: self,

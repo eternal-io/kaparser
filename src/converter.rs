@@ -5,14 +5,12 @@ pub struct Captured<P> {
     pub(crate) pattern: P,
 }
 
-impl<'src, I, Ext, P> Parser<'src, I, Ext> for Captured<P>
+impl<'src, I, Ext, P> Parser<'src, I, P::View<'src>, Ext> for Captured<P>
 where
     I: Input<'src> + StaticInput,
     Ext: Extra<'src, I>,
     P: Pattern<'src, I, Ext>,
 {
-    type Output = P::View<'src>;
-
     fn __parse(
         &self,
         input: &mut I,
@@ -20,7 +18,7 @@ where
         state: MaybeMut<Ext::State>,
         ctx: MaybeRef<Ext::Context>,
         _: private::Token,
-    ) -> PResult<(Self::Output, I::Cursor), Ext::Error> {
+    ) -> PResult<(P::View<'src>, I::Cursor), Ext::Error> {
         self.pattern
             .__parse(input, start, state, ctx, private::Token)
             .raise_or_map(|(view, cur)| {
@@ -42,15 +40,13 @@ pub struct Lift<P, F, Out> {
     pub(crate) phantom: PhantomData<Out>,
 }
 
-impl<'src, I, Ext, P, F, Out> Parser<'src, I, Ext> for Lift<P, F, Out>
+impl<'src, I, Ext, P, F, O> Parser<'src, I, O, Ext> for Lift<P, F, O>
 where
     I: Input<'src>,
     Ext: Extra<'src, I>,
     P: Pattern<'src, I, Ext>,
-    F: for<'all> Fn(P::View<'all>) -> Out,
+    F: for<'all> Fn(P::View<'all>) -> O,
 {
-    type Output = Out;
-
     fn __parse(
         &self,
         input: &mut I,
@@ -58,7 +54,7 @@ where
         state: MaybeMut<Ext::State>,
         ctx: MaybeRef<Ext::Context>,
         _: private::Token,
-    ) -> PResult<(Self::Output, I::Cursor), Ext::Error> {
+    ) -> PResult<(O, I::Cursor), Ext::Error> {
         self.pattern
             .__parse(input, start, state, ctx, private::Token)
             .raise_or_map(|(view, cur)| ((self.mapper)(view), cur))
