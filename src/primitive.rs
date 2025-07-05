@@ -1,14 +1,15 @@
 use crate::{common::*, error::*, extra::*, input::*, pattern::*, predicate::*, private, slice::*};
 use core::{fmt, marker::PhantomData};
 
-pub(crate) struct Single<'a, Token, Pred>(&'a Pred, PhantomData<Token>);
+struct Single<'a, Token, Pred>(&'a Pred, PhantomData<Token>);
 
 impl<'a, Token, Pred> Describe for Single<'a, Token, Pred>
 where
     Pred: Predicate<Token>,
 {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        todo!()
+        write!(f, "a single token matches ")?;
+        self.0.describe(f)
     }
 }
 
@@ -130,13 +131,15 @@ pub struct Take<Token, Pred, R> {
     pub(crate) phantom: PhantomData<Token>,
 }
 
-impl<Token, Pred, R> Describe for &Take<Token, Pred, R>
+impl<Token, Pred, R> Describe for Take<Token, Pred, R>
 where
     Pred: Predicate<Token>,
     R: URangeBounds,
 {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        todo!()
+        self.range.describe(f)?;
+        write!(f, " tokens matches ")?;
+        self.pred.describe(f)
     }
 }
 
@@ -207,7 +210,7 @@ where
             } else if self.range.contains(times) {
                 return PResult::emit(end);
             } else {
-                return PResult::raise(Ext::Error::new(I::span(start..end), ErrorKind::Expected(&self)));
+                return PResult::raise(Ext::Error::new(I::span(start..end), ErrorKind::Expected(self)));
             }
         }
     }

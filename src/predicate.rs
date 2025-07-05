@@ -21,13 +21,6 @@ where
 
 //------------------------------------------------------------------------------
 
-impl<Token> Describe for &dyn Predicate<Token> {
-    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        write!(f, "single token matches ")?;
-        self.describe(f)
-    }
-}
-
 pub trait Predicate<Token> {
     fn predicate(&self, item: &Token) -> bool;
 
@@ -137,7 +130,7 @@ macro_rules! impl_predicate_for_primitives {
                 self.eq(item)
             }
             fn describe(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-                write!(f, "{:?}", self)
+                write!(f, "{}", self)
             }
         }
     )+ };

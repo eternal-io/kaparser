@@ -29,7 +29,7 @@ pub enum ErrorKind<'a> {
 impl<'a> Describe for ErrorKind<'a> {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         match self {
-            ErrorKind::Expected(pat) => write!(f, "expected {:?}", pat),
+            ErrorKind::Expected(pat) => write!(f, "expected {}", pat),
             ErrorKind::ExpectedEnd => write!(f, "expected end of input"),
             ErrorKind::Other(err) => write!(f, "error: {}", err),
 

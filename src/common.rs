@@ -1,6 +1,6 @@
 use crate::{error::Error, predicate::*};
 use core::{
-    fmt::{self, Debug},
+    fmt::{self, Display},
     ops::{Deref, DerefMut, Range, RangeFrom, RangeFull, RangeInclusive, RangeTo, RangeToInclusive},
 };
 
@@ -10,6 +10,7 @@ use core::{
 pub trait URangeBounds {
     fn contains(&self, times: usize) -> bool;
     fn unfulfilled(&self, times: usize) -> bool;
+    fn describe(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result;
 }
 
 #[rustfmt::skip]
@@ -19,34 +20,58 @@ mod urange_bounds {
     impl URangeBounds for usize {
         fn contains(&self, times: usize) -> bool { times == *self }
         fn unfulfilled(&self, times: usize) -> bool { times < *self }
+        fn describe(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+            write!(f, "{}", self)
+        }
     }
     impl URangeBounds for RangeFull {
         fn contains(&self, _t: usize) -> bool { true }
         fn unfulfilled(&self, _t: usize) -> bool { true }
+        fn describe(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+            write!(f, "0 or more")
+        }
     }
     impl URangeBounds for RangeFrom<usize> {
         fn contains(&self, times: usize) -> bool { self.contains(&times) }
         fn unfulfilled(&self, _t: usize) -> bool { true }
+        fn describe(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+            write!(f, "{} or more", self.start)
+        }
     }
     impl URangeBounds for Range<usize> {
         fn contains(&self, times: usize) -> bool { self.contains(&times) }
         fn unfulfilled(&self, times: usize) -> bool { times + 1 < self.end }
+        fn describe(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+            write!(f, "{} to {} (exclusive)", self.start, self.end)
+        }
     }
     impl URangeBounds for RangeTo<usize> {
         fn contains(&self, times: usize) -> bool { self.contains(&times) }
         fn unfulfilled(&self, times: usize) -> bool { times + 1 < self.end }
+        fn describe(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+            write!(f, "0 to {} (exclusive)", self.end)
+        }
     }
     impl URangeBounds for RangeInclusive<usize> {
         fn contains(&self, times: usize) -> bool { self.contains(&times) }
         fn unfulfilled(&self, times: usize) -> bool { times < *self.end() }
+        fn describe(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+            write!(f, "{} to {} (inclusive)", self.start(), self.end())
+        }
     }
     impl URangeBounds for RangeToInclusive<usize> {
         fn contains(&self, times: usize) -> bool { self.contains(&times) }
         fn unfulfilled(&self, times: usize) -> bool { times < self.end }
+        fn describe(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+            write!(f, "0 to {} (inclusive)", self.end)
+        }
     }
     impl URangeBounds for OneOrMore {
         fn contains(&self, times: usize) -> bool { times >= 1 }
         fn unfulfilled(&self, _t: usize) -> bool { true }
+        fn describe(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+            write!(f, "1 or more")
+        }
     }
 }
 
@@ -220,7 +245,7 @@ pub trait Describe {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result;
 }
 
-impl Debug for &dyn Describe {
+impl Display for &dyn Describe {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         (*self).fmt(f)
     }
