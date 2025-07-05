@@ -1,4 +1,4 @@
-use crate::{common::Describe, extra::Extra, input::Input};
+use crate::common::Describe;
 use core::{
     fmt::{self, Debug},
     ops::Range,
@@ -36,18 +36,6 @@ impl<'a> Describe for ErrorKind<'a> {
             ErrorKind::InvalidInput => write!(f, "invalid input"),
         }
     }
-}
-
-//------------------------------------------------------------------------------
-
-impl<'src, I, E> Extra<'src, I> for E
-where
-    I: Input<'src>,
-    E: Error,
-{
-    type Error = E;
-    type State = ();
-    type Context = ();
 }
 
 //------------------------------------------------------------------------------

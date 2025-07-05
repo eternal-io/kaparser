@@ -11,6 +11,25 @@ pub type Context<C> = Full<EmptyErr, (), C>;
 
 pub struct Full<E, S, C>(PhantomData<(E, S, C)>);
 
+pub trait Extra<'src, I>
+where
+    I: Input<'src>,
+{
+    type Error: Error;
+    type State: 'src;
+    type Context: 'src;
+}
+
+impl<'src, I, E> Extra<'src, I> for E
+where
+    I: Input<'src>,
+    E: Error,
+{
+    type Error = E;
+    type State = ();
+    type Context = ();
+}
+
 impl<'src, I, E, S, C> Extra<'src, I> for Full<E, S, C>
 where
     I: Input<'src>,
@@ -21,15 +40,6 @@ where
     type Error = E;
     type State = S;
     type Context = C;
-}
-
-pub trait Extra<'src, I>
-where
-    I: Input<'src>,
-{
-    type Error: Error;
-    type State: 'src;
-    type Context: 'src;
 }
 
 //------------------------------------------------------------------------------
