@@ -1,5 +1,5 @@
 use crate::{
-    common::{Describe, PResult},
+    common::Describe,
     error::{Error, ErrorKind},
 };
 use core::{
@@ -33,14 +33,14 @@ pub trait Predicate<T> {
     fn describe(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result;
 
     #[doc(hidden)]
-    fn raise<V, E: Error>(&self, span: Range<usize>) -> PResult<V, E>
+    fn report<E: Error>(&self, span: Range<usize>) -> E
     where
         Self: Sized,
     {
-        PResult::raise(E::new(
+        E::new(
             span,
             ErrorKind::Expected(coerce_dyn! { self => Predicate<T> => Describe }),
-        ))
+        )
     }
 }
 

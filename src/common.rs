@@ -92,6 +92,20 @@ impl<T, E> PResult<T, E> {
     }
 
     #[inline]
+    pub(crate) fn raise_or_and_then<F, U>(self, f: F) -> PResult<U, E>
+    where
+        F: FnOnce(T) -> Result<U, E>,
+    {
+        match self.into_result() {
+            Ok(val) => match f(val) {
+                Ok(val) => PResult::submit(val),
+                Err(e) => PResult::raise(e),
+            },
+            Err(e) => PResult::raise(e),
+        }
+    }
+
+    #[inline]
     pub(crate) fn map<F, U>(self, f: F) -> PResult<U, E>
     where
         F: FnOnce(T) -> U,
@@ -126,6 +140,26 @@ impl<T, E> PResult<T, E> {
         PResult {
             value: None,
             error: Some(error),
+        }
+    }
+}
+
+impl<T, E> PResult<Option<T>, E> {
+    #[inline]
+    pub(crate) fn flatten(self) -> PResult<T, E> {
+        PResult {
+            value: self.value.flatten(),
+            error: self.error,
+        }
+    }
+}
+
+impl<T, E> From<Result<T, E>> for PResult<T, E> {
+    #[inline]
+    fn from(res: Result<T, E>) -> Self {
+        match res {
+            Ok(val) => Self::submit(val),
+            Err(e) => Self::raise(e),
         }
     }
 }
