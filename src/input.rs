@@ -1,6 +1,7 @@
 use crate::{common::*, error::*, slice::*};
 use core::ops::Range;
 
+// TODO: In other words, they are inputs that do not need to be mutated when getting a slice or item.
 pub unsafe trait StaticInput {}
 
 pub trait Input<'src>: 'src {

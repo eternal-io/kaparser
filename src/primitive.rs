@@ -1,4 +1,4 @@
-use crate::{common::*, error::*, extra::*, input::*, pattern::*, predicate::*, private};
+use crate::{common::*, extra::*, input::*, pattern::*, predicate::*, private};
 
 impl<'src, I, Ext, P> Pattern<'src, I, Ext> for [P; 1]
 where
@@ -47,16 +47,12 @@ where
             Err(e) => PResult::raise(e),
             Ok(opt) => {
                 if let Some(token) = opt {
-                    if token.predicate(&self[0]) {
+                    if token.verify_by(&self[0]) {
                         return PResult::submit(end);
                     }
                 }
 
-                let desc = dyn_coerce! { self[0] => Predicate<I::Token> => Describe };
-                let kind = ErrorKind::Expected(desc);
-                let span = I::span(start..end);
-
-                PResult::raise(Ext::Error::new(span, kind))
+                self[0].raise(I::span(start..end))
             }
         }
     }

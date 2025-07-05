@@ -1,14 +1,16 @@
+use crate::{
+    common::{Describe, PResult},
+    error::{Error, ErrorKind},
+};
 use core::{
     any::type_name,
     fmt::{self, Debug},
     ops::{Range, RangeInclusive},
 };
 
-use crate::common::Describe;
-
 pub struct ANY;
 
-pub struct Just<T>(pub T);
+pub struct Just<T: PartialEq + Debug>(pub T);
 
 pub struct Except<P>(P);
 
@@ -29,6 +31,17 @@ pub trait Predicate<T> {
     fn predicate(&self, item: &T) -> bool;
 
     fn describe(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result;
+
+    #[doc(hidden)]
+    fn raise<V, E: Error>(&self, span: Range<usize>) -> PResult<V, E>
+    where
+        Self: Sized,
+    {
+        PResult::raise(E::new(
+            span,
+            ErrorKind::Expected(coerce_dyn! { self => Predicate<T> => Describe }),
+        ))
+    }
 }
 
 impl<T> Predicate<T> for ANY {

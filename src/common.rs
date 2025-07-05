@@ -145,7 +145,7 @@ impl fmt::Debug for &dyn Describe {
 //------------------------------------------------------------------------------
 
 pub trait RefVal<'tmp, T: 'tmp> {
-    fn predicate<P: Predicate<T>>(&self, pred: &P) -> bool;
+    fn verify_by<P: Predicate<T>>(&self, pred: &P) -> bool;
 
     fn as_ref(&self) -> &T;
 
@@ -155,7 +155,7 @@ pub trait RefVal<'tmp, T: 'tmp> {
 }
 
 impl<'tmp, T: 'tmp> RefVal<'tmp, T> for &'tmp T {
-    fn predicate<P: Predicate<T>>(&self, pred: &P) -> bool {
+    fn verify_by<P: Predicate<T>>(&self, pred: &P) -> bool {
         pred.predicate(self)
     }
 
@@ -172,7 +172,7 @@ impl<'tmp, T: 'tmp> RefVal<'tmp, T> for &'tmp T {
 }
 
 impl<'tmp, T: 'tmp> RefVal<'tmp, T> for T {
-    fn predicate<P: Predicate<T>>(&self, pred: &P) -> bool {
+    fn verify_by<P: Predicate<T>>(&self, pred: &P) -> bool {
         pred.predicate(self)
     }
 
@@ -277,13 +277,13 @@ impl<'a, T> From<&'a mut T> for MaybeMut<'a, T> {
 
 //------------------------------------------------------------------------------
 
-macro_rules! dyn_coerce {
-    ( $expr:expr $(=> $trait:path)* ) => {
-        dyn_coerce! { @ $expr $(=> $trait)* }
+macro_rules! coerce_dyn {
+    (   $expr:expr => $trait:path $(=> $traits:path)* ) => {
+        coerce_dyn! { @  $expr as &dyn $trait $(=> $traits)* }
     };
 
     ( @ $expr:expr => $trait:path $(=> $traits:path)* ) => {
-        dyn_coerce! { @ &$expr as &dyn $trait $(=> $traits)* }
+        coerce_dyn! { @ &$expr as &dyn $trait $(=> $traits)* }
     };
 
     ( @ $expr:expr ) => { $expr };

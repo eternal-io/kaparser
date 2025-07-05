@@ -21,18 +21,14 @@ where
         ctx: MaybeRef<Ext::Context>,
         _: private::Token,
     ) -> PResult<(Self::Output, I::Cursor), Ext::Error> {
-        let PResult { value, error } = self.pattern.__parse(input, start, state, ctx, private::Token);
-
-        PResult {
-            value: value.map(|(view, cur)| {
+        self.pattern
+            .__parse(input, start, state, ctx, private::Token)
+            .raise_or_map(|(view, cur)| {
                 // SAFETY:
                 // This converter only works for inputs that marked as `StaticInput`,
                 // which ensures `'tmp` outlives `'src`, therefore the lifetime can be safely extended.
-                // In other words, they are inputs that do not need to be mutated when getting a slice or item.
                 (unsafe { core::mem::transmute::<P::View<'_>, P::View<'src>>(view) }, cur)
-            }),
-            error,
-        }
+            })
     }
 
     __forward_check!(pattern);
@@ -63,12 +59,9 @@ where
         ctx: MaybeRef<Ext::Context>,
         _: private::Token,
     ) -> PResult<(Self::Output, I::Cursor), Ext::Error> {
-        let PResult { value, error } = self.pattern.__parse(input, start, state, ctx, private::Token);
-
-        PResult {
-            value: value.map(|(view, cur)| ((self.mapper)(view), cur)),
-            error,
-        }
+        self.pattern
+            .__parse(input, start, state, ctx, private::Token)
+            .raise_or_map(|(view, cur)| ((self.mapper)(view), cur))
     }
 
     __forward_check!(pattern);
