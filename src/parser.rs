@@ -55,7 +55,7 @@ where
         )
     }
 
-    fn fullmatch(&self, input: &mut I) -> PResult<Self::Output, Ext::Error>
+    fn fullmatch(&self, input: I) -> PResult<Self::Output, Ext::Error>
     where
         Ext::State: Default,
         Ext::Context: Default,
@@ -63,13 +63,16 @@ where
         self.fullmatch_with_state(input, &mut Ext::State::default())
     }
 
-    fn fullmatch_with_state(&self, input: &mut I, state: &mut Ext::State) -> PResult<Self::Output, Ext::Error>
+    fn fullmatch_with_state(&self, input: I, state: &mut Ext::State) -> PResult<Self::Output, Ext::Error>
     where
         Ext::Context: Default,
     {
+        let mut i = input;
+        let input = &mut i;
+        let start = input.begin();
         self.__parse(
             input,
-            input.begin(),
+            start,
             state.into(),
             Ext::Context::default().into(),
             private::Token,
@@ -77,7 +80,7 @@ where
         .verify_map(|(cap, cur)| (cap, input.shall_reached_end(cur)))
     }
 
-    fn fullcheck(&self, input: &mut I) -> Result<(), Ext::Error>
+    fn fullcheck(&self, input: I) -> Result<(), Ext::Error>
     where
         Ext::State: Default,
         Ext::Context: Default,
@@ -85,13 +88,16 @@ where
         self.fullcheck_with_state(input, &mut Ext::State::default())
     }
 
-    fn fullcheck_with_state(&self, input: &mut I, state: &mut Ext::State) -> Result<(), Ext::Error>
+    fn fullcheck_with_state(&self, input: I, state: &mut Ext::State) -> Result<(), Ext::Error>
     where
         Ext::Context: Default,
     {
+        let mut i = input;
+        let input = &mut i;
+        let start = input.begin();
         self.__check(
             input,
-            input.begin(),
+            start,
             state.into(),
             Ext::Context::default().into(),
             private::Token,
