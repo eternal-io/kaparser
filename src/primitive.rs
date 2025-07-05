@@ -188,7 +188,7 @@ where
             if !eof && self.range.unfulfilled(times) {
                 continue;
             } else if self.range.contains(times) {
-                return PResult::submit(end);
+                return PResult::emit(end);
             } else {
                 return PResult::raise(Ext::Error::new(I::span(start..end), ErrorKind::Expected(&self)));
             }

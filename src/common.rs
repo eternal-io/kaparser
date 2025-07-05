@@ -136,7 +136,7 @@ impl<T, E> PResult<T, E> {
         F: FnOnce(T) -> U,
     {
         match self.into_result() {
-            Ok(val) => PResult::submit(f(val)),
+            Ok(val) => PResult::emit(f(val)),
             Err(e) => PResult::raise(e),
         }
     }
@@ -148,7 +148,7 @@ impl<T, E> PResult<T, E> {
     {
         match self.into_result() {
             Ok(val) => match f(val) {
-                Ok(val) => PResult::submit(val),
+                Ok(val) => PResult::emit(val),
                 Err(e) => PResult::raise(e),
             },
             Err(e) => PResult::raise(e),
@@ -178,7 +178,7 @@ impl<T, E> PResult<T, E> {
     }
 
     #[inline]
-    pub(crate) fn submit(value: T) -> PResult<T, E> {
+    pub(crate) fn emit(value: T) -> PResult<T, E> {
         PResult {
             value: Some(value),
             error: None,
@@ -208,7 +208,7 @@ impl<T, E> From<Result<T, E>> for PResult<T, E> {
     #[inline]
     fn from(res: Result<T, E>) -> Self {
         match res {
-            Ok(val) => Self::submit(val),
+            Ok(val) => Self::emit(val),
             Err(e) => Self::raise(e),
         }
     }
