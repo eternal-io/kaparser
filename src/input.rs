@@ -40,10 +40,14 @@ pub trait Input<'src>: 'src {
 
 pub trait InputOwnableToken<'src>: Input<'src> {
     fn get_owned(&self, cursor: Self::Cursor) -> Option<Self::Token>;
+
+    fn iter_owned(&self, range: Range<Self::Cursor>) -> impl Iterator<Item = Self::Token>;
 }
 
 pub trait InputBorrowableToken<'src>: Input<'src> {
     fn get_borrowed(&self, cursor: Self::Cursor) -> Option<&'src Self::Token>;
+
+    fn iter_borrowed(&self, range: Range<Self::Cursor>) -> impl Iterator<Item = &'src Self::Token>;
 }
 
 pub trait InputSlice<'src>: Input<'src> {
@@ -57,7 +61,7 @@ pub trait InputSlice<'src>: Input<'src> {
     where
         'src: 'tmp;
 
-    fn discard_slice<'tmp>(&'tmp mut self, range: Range<Self::Cursor>) -> &'tmp Self::Slice
+    fn release_slice<'tmp>(&'tmp mut self, range: Range<Self::Cursor>) -> &'tmp Self::Slice
     where
         'src: 'tmp;
 
@@ -133,7 +137,7 @@ where
         Ok(self
             .after(*cursor)
             .first()
-            .inspect(|item| *cursor += self.len_of(item.as_ref())))
+            .inspect(|item| *cursor += S::len_of(item.as_ref())))
     }
 
     #[inline]
@@ -176,7 +180,7 @@ where
     }
 
     #[inline]
-    fn discard_slice<'tmp>(&'tmp mut self, range: Range<Self::Cursor>) -> &'tmp Self::Slice
+    fn release_slice<'tmp>(&'tmp mut self, range: Range<Self::Cursor>) -> &'tmp Self::Slice
     where
         'src: 'tmp,
     {
@@ -200,10 +204,18 @@ where
     fn get_owned(&self, cursor: Self::Cursor) -> Option<Self::Token> {
         self.after(cursor).first().map(|item| item.cloned())
     }
+
+    fn iter_owned(&self, range: Range<Self::Cursor>) -> impl Iterator<Item = Self::Token> {
+        self.subslice(range).iter().map(|item| item.cloned())
+    }
 }
 
 impl<'src, T> InputBorrowableToken<'src> for &'src [T] {
     fn get_borrowed(&self, cursor: Self::Cursor) -> Option<&'src Self::Token> {
         self.get(cursor)
+    }
+
+    fn iter_borrowed(&self, range: Range<Self::Cursor>) -> impl Iterator<Item = &'src Self::Token> {
+        self.subslice(range).iter()
     }
 }

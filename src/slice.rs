@@ -7,16 +7,18 @@ pub trait Slice<'src>: 'src {
     where
         'src: 'tmp;
 
+    const ITEM_HAS_FIXED_LENGTH_1: bool;
+
     fn len(&self) -> usize;
-    fn len_of(&self, item: &Self::Item) -> usize;
+    fn len_of(item: &Self::Item) -> usize;
 
     fn subslice(&self, range: Range<usize>) -> &Self;
     fn split_at(&self, mid: usize) -> (&Self, &Self);
 
-    fn iter<'tmp>(&'tmp self) -> impl DoubleEndedIterator<Item = Self::ItemMaybe<'tmp>>
+    fn iter<'tmp>(&'tmp self) -> impl Iterator<Item = Self::ItemMaybe<'tmp>>
     where
         'src: 'tmp;
-    fn iter_indices<'tmp>(&'tmp self) -> impl DoubleEndedIterator<Item = (usize, Self::ItemMaybe<'tmp>)>
+    fn iter_indices<'tmp>(&'tmp self) -> impl Iterator<Item = (usize, Self::ItemMaybe<'tmp>)>
     where
         'src: 'tmp;
 
@@ -52,12 +54,14 @@ impl<'src> Slice<'src> for str {
     where
         'src: 'tmp;
 
+    const ITEM_HAS_FIXED_LENGTH_1: bool = false;
+
     #[inline]
     fn len(&self) -> usize {
         (*self).len()
     }
     #[inline]
-    fn len_of(&self, item: &Self::Item) -> usize {
+    fn len_of(item: &Self::Item) -> usize {
         item.len_utf8()
     }
 
@@ -71,14 +75,14 @@ impl<'src> Slice<'src> for str {
     }
 
     #[inline]
-    fn iter<'tmp>(&'tmp self) -> impl DoubleEndedIterator<Item = Self::ItemMaybe<'tmp>>
+    fn iter<'tmp>(&'tmp self) -> impl Iterator<Item = Self::ItemMaybe<'tmp>>
     where
         'src: 'tmp,
     {
         (*self).chars()
     }
     #[inline]
-    fn iter_indices<'tmp>(&'tmp self) -> impl DoubleEndedIterator<Item = (usize, Self::ItemMaybe<'tmp>)>
+    fn iter_indices<'tmp>(&'tmp self) -> impl Iterator<Item = (usize, Self::ItemMaybe<'tmp>)>
     where
         'src: 'tmp,
     {
@@ -98,12 +102,14 @@ impl<'src, T: 'src> Slice<'src> for [T] {
     where
         'src: 'tmp;
 
+    const ITEM_HAS_FIXED_LENGTH_1: bool = true;
+
     #[inline]
     fn len(&self) -> usize {
         (*self).len()
     }
     #[inline]
-    fn len_of(&self, item: &Self::Item) -> usize {
+    fn len_of(item: &Self::Item) -> usize {
         #![allow(unused_variables)]
         1
     }
@@ -118,14 +124,14 @@ impl<'src, T: 'src> Slice<'src> for [T] {
     }
 
     #[inline]
-    fn iter<'tmp>(&'tmp self) -> impl DoubleEndedIterator<Item = Self::ItemMaybe<'tmp>>
+    fn iter<'tmp>(&'tmp self) -> impl Iterator<Item = Self::ItemMaybe<'tmp>>
     where
         'src: 'tmp,
     {
         (*self).iter()
     }
     #[inline]
-    fn iter_indices<'tmp>(&'tmp self) -> impl DoubleEndedIterator<Item = (usize, Self::ItemMaybe<'tmp>)>
+    fn iter_indices<'tmp>(&'tmp self) -> impl Iterator<Item = (usize, Self::ItemMaybe<'tmp>)>
     where
         'src: 'tmp,
     {
